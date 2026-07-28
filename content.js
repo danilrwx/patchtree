@@ -15,7 +15,6 @@ const LANG_BY_EXT = {
   json: "json",
   yaml: "yaml",
   yml: "yaml",
-  tpl: "yaml",
   c: "c",
   h: "c",
   rs: "rust",
@@ -48,6 +47,16 @@ function langFor(path) {
   const base = path.split("/").pop();
   const ext = base.includes(".") ? base.split(".").pop().toLowerCase() : "";
   return LANG_BY_EXT[ext] || null;
+}
+
+// Helm/Go templates: .tpl is always a template; a .yaml/.yml carrying
+// {{ … }} actions is highlighted as a template too (yaml text stays plain,
+// the actions get colored), everything else keeps its yaml highlighting.
+function resolveLang(path, text) {
+  if (/\.tpl$/i.test(path || "")) return "gotmpl";
+  const base = langFor(path);
+  if (base === "yaml" && /\{\{.*?\}\}/s.test(text || "")) return "gotmpl";
+  return base;
 }
 
 function parseDiff(text) {
@@ -584,6 +593,7 @@ function buildFileView(file) {
   if (split) section.appendChild(split);
   view.cells = cells;
   view.texts = { old: oldParts.join("\n"), new: newParts.join("\n") };
+  view.lang = resolveLang(path, view.texts.new + "\n" + view.texts.old);
   return view;
 }
 

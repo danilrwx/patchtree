@@ -26,6 +26,7 @@ SOURCES=(
   "lua $RAW/tree-sitter-grammars/tree-sitter-lua/v0.4.1/queries/highlights.scm"
   "toml $RAW/tree-sitter-grammars/tree-sitter-toml/v0.7.0/queries/highlights.scm"
   "hcl $RAW/helix-editor/helix/25.07.1/runtime/queries/hcl/highlights.scm"
+  "gotmpl $RAW/ngalaiko/tree-sitter-go-template/aa71f63de226c5592dfbfc1f29949522d7c95fac/queries/highlights.scm"
 )
 
 if [ "${FORCE:-}" != "1" ]; then

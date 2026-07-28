@@ -20,9 +20,9 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 - **Word-level diff**: changed words inside modified line pairs get a
   stronger tint (LCS over tokens), layered under syntax colors.
 - **Syntax highlighting** with real parsers (web-tree-sitter, wasm, run in
-  the background worker): go, js/ts/tsx, python, bash, json, yaml (+helm
-  `.tpl` as yaml), rust, c, c++, java, ruby, php, c#, lua, toml,
-  hcl/terraform, css, html.
+  the background worker): go, js/ts/tsx, python, bash, json, yaml, rust,
+  c, c++, java, ruby, php, c#, lua, toml, hcl/terraform, css, html, and
+  Helm/Go templates (`.tpl`, and any `.yaml` containing `{{ … }}` actions).
 - **Expand hidden lines** between hunks (fetched from the repository at
   the head revision, highlighted and commentable) or the **Full file**
   toggle per file.
