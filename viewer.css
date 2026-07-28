@@ -631,6 +631,18 @@ html.pt-on {
 .pt-fold {
   color: var(--pt-muted);
   user-select: none;
+  display: flex;
+  align-items: center;
+  align-self: center;
+}
+
+.pt-fold svg {
+  transform: rotate(90deg);
+  transition: transform 0.12s;
+}
+
+.pt-folded .pt-fold svg {
+  transform: rotate(0);
 }
 
 .pt-viewed {
@@ -684,6 +696,11 @@ html.pt-on {
   padding: 2px 12px;
   font: calc(var(--pt-ui-size, 13px) - 2px)/1.6 var(--pt-ui);
   user-select: none;
+}
+
+.pt-expander svg {
+  vertical-align: text-bottom;
+  margin-right: 4px;
 }
 
 .pt-expander td:hover {
@@ -804,6 +821,9 @@ html.pt-on {
 .pt-note.pt-resolved { opacity: 0.55; }
 
 .pt-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
   padding: 3px 10px;
   border: 1px solid var(--pt-border);
@@ -981,15 +1001,15 @@ html.pt-on {
 }
 
 .pt-md-bar button {
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
-  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  padding: 4px 7px;
   margin: 0;
   border: 1px solid transparent;
   border-radius: 4px;
   background: none;
   color: var(--pt-muted);
   cursor: pointer;
-  white-space: nowrap;
 }
 
 .pt-md-bar button:hover {
@@ -997,10 +1017,6 @@ html.pt-on {
   color: var(--pt-fg);
   border-color: var(--pt-border);
 }
-
-.pt-md-h, .pt-md-b { font-weight: 700 !important; }
-.pt-md-i { font-style: italic; font-family: Georgia, serif !important; }
-.pt-md-code, .pt-md-sug { font-family: var(--pt-mono) !important; }
 
 .pt-review-panel .pt-md-bar { max-width: none; }
 

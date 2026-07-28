@@ -335,27 +335,28 @@
   function mdToolbar(ta, suggestionText) {
     const bar = document.createElement("div");
     bar.className = "pt-md-bar";
-    const add = (label, title, cls, fn) => {
+    const icons = window.ptIcons || {};
+    const add = (icon, title, cls, fn) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = label;
+      b.innerHTML = icons[icon] || icon;
       b.title = title;
       b.className = cls;
       b.addEventListener("click", fn);
       bar.appendChild(b);
     };
-    add("H", "Heading", "pt-md-h", () => prefixLines(ta, () => "### "));
-    add("B", "Bold", "pt-md-b", () => surround(ta, "**"));
-    add("I", "Italic", "pt-md-i", () => surround(ta, "_"));
-    add("<>", "Code", "pt-md-code", () => {
+    add("heading", "Heading", "pt-md-h", () => prefixLines(ta, () => "### "));
+    add("bold", "Bold", "pt-md-b", () => surround(ta, "**"));
+    add("italic", "Italic", "pt-md-i", () => surround(ta, "_"));
+    add("code", "Code", "pt-md-code", () => {
       const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
       if (sel.includes("\n")) surround(ta, "```\n", "\n```");
       else surround(ta, "`");
     });
-    add("• —", "Bulleted list", "pt-md-ul", () => prefixLines(ta, () => "- "));
-    add("1. —", "Numbered list", "pt-md-ol", () => prefixLines(ta, (i) => `${i + 1}. `));
+    add("ul", "Bulleted list", "pt-md-ul", () => prefixLines(ta, () => "- "));
+    add("ol", "Numbered list", "pt-md-ol", () => prefixLines(ta, (i) => `${i + 1}. `));
     if (suggestionText != null)
-      add("±", "Insert suggestion", "pt-md-sug", () => {
+      add("diff", "Insert suggestion", "pt-md-sug", () => {
         const s = ta.selectionStart;
         const block = "```suggestion:-0+0\n" + suggestionText + "\n```\n";
         ta.setRangeText(block, s, ta.selectionEnd);
@@ -370,7 +371,7 @@
   function replyButton(discussionId, anchorTr, td) {
     const btn = document.createElement("button");
     btn.className = "pt-reply-btn";
-    btn.textContent = "Reply…";
+    btn.innerHTML = `${window.ptIcons?.reply || ""}<span>Reply…</span>`;
     btn.addEventListener("click", () => {
       if (td.querySelector(".pt-comment-form")) return;
       btn.style.display = "none";
@@ -482,8 +483,8 @@
   }
 
   function lineType(tr, side) {
-    if (side === "new") return tr.dataset.old ? null : "new";
-    return tr.dataset.new ? null : "old";
+    if (tr.dataset.ctx === "1") return null;
+    return side === "new" ? "new" : "old";
   }
 
   function onLineClick(e) {
@@ -536,8 +537,16 @@
             new_path: end.dataset.path,
             old_path: end.dataset.oldPath || end.dataset.path,
           };
-          if (end.dataset.new) position.new_line = +end.dataset.new;
-          if (end.dataset.old) position.old_line = +end.dataset.old;
+          // a paired replacement row carries both numbers pointing at DIFFERENT
+          // lines — only context rows may send both sides
+          if (end.dataset.ctx === "1") {
+            if (end.dataset.new) position.new_line = +end.dataset.new;
+            if (end.dataset.old) position.old_line = +end.dataset.old;
+          } else if (side === "old") {
+            position.old_line = +end.dataset.old;
+          } else {
+            position.new_line = +end.dataset.new;
+          }
           if (f.startTr !== end) {
             const sha = await sha1hex(end.dataset.path);
             const lc = (r) => `${sha}_${r.dataset.codeOld}_${r.dataset.codeNew}`;
@@ -569,7 +578,9 @@
   }
 
   function buildCommitSelect(bar) {
-    const { dd, sum, menu } = window.ptView.makeDropdown("All commits");
+    const { dd, sum, menu } = window.ptView.makeDropdown(
+      `${window.ptIcons?.commit || ""}<span class="pt-dd-label">All commits</span>`
+    );
     dd.id = "pt-commits";
     bar.prepend(dd);
     const items = [];
@@ -578,7 +589,8 @@
       dd.open = false;
       if (sha === currentCommit) return;
       currentCommit = sha;
-      sum.textContent = label.length > 44 ? label.slice(0, 43) + "…" : label;
+      sum.querySelector(".pt-dd-label").textContent =
+        label.length > 44 ? label.slice(0, 43) + "…" : label;
       for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
         let text = window.ptView.initialRaw;
