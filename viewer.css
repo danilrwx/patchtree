@@ -1129,7 +1129,6 @@ html.pt-on {
 
 .pt-note-body {
   margin-top: 4px;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: var(--pt-ui);
 }
