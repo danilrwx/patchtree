@@ -106,6 +106,11 @@
     } catch {
       html = `<p>${esc(text).replace(/\n/g, "<br>")}</p>`;
     }
+    // GitLab's markdown API emits whitespace-only <p> for blank source lines,
+    // which CSS :empty can't target — drop them and trailing breaks
+    html = html
+      .replace(/<p>\s*<\/p>/g, "")
+      .replace(/(<br\s*\/?>\s*)+<\/(p|li)>/g, "</$2>");
     mdCache.set(text, html);
     return html;
   }
