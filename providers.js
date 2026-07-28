@@ -40,6 +40,7 @@ window.ptProvider = (() => {
 
     async function api(path, opts = {}) {
       const resp = await fetch(`${location.origin}/api/v4${path}`, {
+        cache: "no-store",
         ...opts,
         headers: headers(opts.body ? { "Content-Type": "application/json" } : {}),
       });
@@ -54,7 +55,7 @@ window.ptProvider = (() => {
       while (page) {
         const resp = await fetch(
           `${location.origin}/api/v4${path}&per_page=100&page=${page}`,
-          { headers: headers() }
+          { headers: headers(), cache: "no-store" }
         );
         if (!resp.ok) throw new Error(`${resp.status}`);
         out.push(...(await resp.json()));
@@ -318,6 +319,7 @@ window.ptProvider = (() => {
 
     async function api(path, opts = {}, accept) {
       const resp = await fetch(`${API}${path}`, {
+        cache: "no-store",
         ...opts,
         headers: headers(accept ? { Accept: accept } : {}),
       });
