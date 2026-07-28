@@ -140,6 +140,20 @@
   }
 
   let currentCommit = "";
+  let approvedByMe = false;
+  let approveEls = null;
+
+  function setApproved(v) {
+    approvedByMe = v;
+    const badge = document.getElementById("pt-approved");
+    if (badge) badge.hidden = !v;
+    if (approveEls) {
+      approveEls.b.textContent = v ? "Unapprove" : "Approve";
+      approveEls.small.textContent = v
+        ? "Revoke your approval of these changes."
+        : "Submit feedback and approve these changes.";
+    }
+  }
 
   function onLineClick(e) {
     const td = e.target.closest(".pt-no");
@@ -258,6 +272,8 @@
       txt.innerHTML = `<b>${label}</b><br><small>${hint}</small>`;
       lab.appendChild(txt);
       panel.appendChild(lab);
+      if (value === "approve")
+        approveEls = { b: txt.querySelector("b"), small: txt.querySelector("small") };
     }
 
     const submit = document.createElement("button");
@@ -276,9 +292,11 @@
             body: JSON.stringify({ body }),
           });
         const mode = panel.querySelector("input[name=pt-review-action]:checked").value;
-        if (mode === "approve")
-          await api(`/projects/${project}/merge_requests/${iid}/approve`, { method: "POST" });
-        else if (mode === "request")
+        if (mode === "approve") {
+          const ep = approvedByMe ? "unapprove" : "approve";
+          await api(`/projects/${project}/merge_requests/${iid}/${ep}`, { method: "POST" });
+          setApproved(!approvedByMe);
+        } else if (mode === "request")
           await graphql(
             `mutation($p: ID!, $iid: String!) {
                mergeRequestRequestChanges(input: {projectPath: $p, iid: $iid}) { errors }
@@ -288,7 +306,13 @@
         ta.value = "";
         dd.open = false;
         status(
-          mode === "approve" ? "approved" : mode === "request" ? "changes requested" : "comment posted"
+          mode === "approve"
+            ? approvedByMe
+              ? "approved"
+              : "approval revoked"
+            : mode === "request"
+              ? "changes requested"
+              : "comment posted"
         );
       } catch (err) {
         status(`review failed: ${err.message}`, true);
@@ -311,6 +335,12 @@
     const select = buildCommitSelect(bar);
     select.after(st);
 
+    const badge = document.createElement("span");
+    badge.id = "pt-approved";
+    badge.textContent = "✓ Approved by you";
+    badge.hidden = true;
+    select.after(badge);
+
     if (token) {
       buildReviewDropdown(bar);
     } else {
@@ -326,6 +356,16 @@
       document.title = `!${iid} ${mr.title}`;
     } catch (e) {
       status(`MR info unavailable: ${e.message}`, true);
+    }
+
+    try {
+      const [me, appr] = await Promise.all([
+        api("/user"),
+        api(`/projects/${project}/merge_requests/${iid}/approvals`),
+      ]);
+      setApproved(!!appr.approved_by?.some((a) => a.user?.id === me.id));
+    } catch {
+      // approvals may be unavailable (no auth, CE without approvals) — badge stays hidden
     }
 
     loadDiscussions().catch((e) => status(`discussions unavailable: ${e.message}`, true));

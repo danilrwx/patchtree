@@ -470,3 +470,9 @@ html.pt-on body {
 .pt-escape { color: var(--pt-escape); }
 .pt-label { color: var(--pt-label); }
 .pt-module, .pt-namespace { color: var(--pt-module); }
+
+#pt-approved {
+  color: #1a7f37;
+  font: 600 13px/20px system-ui, sans-serif;
+  align-self: center;
+}
