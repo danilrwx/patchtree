@@ -1302,7 +1302,7 @@ async function main() {
     }
     window.ptUpdateProgress?.();
   });
-  menuItem(gear.menu, "GitLab tokens…", () => {
+  menuItem(gear.menu, "Access tokens…", () => {
     gear.dd.open = false;
     chrome.runtime.sendMessage({ type: "openOptions" });
   });

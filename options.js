@@ -2,13 +2,16 @@
 "use strict";
 
 const list = document.getElementById("list");
+const ghToken = document.getElementById("gh-token");
 
 async function save() {
   const gitlabs = {};
   for (const tr of list.querySelectorAll("tr[data-row]")) {
     const [host, tok] = tr.querySelectorAll("input");
-    if (host.value.trim()) gitlabs[host.value.trim()] = { token: tok.value.trim() };
+    const h = host.value.trim();
+    if (h && h !== "github.com") gitlabs[h] = { token: tok.value.trim() };
   }
+  if (ghToken.value.trim()) gitlabs["github.com"] = { token: ghToken.value.trim() };
   await chrome.storage.sync.set({ gitlabs });
 }
 
@@ -31,8 +34,11 @@ function addRow(host = "", tok = "") {
 }
 
 document.getElementById("add").addEventListener("click", () => addRow());
+ghToken.addEventListener("change", save);
 
 chrome.storage.sync.get("gitlabs").then(({ gitlabs = {} }) => {
-  for (const [host, v] of Object.entries(gitlabs)) addRow(host, v.token || "");
-  if (Object.keys(gitlabs).length === 0) addRow();
+  ghToken.value = gitlabs["github.com"]?.token || "";
+  const rest = Object.entries(gitlabs).filter(([host]) => host !== "github.com");
+  for (const [host, v] of rest) addRow(host, v.token || "");
+  if (rest.length === 0) addRow();
 });

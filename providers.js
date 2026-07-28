@@ -18,7 +18,7 @@ window.ptProvider = (() => {
       kind: "gitlab",
       can: { resolve: true, drafts: true, applySuggestion: true, whitespace: true },
       token: null,
-      tokenHint: `no token for ${location.host} — set one in ⚙ options to review`,
+      tokenHint: `no token for ${location.host} — add one in ⚙ → Access tokens to review`,
       setRefs: (i) => (refs = i),
     };
 
@@ -296,7 +296,7 @@ window.ptProvider = (() => {
       kind: "github",
       can: { resolve: false, drafts: false, applySuggestion: false, whitespace: false },
       token: null,
-      tokenHint: "no GitHub token — add a github.com row in ⚙ options (PAT with repo scope)",
+      tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic PAT, repo scope)",
       setRefs: (i) => (refs = i),
     };
 
