@@ -191,14 +191,25 @@ async function expandGap(view, ex) {
     if (!window.ptView?.fetchFile) throw new Error("file contents unavailable here");
     const lines = await window.ptView.fetchFile(view.path);
     const to = Math.min(ex.newTo, lines.length);
+    const cellsArr = [];
     for (let n = ex.newFrom; n <= to; n++) {
       const o = ex.oldFrom + (n - ex.newFrom);
-      ex.u.before(ctxRowU(view.meta, o, n, lines[n - 1] ?? ""));
-      if (ex.s) ex.s.before(ctxRowS(view.meta, o, n, lines[n - 1] ?? ""));
+      const text = lines[n - 1] ?? "";
+      const u = ctxRowU(view.meta, o, n, text);
+      ex.u.before(u);
+      const tds = [u.cells[3]];
+      if (ex.s) {
+        const s = ctxRowS(view.meta, o, n, text);
+        ex.s.before(s);
+        tds.push(s.cells[1], s.cells[3]);
+      }
+      cellsArr.push({ tds, text });
     }
     ex.u.remove();
     ex.s?.remove();
     ex.done = true;
+    if (view.lang && cellsArr.length)
+      highlightSide(view.lang, cellsArr.map((c) => c.text).join("\n"), cellsArr);
   } catch (e) {
     ex.busy = false;
     ex.u.cells[0].textContent = `⚠ ${e.message}`;
@@ -254,6 +265,7 @@ function buildFileView(file) {
   header.appendChild(fullLab);
   fullCb.addEventListener("change", () => {
     section.classList.toggle("pt-exp-hide", !fullCb.checked);
+    section.classList.toggle("pt-hunks-hidden", fullCb.checked);
     if (fullCb.checked) for (const ex of view.expanders) expandGap(view, ex);
   });
 
@@ -757,7 +769,14 @@ async function main() {
   setRow("Theme", themeSel);
 
   // bundled faces report unloaded until first use, so fonts.check() is false for them
-  const BUNDLED_FONTS = new Set(["JetBrains Mono", "Inter"]);
+  const BUNDLED_FONTS = new Set([
+    "JetBrains Mono",
+    "Inter",
+    "JetBrainsMono Nerd Font Mono",
+    "FiraCode Nerd Font Mono",
+    "Hack Nerd Font Mono",
+    "MesloLGS Nerd Font Mono",
+  ]);
   const fontSelect = (key, candidates) => {
     const sel = document.createElement("select");
     sel.append(new Option("Default", ""));
@@ -784,10 +803,11 @@ async function main() {
   setRow(
     "Code font",
     fontSelect("codeFont", [
-      "JetBrains Mono", "SF Mono", "Menlo", "Monaco", "Consolas", "Fira Code",
-      "Cascadia Code", "Hack", "IBM Plex Mono", "Source Code Pro", "Iosevka",
-      "Iosevka NFM", "Berkeley Mono", "Victor Mono", "Geist Mono", "Commit Mono",
-      "MesloLGS NF", "Ubuntu Mono", "PT Mono",
+      "JetBrains Mono", "JetBrainsMono Nerd Font Mono", "FiraCode Nerd Font Mono",
+      "Hack Nerd Font Mono", "MesloLGS Nerd Font Mono", "SF Mono", "Menlo", "Monaco",
+      "Consolas", "Fira Code", "Cascadia Code", "Hack", "IBM Plex Mono",
+      "Source Code Pro", "Iosevka", "Iosevka NFM", "Berkeley Mono", "Victor Mono",
+      "Geist Mono", "Commit Mono", "MesloLGS NF", "Ubuntu Mono", "PT Mono",
     ])
   );
 

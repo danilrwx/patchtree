@@ -292,7 +292,10 @@
       for (const tr of trs) {
         const { row, td } = threadRow(tr, side, "pt-comments-row");
         insertAfter(tr, row);
-        Promise.all(notes.map((n) => renderNote(n, tr))).then((els) => td.append(...els));
+        Promise.all(notes.map((n) => renderNote(n, tr))).then((els) => {
+          td.append(...els);
+          if (token) td.appendChild(replyButton(d.id, tr, td));
+        });
       }
       shown++;
     }
@@ -358,6 +361,33 @@
         ta.selectionEnd = lineStart + suggestionText.length;
       });
     return bar;
+  }
+
+  function replyButton(discussionId, anchorTr, td) {
+    const btn = document.createElement("button");
+    btn.className = "pt-reply-btn";
+    btn.textContent = "Reply…";
+    btn.addEventListener("click", () => {
+      if (td.querySelector(".pt-comment-form")) return;
+      btn.style.display = "none";
+      const form = commentForm(
+        "Reply…",
+        async (body) => {
+          const note = await api(
+            `/projects/${project}/merge_requests/${iid}/discussions/${discussionId}/notes`,
+            { method: "POST", body: JSON.stringify({ body }) }
+          );
+          btn.before(await renderNote(note, anchorTr));
+          status("reply posted");
+        },
+        () => (btn.style.display = ""),
+        anchorTr?.dataset.new
+          ? [...anchorTr.querySelectorAll(".pt-code")].pop().textContent
+          : null
+      );
+      btn.before(form);
+    });
+    return btn;
   }
 
   function commentForm(placeholder, onSubmit, onClose, suggestionText) {

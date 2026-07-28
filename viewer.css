@@ -33,6 +33,62 @@
   src: url("chrome-extension://__MSG_@@extension_id__/fonts/InterVariable-Italic.woff2") format("woff2");
 }
 
+@font-face {
+  font-family: "JetBrainsMono Nerd Font Mono";
+  font-weight: 400;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/JetBrainsMonoNerdFontMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrainsMono Nerd Font Mono";
+  font-weight: 700;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/JetBrainsMonoNerdFontMono-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "FiraCode Nerd Font Mono";
+  font-weight: 400;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/FiraCodeNerdFontMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "FiraCode Nerd Font Mono";
+  font-weight: 700;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/FiraCodeNerdFontMono-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Hack Nerd Font Mono";
+  font-weight: 400;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/HackNerdFontMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Hack Nerd Font Mono";
+  font-weight: 700;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/HackNerdFontMono-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "MesloLGS Nerd Font Mono";
+  font-weight: 400;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/MesloLGSNerdFontMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "MesloLGS Nerd Font Mono";
+  font-weight: 700;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/MesloLGSNerdFontMono-Bold.woff2") format("woff2");
+}
+
 html.pt-on {
   --pt-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --pt-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -626,6 +682,10 @@ html.pt-on {
   display: none;
 }
 
+.pt-hunks-hidden .pt-hunk {
+  display: none;
+}
+
 .pt-hunk td {
   background: var(--pt-hunk-bg);
   color: var(--pt-hunk-fg);
@@ -730,6 +790,22 @@ html.pt-on {
 }
 
 .pt-note.pt-resolved { opacity: 0.55; }
+
+.pt-reply-btn {
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
+  padding: 3px 10px;
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  background: var(--pt-bg);
+  color: var(--pt-muted);
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+.pt-reply-btn:hover {
+  color: var(--pt-fg);
+  background: var(--pt-header-bg);
+}
 
 .pt-note-head {
   display: flex;
