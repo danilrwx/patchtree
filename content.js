@@ -301,6 +301,9 @@ function hunkRow(table, span, h) {
   td.textContent = `@@ -${h.oldStart} +${h.newStart} @@${h.context}`;
 }
 
+const GENERATED_RE =
+  /(^|\/)(go\.sum|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|composer\.lock|Gemfile\.lock|poetry\.lock)$|\.pb\.go$|zz_generated|\.generated\.|\.min\.(js|css)$|\.map$|(^|\/)vendor\//;
+
 function buildFileView(file) {
   const section = document.createElement("section");
   section.className = "pt-file";
@@ -317,14 +320,20 @@ function buildFileView(file) {
 
   const header = document.createElement("div");
   header.className = "pt-file-header";
+  const generated = GENERATED_RE.test(path);
   header.innerHTML =
     `<span class="pt-fold">${window.ptIcons.chevron}</span>` +
     `<span class="pt-path">${esc(path)}</span>` +
+    `<button class="pt-hbtn" title="Copy path">${window.ptIcons.copy}</button>` +
     (file.oldPath && file.newPath && file.oldPath !== file.newPath
       ? `<span class="pt-rename">← ${esc(file.oldPath)}</span>`
       : "") +
+    (generated ? `<span class="pt-gen-badge">generated</span>` : "") +
     `<span class="pt-stats"><span class="pt-adds">+${adds}</span> <span class="pt-dels">−${dels}</span></span>`;
   section.appendChild(header);
+  header.querySelector(".pt-hbtn").addEventListener("click", () => {
+    navigator.clipboard.writeText(path);
+  });
 
   const view = { section, path, adds, dels, cells: null, texts: null, lang: langFor(path) };
 
@@ -359,12 +368,15 @@ function buildFileView(file) {
     saveViewed();
     setFolded(viewedCb.checked);
     view.treeLink?.classList.toggle("pt-viewed-file", viewedCb.checked);
+    window.ptUpdateProgress?.();
   });
 
   header.addEventListener("click", (e) => {
-    if (e.target.closest(".pt-viewed") || e.target.closest(".pt-fullfile")) return;
+    if (e.target.closest(".pt-viewed, .pt-fullfile, .pt-hbtn, a")) return;
     setFolded(!section.classList.contains("pt-folded"));
   });
+
+  if (generated && !viewedCb.checked) setFolded(true);
   if (file.binary) {
     const p = document.createElement("div");
     p.className = "pt-binary";
@@ -647,7 +659,16 @@ window.ptIcons = {
     "M6.78 1.97a.75.75 0 0 1 0 1.06L3.81 6h6.44A4.75 4.75 0 0 1 15 10.75v2.5a.75.75 0 0 1-1.5 0v-2.5a3.25 3.25 0 0 0-3.25-3.25H3.81l2.97 2.97a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L1.97 7.78a.75.75 0 0 1 0-1.06l3.75-3.75a.751.751 0 0 1 1.06 0Z",
     12
   ),
+  check: octicon(
+    "M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z",
+    12
+  ),
 };
+
+window.ptIcons.copy =
+  '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
+window.ptIcons.external =
+  '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"/></svg>';
 
 function makeDropdown(labelHTML) {
   const dd = document.createElement("details");
@@ -738,10 +759,16 @@ function applySettings(s) {
   }
 }
 
-function applyTreeFilter(list, query) {
+function applyTreeFilter(list, query, views) {
   const q = query.trim().toLowerCase();
+  const contentMatch = new Set();
+  if (q.length >= 3 && views)
+    for (const v of views)
+      if (v.texts?.new.toLowerCase().includes(q) || v.texts?.old.toLowerCase().includes(q))
+        contentMatch.add(v.path.toLowerCase());
   for (const a of list.querySelectorAll(".pt-tree-file"))
-    a.style.display = !q || a.dataset.path.includes(q) ? "" : "none";
+    a.style.display =
+      !q || a.dataset.path.includes(q) || contentMatch.has(a.dataset.path) ? "" : "none";
   for (const det of [...list.querySelectorAll("details")].reverse()) {
     const visible = [...det.querySelectorAll(".pt-tree-file")].some((a) => a.style.display !== "none");
     det.style.display = visible ? "" : "none";
@@ -776,7 +803,7 @@ async function main() {
   treeList.id = "pt-tree-list";
   tree.append(filter, treeList);
   root.appendChild(tree);
-  filter.addEventListener("input", () => applyTreeFilter(treeList, filter.value));
+  filter.addEventListener("input", () => applyTreeFilter(treeList, filter.value, views));
 
   const splitter = document.createElement("div");
   splitter.id = "pt-splitter";
@@ -827,8 +854,9 @@ async function main() {
 
     views = parsed.files.map(buildFileView);
     treeList.appendChild(buildTree(views));
-    applyTreeFilter(treeList, filter.value);
+    applyTreeFilter(treeList, filter.value, views);
     for (const v of views) main.appendChild(v.section);
+    window.ptUpdateProgress?.();
 
     for (const v of views) {
       if (!v.cells || !v.lang) continue;
@@ -838,6 +866,15 @@ async function main() {
   }
 
   const { view: savedView = "unified" } = await chrome.storage.sync.get("view");
+
+  const progress = document.createElement("span");
+  progress.id = "pt-progress";
+  bar.appendChild(progress);
+  window.ptUpdateProgress = () => {
+    const done = views.filter((v) => viewedSet.has(v.path)).length;
+    progress.textContent = `${done}/${views.length} viewed`;
+    progress.classList.toggle("pt-done", done === views.length && views.length > 0);
+  };
 
   const seg = document.createElement("div");
   seg.className = "pt-seg";
@@ -1011,10 +1048,11 @@ async function main() {
   });
   menuItem(gear.menu, "Clear viewed", () => {
     gear.dd.open = false;
-    for (const cb of document.querySelectorAll(".pt-viewed input:checked")) {
+    for (const cb of document.querySelectorAll(".pt-viewed:not(.pt-fullfile) input:checked")) {
       cb.checked = false;
       cb.dispatchEvent(new Event("change"));
     }
+    window.ptUpdateProgress?.();
   });
   menuItem(gear.menu, "GitLab tokens…", () => {
     gear.dd.open = false;
@@ -1032,9 +1070,58 @@ async function main() {
   oldBody.appendChild(root);
   document.documentElement.classList.add("pt-on");
 
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+    const sections = views.map((v) => v.section).filter((s) => s.offsetParent);
+    const threads = [...document.querySelectorAll(".pt-comments-row")].filter((r) => r.offsetParent);
+    const top = (el) => el.getBoundingClientRect().top;
+    const currentIdx = (els) => {
+      let idx = -1;
+      for (let i = 0; i < els.length; i++) if (top(els[i]) <= 61) idx = i;
+      return idx;
+    };
+    const go = (el) => el && window.scrollTo({ top: window.scrollY + top(el) - 56 });
+    const cur = () => sections[Math.max(0, currentIdx(sections))];
+    switch (e.key) {
+      case "j":
+        go(sections[Math.min(sections.length - 1, currentIdx(sections) + 1)]);
+        break;
+      case "k":
+        go(sections[Math.max(0, currentIdx(sections) - 1)]);
+        break;
+      case "n":
+        go(threads[Math.min(threads.length - 1, currentIdx(threads) + 1)]);
+        break;
+      case "p":
+        go(threads[Math.max(0, currentIdx(threads) - 1)]);
+        break;
+      case "v":
+        cur()?.querySelector(".pt-viewed:not(.pt-fullfile) input")?.click();
+        break;
+      case "x":
+        cur()?.classList.toggle("pt-folded");
+        break;
+      case "/":
+        e.preventDefault();
+        filter.focus();
+        break;
+    }
+  });
+
   renderDiff(raw);
 
-  window.ptView = { bar, root, renderDiff, initialRaw: raw, makeDropdown, menuItem, esc };
+  window.ptView = {
+    bar,
+    root,
+    renderDiff,
+    initialRaw: raw,
+    makeDropdown,
+    menuItem,
+    esc,
+    addSettingRow: setRow,
+    addMenuItem: (html, fn) => menuItem(gear.menu, html, fn),
+  };
   window.dispatchEvent(new CustomEvent("pt-rendered"));
 }
 

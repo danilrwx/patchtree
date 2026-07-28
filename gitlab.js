@@ -10,6 +10,24 @@
   let token = null;
   let diffRefs = null;
   let me = null;
+  let drafts = [];
+  let lastDiscussions = [];
+  let unresolvedEl = null;
+  let reviewSum = null;
+
+  function updateReviewSummary() {
+    if (reviewSum)
+      reviewSum.textContent = drafts.length ? `Submit review (${drafts.length})` : "Submit review";
+  }
+
+  function updateUnresolved() {
+    if (!unresolvedEl) return;
+    const n = lastDiscussions.filter((d) => {
+      const first = (d.notes || []).find((x) => x.resolvable);
+      return first && !first.resolved;
+    }).length;
+    unresolvedEl.textContent = n ? `${n} unresolved` : "";
+  }
 
   function esc(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -95,12 +113,30 @@
     return parts;
   }
 
-  function suggestionWidget(part, anchorTr) {
+  function suggestionWidget(part, anchorTr, sugMeta) {
     const box = document.createElement("div");
     box.className = "pt-sug";
     const head = document.createElement("div");
     head.className = "pt-sug-head";
     head.textContent = "Suggested change";
+    if (sugMeta && token) {
+      const btn = document.createElement("button");
+      btn.className = "pt-apply";
+      btn.textContent = sugMeta.applied ? "Applied" : "Apply suggestion";
+      btn.disabled = sugMeta.applied || sugMeta.appliable === false;
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await api(`/projects/${project}/suggestions/${sugMeta.id}/apply`, { method: "PUT" });
+          btn.textContent = "Applied";
+          status("suggestion applied");
+        } catch (e) {
+          status(`apply failed: ${e.message}`, true);
+          btn.disabled = false;
+        }
+      });
+      head.appendChild(btn);
+    }
     box.appendChild(head);
     const table = document.createElement("table");
     table.className = "pt-sug-table";
@@ -144,8 +180,10 @@
 
     const paint = async () => {
       bodyEl.textContent = "";
+      let sugIdx = 0;
       for (const p of splitSuggestions(note.body || "")) {
-        if (p.sug !== undefined) bodyEl.appendChild(suggestionWidget(p, anchorTr));
+        if (p.sug !== undefined)
+          bodyEl.appendChild(suggestionWidget(p, anchorTr, note.suggestions?.[sugIdx++]));
         else {
           const md = document.createElement("div");
           md.className = "pt-md";
@@ -280,15 +318,77 @@
     tr.parentNode.insertBefore(el, tr.nextSibling);
   }
 
+  function threadActions(d, container, anchorTr) {
+    const wrap = document.createElement("div");
+    wrap.className = "pt-thread-actions";
+    wrap.appendChild(replyButton(d.id, anchorTr, container));
+    const first = (d.notes || []).find((n) => n.resolvable);
+    if (first) {
+      const btn = document.createElement("button");
+      btn.className = "pt-reply-btn";
+      const setLbl = () =>
+        (btn.innerHTML = `${window.ptIcons?.check || ""}<span>${first.resolved ? "Unresolve" : "Resolve"}</span>`);
+      setLbl();
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          const v = !first.resolved;
+          await api(
+            `/projects/${project}/merge_requests/${iid}/discussions/${d.id}?resolved=${v}`,
+            { method: "PUT" }
+          );
+          for (const n of d.notes) if (n.resolvable) n.resolved = v;
+          setLbl();
+          for (const el of container.querySelectorAll(".pt-note"))
+            el.classList.toggle("pt-resolved", v);
+          updateUnresolved();
+          status(v ? "thread resolved" : "thread unresolved");
+        } catch (e) {
+          status(`resolve failed: ${e.message}`, true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      wrap.appendChild(btn);
+    }
+    return wrap;
+  }
+
+  function renderGeneralThreads(general) {
+    const box = document.createElement("details");
+    box.id = "pt-mr-threads";
+    box.open = true;
+    const sum = document.createElement("summary");
+    sum.textContent = `MR discussion (${general.length})`;
+    box.appendChild(sum);
+    for (const { d, notes } of general) {
+      const t = document.createElement("div");
+      t.className = "pt-thread";
+      box.appendChild(t);
+      Promise.all(notes.map((n) => renderNote(n, null))).then((els) => {
+        t.append(...els);
+        if (token) t.appendChild(threadActions(d, t, null));
+      });
+    }
+    document.getElementById("pt-main").prepend(box);
+  }
+
   async function loadDiscussions() {
+    document.getElementById("pt-mr-threads")?.remove();
     const discussions = await apiPaged(
       `/projects/${project}/merge_requests/${iid}/discussions?order_by=created_at`
     );
+    lastDiscussions = discussions;
     let shown = 0;
+    const general = [];
     for (const d of discussions) {
       const notes = (d.notes || []).filter((n) => !n.system);
-      const pos = notes[0]?.position;
-      if (!pos || pos.position_type !== "text") continue;
+      if (!notes.length) continue;
+      const pos = notes[0].position;
+      if (!pos || pos.position_type !== "text") {
+        general.push({ d, notes });
+        continue;
+      }
       const path = pos.new_path || pos.old_path;
       const side = pos.new_line ? "new" : "old";
       const trs = rowsFor(path, pos.old_line, pos.new_line);
@@ -298,12 +398,88 @@
         insertAfter(tr, row);
         Promise.all(notes.map((n) => renderNote(n, tr))).then((els) => {
           td.append(...els);
-          if (token) td.appendChild(replyButton(d.id, tr, td));
+          if (token) td.appendChild(threadActions(d, td, tr));
         });
       }
       shown++;
     }
+    if (general.length) renderGeneralThreads(general);
+    updateUnresolved();
     if (shown) status(`${shown} thread(s) loaded`);
+  }
+
+  function refreshThreads() {
+    document.getElementById("pt-mr-threads")?.remove();
+    for (const r of document.querySelectorAll(".pt-comments-row")) r.remove();
+    loadDiscussions().catch((e) => status(`discussions unavailable: ${e.message}`, true));
+    loadDrafts();
+  }
+
+  function renderDraft(draft, anchorTr) {
+    const div = document.createElement("div");
+    div.className = "pt-note pt-pending";
+    const head = document.createElement("div");
+    head.className = "pt-note-head";
+    head.innerHTML =
+      `<span class="pt-note-author">${esc(me?.name || "You")}</span>` +
+      `<span class="pt-badge-pending">Pending</span>`;
+    const delBtn = document.createElement("button");
+    delBtn.className = "pt-draft-del";
+    delBtn.textContent = "discard";
+    delBtn.addEventListener("click", async () => {
+      try {
+        await api(`/projects/${project}/merge_requests/${iid}/draft_notes/${draft.id}`, {
+          method: "DELETE",
+        });
+        drafts = drafts.filter((x) => x.id !== draft.id);
+        updateReviewSummary();
+        div.remove();
+        status("draft discarded");
+      } catch (e) {
+        status(`discard failed: ${e.message}`, true);
+      }
+    });
+    head.appendChild(delBtn);
+    div.appendChild(head);
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "pt-note-body";
+    div.appendChild(bodyEl);
+    (async () => {
+      for (const p of splitSuggestions(draft.note || "")) {
+        if (p.sug !== undefined) bodyEl.appendChild(suggestionWidget(p, anchorTr));
+        else {
+          const md = document.createElement("div");
+          md.className = "pt-md";
+          md.innerHTML = await renderMarkdown(p.md);
+          bodyEl.appendChild(md);
+        }
+      }
+    })();
+    return div;
+  }
+
+  function addDraftRow(draft, tr, side) {
+    const { row, td } = threadRow(tr, side, "pt-comments-row");
+    insertAfter(tr, row);
+    td.appendChild(renderDraft(draft, tr));
+  }
+
+  async function loadDrafts() {
+    if (!token) return;
+    try {
+      const list = await apiPaged(`/projects/${project}/merge_requests/${iid}/draft_notes?`);
+      drafts = list;
+      updateReviewSummary();
+      for (const d of list) {
+        const pos = d.position;
+        if (pos?.position_type !== "text") continue;
+        const side = pos.new_line ? "new" : "old";
+        for (const tr of rowsFor(pos.new_path || pos.old_path, pos.old_line, pos.new_line))
+          addDraftRow(d, tr, side);
+      }
+    } catch {
+      // draft notes API may be absent on older GitLab — review still works
+    }
   }
 
   function surround(ta, before, after = before) {
@@ -388,14 +564,24 @@
         () => (btn.style.display = ""),
         anchorTr?.dataset.new
           ? [...anchorTr.querySelectorAll(".pt-code")].pop().textContent
-          : null
+          : null,
+        async (body) => {
+          const draft = await api(`/projects/${project}/merge_requests/${iid}/draft_notes`, {
+            method: "POST",
+            body: JSON.stringify({ note: body, in_reply_to_discussion_id: discussionId }),
+          });
+          drafts.push(draft);
+          updateReviewSummary();
+          btn.before(renderDraft(draft, anchorTr));
+          status("added to review");
+        }
       );
       btn.before(form);
     });
     return btn;
   }
 
-  function commentForm(placeholder, onSubmit, onClose, suggestionText) {
+  function commentForm(placeholder, onSubmit, onClose, suggestionText, onDraft) {
     const wrap = document.createElement("div");
     wrap.className = "pt-comment-form";
     const ta = document.createElement("textarea");
@@ -409,24 +595,33 @@
     cancel.textContent = "Cancel";
     const actions = document.createElement("div");
     actions.className = "pt-form-actions";
-    actions.append(cancel, send);
-    wrap.append(ta, actions);
+    actions.append(cancel);
     const close = () => {
       wrap.remove();
       onClose?.();
     };
+    const wire = (btn, fn) =>
+      btn.addEventListener("click", async () => {
+        if (!ta.value.trim()) return;
+        btn.disabled = true;
+        try {
+          await fn(ta.value);
+          close();
+        } catch (e) {
+          status(`comment failed: ${e.message}`, true);
+          btn.disabled = false;
+        }
+      });
+    if (onDraft) {
+      const draftBtn = document.createElement("button");
+      draftBtn.textContent = "Add to review";
+      wire(draftBtn, onDraft);
+      actions.append(draftBtn);
+    }
+    actions.append(send);
+    wrap.append(ta, actions);
     cancel.addEventListener("click", close);
-    send.addEventListener("click", async () => {
-      if (!ta.value.trim()) return;
-      send.disabled = true;
-      try {
-        await onSubmit(ta.value);
-        close();
-      } catch (e) {
-        status(`comment failed: ${e.message}`, true);
-        send.disabled = false;
-      }
-    });
+    wire(send, onSubmit);
     setTimeout(() => ta.focus());
     return wrap;
   }
@@ -487,15 +682,62 @@
     return side === "new" ? "new" : "old";
   }
 
+  async function buildPosition(f) {
+    const end = f.endTr;
+    const side = f.side;
+    const position = {
+      base_sha: diffRefs.base_sha,
+      start_sha: diffRefs.start_sha,
+      head_sha: diffRefs.head_sha,
+      position_type: "text",
+      new_path: end.dataset.path,
+      old_path: end.dataset.oldPath || end.dataset.path,
+    };
+    // a paired replacement row carries both numbers pointing at DIFFERENT
+    // lines — only context rows may send both sides
+    if (end.dataset.ctx === "1") {
+      if (end.dataset.new) position.new_line = +end.dataset.new;
+      if (end.dataset.old) position.old_line = +end.dataset.old;
+    } else if (side === "old") {
+      position.old_line = +end.dataset.old;
+    } else {
+      position.new_line = +end.dataset.new;
+    }
+    if (f.startTr !== end) {
+      const sha = await sha1hex(end.dataset.path);
+      const lc = (r) => `${sha}_${r.dataset.codeOld}_${r.dataset.codeNew}`;
+      position.line_range = {
+        start: { line_code: lc(f.startTr), type: lineType(f.startTr, side) },
+        end: { line_code: lc(end), type: lineType(end, side) },
+      };
+    }
+    return position;
+  }
+
   function onLineClick(e) {
     const td = e.target.closest(".pt-no");
-    if (!td || td.classList.contains("pt-void") || !token) return;
+    if (!td || td.classList.contains("pt-void")) return;
+    const tr = td.closest("tr");
+    if (!tr?.dataset.path) return;
+    if (e.altKey) {
+      const side0 = clickSide(td, tr);
+      const n = lineNo(tr, side0);
+      const sha = side0 === "old" ? diffRefs?.base_sha : diffRefs?.head_sha;
+      const p = side0 === "old" ? tr.dataset.oldPath || tr.dataset.path : tr.dataset.path;
+      if (sha && n) {
+        navigator.clipboard.writeText(
+          `${location.origin}/${projectPath}/-/blob/${sha}/${encodeURI(p)}#L${n}`
+        );
+        status("line link copied");
+      }
+      return;
+    }
+    if (!token) return;
     if (currentCommit) {
       status("line comments work only in All commits view", true);
       return;
     }
-    const tr = td.closest("tr");
-    if (!tr?.dataset.path || !diffRefs) return;
+    if (!diffRefs) return;
     const side = clickSide(td, tr);
     if (!lineNo(tr, side)) return;
 
@@ -528,40 +770,14 @@
       commentForm(
         "Leave a comment (shift-click a line number to extend the range)…",
         async (body) => {
-          const end = f.endTr;
-          const position = {
-            base_sha: diffRefs.base_sha,
-            start_sha: diffRefs.start_sha,
-            head_sha: diffRefs.head_sha,
-            position_type: "text",
-            new_path: end.dataset.path,
-            old_path: end.dataset.oldPath || end.dataset.path,
-          };
-          // a paired replacement row carries both numbers pointing at DIFFERENT
-          // lines — only context rows may send both sides
-          if (end.dataset.ctx === "1") {
-            if (end.dataset.new) position.new_line = +end.dataset.new;
-            if (end.dataset.old) position.old_line = +end.dataset.old;
-          } else if (side === "old") {
-            position.old_line = +end.dataset.old;
-          } else {
-            position.new_line = +end.dataset.new;
-          }
-          if (f.startTr !== end) {
-            const sha = await sha1hex(end.dataset.path);
-            const lc = (r) => `${sha}_${r.dataset.codeOld}_${r.dataset.codeNew}`;
-            position.line_range = {
-              start: { line_code: lc(f.startTr), type: lineType(f.startTr, side) },
-              end: { line_code: lc(end), type: lineType(end, side) },
-            };
-          }
+          const position = await buildPosition(f);
           const d = await api(`/projects/${project}/merge_requests/${iid}/discussions`, {
             method: "POST",
             body: JSON.stringify({ body, position }),
           });
-          const { row, td: td2 } = threadRow(end, side, "pt-comments-row");
+          const { row, td: td2 } = threadRow(f.endTr, side, "pt-comments-row");
           insertAfter(formRow, row);
-          Promise.all((d.notes || []).map((n) => renderNote(n, end))).then((els) =>
+          Promise.all((d.notes || []).map((n) => renderNote(n, f.endTr))).then((els) =>
             td2.append(...els)
           );
           status("comment posted");
@@ -569,7 +785,18 @@
         closeActiveForm,
         side === "new" && tr.dataset.new
           ? [...tr.querySelectorAll(".pt-code")].pop().textContent
-          : null
+          : null,
+        async (body) => {
+          const position = await buildPosition(f);
+          const draft = await api(`/projects/${project}/merge_requests/${iid}/draft_notes`, {
+            method: "POST",
+            body: JSON.stringify({ note: body, position }),
+          });
+          drafts.push(draft);
+          updateReviewSummary();
+          addDraftRow(draft, f.endTr, side);
+          status("added to review");
+        }
       )
     );
     insertAfter(tr, formRow);
@@ -632,6 +859,7 @@
     dd.id = "pt-review";
     const sum = document.createElement("summary");
     sum.textContent = "Submit review";
+    reviewSum = sum;
     dd.appendChild(sum);
 
     const panel = document.createElement("div");
@@ -674,6 +902,14 @@
     submit.addEventListener("click", async () => {
       submit.disabled = true;
       try {
+        if (drafts.length) {
+          await api(`/projects/${project}/merge_requests/${iid}/draft_notes/bulk_publish`, {
+            method: "PUT",
+          });
+          drafts = [];
+          updateReviewSummary();
+          refreshThreads();
+        }
         const body = ta.value.trim();
         if (body)
           await api(`/projects/${project}/merge_requests/${iid}/notes`, {
@@ -730,6 +966,28 @@
     badge.hidden = true;
     select.after(badge);
 
+    unresolvedEl = document.createElement("span");
+    unresolvedEl.id = "pt-unresolved";
+    select.after(unresolvedEl);
+
+    const wsCb = document.createElement("input");
+    wsCb.type = "checkbox";
+    window.ptView.addSettingRow?.("Ignore whitespace", wsCb);
+    wsCb.addEventListener("change", async () => {
+      try {
+        let text = window.ptView.initialRaw;
+        if (wsCb.checked) {
+          const r = await fetch(`${location.href}?w=1`);
+          if (!r.ok) throw new Error(`${r.status}`);
+          text = await r.text();
+        }
+        window.ptView.renderDiff(text);
+        refreshThreads();
+      } catch (e) {
+        status(`whitespace toggle failed: ${e.message}`, true);
+      }
+    });
+
     if (token) {
       buildReviewDropdown(bar);
     } else {
@@ -743,9 +1001,46 @@
       const mr = await api(`/projects/${project}/merge_requests/${iid}`);
       diffRefs = mr.diff_refs;
       document.title = `!${iid} ${mr.title}`;
+      if (mr.head_pipeline) {
+        const ci = document.createElement("a");
+        ci.id = "pt-ci";
+        ci.href = mr.head_pipeline.web_url;
+        ci.target = "_blank";
+        ci.rel = "noopener";
+        ci.dataset.state = mr.head_pipeline.status;
+        ci.textContent = `● ${mr.head_pipeline.status}`;
+        unresolvedEl.after(ci);
+      }
+      if (mr.has_conflicts) {
+        const cf = document.createElement("span");
+        cf.id = "pt-conflicts";
+        cf.textContent = "⚠ has conflicts";
+        unresolvedEl.after(cf);
+      }
     } catch (e) {
       status(`MR info unavailable: ${e.message}`, true);
     }
+
+    const decorateHeaders = () => {
+      if (!diffRefs) return;
+      for (const sec of document.querySelectorAll(".pt-file")) {
+        if (sec.querySelector(".pt-blob-link")) continue;
+        const a = document.createElement("a");
+        a.className = "pt-hbtn pt-blob-link";
+        a.href = `${location.origin}/${projectPath}/-/blob/${diffRefs.head_sha}/${encodeURI(sec.dataset.path)}`;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.title = "Open at head revision";
+        a.innerHTML = window.ptIcons?.external || "↗";
+        sec.querySelector(".pt-stats")?.before(a);
+      }
+    };
+    decorateHeaders();
+    const origRender = window.ptView.renderDiff;
+    window.ptView.renderDiff = (t) => {
+      origRender(t);
+      decorateHeaders();
+    };
 
     const fileCache = new Map();
     window.ptView.fetchFile = (path) => {
@@ -777,8 +1072,9 @@
     }
 
     loadDiscussions().catch((e) => status(`discussions unavailable: ${e.message}`, true));
+    loadDrafts();
 
-    if (token) window.ptView.root.addEventListener("click", onLineClick);
+    window.ptView.root.addEventListener("click", onLineClick);
   }
 
   if (window.ptView) setup();

@@ -1055,3 +1055,115 @@ html.pt-on {
   font: 600 var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
   align-self: center;
 }
+
+#pt-progress,
+#pt-unresolved,
+#pt-conflicts,
+#pt-ci {
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.55 var(--pt-ui);
+  align-self: center;
+  color: var(--pt-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#pt-progress.pt-done { color: #1a7f37; }
+#pt-unresolved:not(:empty) { color: #bf8700; font-weight: 600; }
+#pt-conflicts { color: #cf222e; }
+#pt-ci[data-state="success"] { color: #1a7f37; }
+#pt-ci[data-state="failed"] { color: #cf222e; }
+#pt-ci[data-state="running"], #pt-ci[data-state="pending"] { color: #bf8700; }
+#pt-ci:hover { text-decoration: underline; }
+
+.pt-gen-badge {
+  font: calc(var(--pt-ui-size, 13px) - 2px)/1.5 var(--pt-ui);
+  font-weight: 400;
+  color: var(--pt-muted);
+  border: 1px solid var(--pt-border);
+  border-radius: 10px;
+  padding: 0 8px;
+}
+
+.pt-file-header .pt-hbtn {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-file-header .pt-hbtn:hover {
+  background: var(--pt-bg);
+  color: var(--pt-fg);
+}
+
+.pt-thread-actions {
+  display: flex;
+  gap: 8px;
+  max-width: 720px;
+}
+
+.pt-badge-pending {
+  font: 600 11px/1.4 var(--pt-ui);
+  color: #bf8700;
+  border: 1px solid #bf8700;
+  border-radius: 10px;
+  padding: 0 7px;
+}
+
+.pt-note.pt-pending {
+  border-color: #bf8700;
+}
+
+.pt-draft-del {
+  margin-left: auto;
+  font: 11px/1.4 var(--pt-ui);
+  border: none;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-draft-del:hover { color: #cf222e; }
+
+#pt-mr-threads {
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  margin: 12px 0;
+  padding: 8px 12px;
+}
+
+#pt-mr-threads > summary {
+  cursor: pointer;
+  font: 600 var(--pt-ui-size, 13px)/1.6 var(--pt-ui);
+}
+
+#pt-mr-threads .pt-thread {
+  border-top: 1px solid var(--pt-border);
+  margin-top: 8px;
+  padding-top: 4px;
+}
+
+.pt-apply {
+  float: right;
+  font: calc(var(--pt-ui-size, 13px) - 2px)/1.5 var(--pt-ui);
+  padding: 1px 8px;
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  background: var(--pt-bg);
+  color: var(--pt-fg);
+  cursor: pointer;
+}
+
+.pt-apply:disabled {
+  color: var(--pt-muted);
+  cursor: default;
+}
+
+.pt-apply:not(:disabled):hover {
+  background: var(--pt-header-bg);
+}
