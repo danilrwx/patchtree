@@ -97,8 +97,8 @@ function alignHunk(h) {
   let newNo = h.newStart;
   for (const l of h.lines) {
     if (l.t === "\\") continue;
-    if (l.t === "-") dels.push({ no: oldNo++, text: l.s });
-    else if (l.t === "+") adds.push({ no: newNo++, text: l.s });
+    if (l.t === "-") dels.push({ no: oldNo++, text: l.s, other: newNo });
+    else if (l.t === "+") adds.push({ no: newNo++, text: l.s, other: oldNo });
     else {
       flush();
       pairs.push({ old: { no: oldNo++, text: l.s }, new: { no: newNo++, text: l.s }, ctx: true });
@@ -231,6 +231,9 @@ function buildFileView(file) {
     tr.dataset.oldPath = file.oldPath || "";
     if (o) tr.dataset.old = o.no;
     if (n) tr.dataset.new = n.no;
+    // both-side counters as used by GitLab line codes (sha_old_new)
+    tr.dataset.codeOld = o ? o.no : (n?.other ?? "");
+    tr.dataset.codeNew = n ? n.no : (o?.other ?? "");
   };
 
   const regOld = (text, td) => {

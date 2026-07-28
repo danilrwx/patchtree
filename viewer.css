@@ -682,6 +682,21 @@ html.pt-on {
   border-bottom: 1px solid var(--pt-border);
 }
 
+.pt-split .pt-comments-row td,
+.pt-split .pt-inline-form td {
+  padding: 8px 12px;
+}
+
+.pt-range .pt-no {
+  background: var(--pt-hunk-bg) !important;
+}
+
+.pt-comment-lines {
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
+  color: var(--pt-muted);
+  margin-bottom: 6px;
+}
+
 .pt-note {
   max-width: 720px;
   border: 1px solid var(--pt-border);

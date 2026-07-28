@@ -79,6 +79,38 @@
     return document.querySelectorAll(sel);
   }
 
+  async function sha1hex(s) {
+    const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(s));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  // In the split view a thread occupies only its side's half, GitHub-style;
+  // the unified view keeps the full-width row.
+  function threadRow(tr, side, cls) {
+    const row = document.createElement("tr");
+    row.className = cls;
+    let td;
+    if (tr.closest("table").classList.contains("pt-split")) {
+      if (side === "old") {
+        td = row.insertCell();
+        td.colSpan = 2;
+        const pad = row.insertCell();
+        pad.colSpan = 2;
+        pad.className = "pt-void";
+      } else {
+        const pad = row.insertCell();
+        pad.colSpan = 2;
+        pad.className = "pt-void";
+        td = row.insertCell();
+        td.colSpan = 2;
+      }
+    } else {
+      td = row.insertCell();
+      td.colSpan = 4;
+    }
+    return { row, td };
+  }
+
   function insertAfter(tr, el) {
     tr.parentNode.insertBefore(el, tr.nextSibling);
   }
@@ -93,13 +125,11 @@
       const pos = notes[0]?.position;
       if (!pos || pos.position_type !== "text") continue;
       const path = pos.new_path || pos.old_path;
+      const side = pos.new_line ? "new" : "old";
       const trs = rowsFor(path, pos.old_line, pos.new_line);
       if (!trs.length) continue;
       for (const tr of trs) {
-        const row = document.createElement("tr");
-        row.className = "pt-comments-row";
-        const td = row.insertCell();
-        td.colSpan = 4;
+        const { row, td } = threadRow(tr, side, "pt-comments-row");
         td.innerHTML = notes.map(noteHTML).join("");
         insertAfter(tr, row);
       }
@@ -221,52 +251,124 @@
     }
   }
 
+  let activeForm = null;
+
+  function lineNo(tr, side) {
+    return +(side === "old" ? tr.dataset.old : tr.dataset.new) || 0;
+  }
+
+  function clickSide(td, tr) {
+    if (tr.closest("table").classList.contains("pt-split"))
+      return td.cellIndex === 0 ? "old" : "new";
+    return tr.classList.contains("pt-del") ? "old" : "new";
+  }
+
+  function closeActiveForm() {
+    if (!activeForm) return;
+    activeForm.formRow.remove();
+    for (const r of activeForm.marked) r.classList.remove("pt-range");
+    activeForm = null;
+  }
+
+  function markRange(f) {
+    for (const r of f.marked) r.classList.remove("pt-range");
+    f.marked = [];
+    for (let r = f.startTr; r; r = r.nextElementSibling) {
+      if (lineNo(r, f.side)) {
+        r.classList.add("pt-range");
+        f.marked.push(r);
+      }
+      if (r === f.endTr) break;
+    }
+    f.label.textContent =
+      f.startTr === f.endTr
+        ? `Comment on line ${lineNo(f.endTr, f.side)}`
+        : `Comment on lines ${lineNo(f.startTr, f.side)}–${lineNo(f.endTr, f.side)}`;
+  }
+
+  function lineType(tr, side) {
+    if (side === "new") return tr.dataset.old ? null : "new";
+    return tr.dataset.new ? null : "old";
+  }
+
   function onLineClick(e) {
     const td = e.target.closest(".pt-no");
-    if (!td || !token) return;
+    if (!td || td.classList.contains("pt-void") || !token) return;
     if (currentCommit) {
       status("line comments work only in All commits view", true);
       return;
     }
     const tr = td.closest("tr");
     if (!tr?.dataset.path || !diffRefs) return;
-    if (tr.nextSibling?.classList?.contains("pt-inline-form")) return;
+    const side = clickSide(td, tr);
+    if (!lineNo(tr, side)) return;
 
-    const formRow = document.createElement("tr");
-    formRow.className = "pt-inline-form";
-    const cell = formRow.insertCell();
-    cell.colSpan = 4;
+    if (e.shiftKey && activeForm && activeForm.path === tr.dataset.path && activeForm.side === side && activeForm.table === tr.closest("table")) {
+      const f = activeForm;
+      if (lineNo(tr, side) < lineNo(f.startTr, side)) f.startTr = tr;
+      else f.endTr = tr;
+      insertAfter(f.endTr, f.formRow);
+      markRange(f);
+      return;
+    }
+
+    closeActiveForm();
+
+    const f = {
+      path: tr.dataset.path,
+      side,
+      table: tr.closest("table"),
+      startTr: tr,
+      endTr: tr,
+      marked: [],
+      label: document.createElement("div"),
+    };
+    f.label.className = "pt-comment-lines";
+
+    const { row: formRow, td: cell } = threadRow(tr, side, "pt-inline-form");
+    f.formRow = formRow;
+    cell.appendChild(f.label);
     cell.appendChild(
       commentForm(
-        "Comment on this line…",
+        "Leave a comment (shift-click a line number to extend the range)…",
         async (body) => {
+          const end = f.endTr;
           const position = {
             base_sha: diffRefs.base_sha,
             start_sha: diffRefs.start_sha,
             head_sha: diffRefs.head_sha,
             position_type: "text",
-            new_path: tr.dataset.path,
-            old_path: tr.dataset.oldPath || tr.dataset.path,
+            new_path: end.dataset.path,
+            old_path: end.dataset.oldPath || end.dataset.path,
           };
-          if (tr.dataset.new) position.new_line = +tr.dataset.new;
-          if (tr.dataset.old) position.old_line = +tr.dataset.old;
+          if (end.dataset.new) position.new_line = +end.dataset.new;
+          if (end.dataset.old) position.old_line = +end.dataset.old;
+          if (f.startTr !== end) {
+            const sha = await sha1hex(end.dataset.path);
+            const lc = (r) => `${sha}_${r.dataset.codeOld}_${r.dataset.codeNew}`;
+            position.line_range = {
+              start: { line_code: lc(f.startTr), type: lineType(f.startTr, side) },
+              end: { line_code: lc(end), type: lineType(end, side) },
+            };
+          }
           const d = await api(`/projects/${project}/merge_requests/${iid}/discussions`, {
             method: "POST",
             body: JSON.stringify({ body, position }),
           });
-          const row = document.createElement("tr");
-          row.className = "pt-comments-row";
-          const td2 = row.insertCell();
-          td2.colSpan = 4;
+          const { row, td: td2 } = threadRow(end, side, "pt-comments-row");
           td2.innerHTML = (d.notes || []).map(noteHTML).join("");
           insertAfter(formRow, row);
           status("comment posted");
         },
-        () => formRow.remove(),
-        tr.dataset.new ? [...tr.querySelectorAll(".pt-code")].pop().textContent : null
+        closeActiveForm,
+        side === "new" && tr.dataset.new
+          ? [...tr.querySelectorAll(".pt-code")].pop().textContent
+          : null
       )
     );
     insertAfter(tr, formRow);
+    activeForm = f;
+    markRange(f);
   }
 
   function buildCommitSelect(bar) {
