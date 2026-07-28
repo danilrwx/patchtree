@@ -747,8 +747,8 @@ function applySettings(s) {
   if (s.codeFont) st.setProperty("--pt-mono", `"${s.codeFont}", ui-monospace, monospace`);
   else st.removeProperty("--pt-mono");
   st.setProperty("--pt-tab", s.tabSize || 4);
-  st.setProperty("--pt-size", (s.fontSize || 12) + "px");
-  st.setProperty("--pt-ui-size", (s.uiFontSize || 13) + "px");
+  st.setProperty("--pt-size", (s.fontSize || 14) + "px");
+  st.setProperty("--pt-ui-size", (s.uiFontSize || 14) + "px");
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
 
   const palette = BASE16[s.theme];
@@ -1019,8 +1019,8 @@ async function main() {
     });
     setRow(label, input);
   };
-  sizeRow("Code font size", "fontSize", 12);
-  sizeRow("UI font size", "uiFontSize", 13);
+  sizeRow("Code font size", "fontSize", 14);
+  sizeRow("UI font size", "uiFontSize", 14);
 
   const italicCb = document.createElement("input");
   italicCb.type = "checkbox";

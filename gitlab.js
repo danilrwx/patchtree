@@ -1033,13 +1033,13 @@
         ci.rel = "noopener";
         ci.dataset.state = mr.head_pipeline.status;
         ci.textContent = `● ${mr.head_pipeline.status}`;
-        unresolvedEl.after(ci);
+        unresolvedEl.dd.after(ci);
       }
       if (mr.has_conflicts) {
         const cf = document.createElement("span");
         cf.id = "pt-conflicts";
         cf.textContent = "⚠ has conflicts";
-        unresolvedEl.after(cf);
+        unresolvedEl.dd.after(cf);
       }
     } catch (e) {
       status(`MR info unavailable: ${e.message}`, true);

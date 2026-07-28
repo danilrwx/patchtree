@@ -90,8 +90,8 @@
 }
 
 html.pt-on {
-  --pt-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --pt-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --pt-ui: "JetBrains Mono", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pt-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --pt-bg: #ffffff;
   --pt-fg: #1f2328;
   --pt-muted: #59636e;
@@ -171,7 +171,7 @@ html.pt-on body {
 #pt-root {
   font-family: var(--pt-mono);
   -webkit-font-smoothing: antialiased;
-  font-size: var(--pt-size, 12px);
+  font-size: var(--pt-size, 14px);
   line-height: 1.6;
   padding: 12px 16px 48px;
   display: grid;
@@ -214,7 +214,7 @@ html.pt-on body {
 }
 
 #pt-tree {
-  font-size: calc(var(--pt-ui-size, 13px) - 1px);
+  font-size: calc(var(--pt-ui-size, 14px) - 1px);
   line-height: 1.5;
 }
 
@@ -339,7 +339,7 @@ html.pt-on {
 #pt-bar button,
 #pt-bar summary,
 .pt-comment-form button {
-  font: var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
+  font: var(--pt-ui-size, 14px)/1.55 var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid var(--pt-muted);
   border-radius: 4px;
@@ -404,7 +404,7 @@ html.pt-on {
   justify-content: space-between;
   gap: 12px;
   padding: 4px 10px;
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.6 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
   color: var(--pt-fg);
   cursor: default;
 }
@@ -413,7 +413,7 @@ html.pt-on {
 .pt-set-row select {
   width: 150px;
   box-sizing: border-box;
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.6 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
   color: var(--pt-fg);
   background: var(--pt-bg);
   border: 1px solid var(--pt-border);
@@ -449,7 +449,7 @@ html.pt-on {
   padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font: var(--pt-ui-size, 13px)/1.5 var(--pt-ui);
+  font: var(--pt-ui-size, 14px)/1.5 var(--pt-ui);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -561,7 +561,7 @@ html.pt-on {
 }
 
 .pt-review-panel .pt-primary {
-  font: var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
+  font: var(--pt-ui-size, 14px)/1.55 var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid #108548;
   border-radius: 4px;
@@ -584,7 +584,7 @@ html.pt-on {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  font: var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
+  font: var(--pt-ui-size, 14px)/1.55 var(--pt-ui);
   color: var(--pt-fg);
   background: var(--pt-bg);
   border: 1px solid var(--pt-border);
@@ -654,7 +654,7 @@ html.pt-on {
   gap: 5px;
   align-items: center;
   margin-left: 12px;
-  font: 400 calc(var(--pt-ui-size, 13px) - 1px)/1.55 var(--pt-ui);
+  font: 400 calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -698,7 +698,7 @@ html.pt-on {
   color: var(--pt-muted);
   cursor: pointer;
   padding: 2px 12px;
-  font: calc(var(--pt-ui-size, 13px) - 2px)/1.6 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 2px)/1.6 var(--pt-ui);
   user-select: none;
 }
 
@@ -806,7 +806,7 @@ html.pt-on {
 }
 
 .pt-comment-lines {
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.5 var(--pt-ui);
   color: var(--pt-muted);
   margin-bottom: 6px;
   max-width: 720px;
@@ -831,7 +831,7 @@ html.pt-on {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.5 var(--pt-ui);
   padding: 3px 10px;
   border: 1px solid var(--pt-border);
   border-radius: 4px;
@@ -883,7 +883,7 @@ html.pt-on {
 }
 
 .pt-md {
-  font: var(--pt-ui-size, 13px)/1.6 var(--pt-ui);
+  font: var(--pt-ui-size, 14px)/1.6 var(--pt-ui);
 }
 
 .pt-md p { margin: 4px 0; }
@@ -927,7 +927,7 @@ html.pt-on {
 }
 
 .pt-sug-head {
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.6 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
   background: var(--pt-header-bg);
   border-bottom: 1px solid var(--pt-border);
   padding: 4px 10px;
@@ -938,7 +938,7 @@ html.pt-on {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--pt-mono);
-  font-size: var(--pt-size, 12px);
+  font-size: var(--pt-size, 14px);
 }
 
 .pt-sug-table .pt-mark {
@@ -1052,7 +1052,7 @@ html.pt-on {
 
 #pt-approved {
   color: #1a7f37;
-  font: 600 var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
+  font: 600 var(--pt-ui-size, 14px)/1.55 var(--pt-ui);
   align-self: center;
 }
 
@@ -1074,7 +1074,7 @@ html.pt-on {
 #pt-progress,
 #pt-conflicts,
 #pt-ci {
-  font: calc(var(--pt-ui-size, 13px) - 1px)/1.55 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
   align-self: center;
   color: var(--pt-muted);
   text-decoration: none;
@@ -1089,7 +1089,7 @@ html.pt-on {
 #pt-ci:hover { text-decoration: underline; }
 
 .pt-gen-badge {
-  font: calc(var(--pt-ui-size, 13px) - 2px)/1.5 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 2px)/1.5 var(--pt-ui);
   font-weight: 400;
   color: var(--pt-muted);
   border: 1px solid var(--pt-border);
@@ -1152,7 +1152,7 @@ html.pt-on {
 
 #pt-mr-threads > summary {
   cursor: pointer;
-  font: 600 var(--pt-ui-size, 13px)/1.6 var(--pt-ui);
+  font: 600 var(--pt-ui-size, 14px)/1.6 var(--pt-ui);
 }
 
 #pt-mr-threads .pt-thread {
@@ -1163,7 +1163,7 @@ html.pt-on {
 
 .pt-apply {
   float: right;
-  font: calc(var(--pt-ui-size, 13px) - 2px)/1.5 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 14px) - 2px)/1.5 var(--pt-ui);
   padding: 1px 8px;
   border: 1px solid var(--pt-border);
   border-radius: 4px;
