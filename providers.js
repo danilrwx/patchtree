@@ -305,7 +305,7 @@ window.ptProvider = (() => {
 
     const P = {
       kind: "github",
-      can: { resolve: true, drafts: false, applySuggestion: false, whitespace: false },
+      can: { resolve: true, drafts: false, applySuggestion: true, whitespace: false },
       token: null,
       tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic or fine-grained PAT)",
       setRefs: (i) => (refs = i),
@@ -620,6 +620,28 @@ window.ptProvider = (() => {
       refs
         ? `https://github.com/${owner}/${repo}/blob/${refs.headSha}/${encodeURI(path)}`
         : null;
+    // GitHub has no single-suggestion apply endpoint — commit the replacement
+    // to the PR head branch (like GitLab's apply does to the MR source branch).
+    P.applySuggestion = async (desc) => {
+      const pr = await api(`${base}/pulls/${num}`);
+      const branch = pr.head.ref;
+      const [ho, hr] = pr.head.repo.full_name.split("/");
+      const hbase = `/repos/${ho}/${hr}`;
+      const file = await api(`${hbase}/contents/${encodeURI(desc.path)}?ref=${branch}`);
+      const decode = (b64) => decodeURIComponent(escape(atob(b64.replace(/\n/g, ""))));
+      const encode = (s) => btoa(unescape(encodeURIComponent(s)));
+      const lines = decode(file.content).split("\n");
+      lines.splice(desc.startLine - 1, desc.endLine - desc.startLine + 1, ...desc.text.split("\n"));
+      await api(`${hbase}/contents/${encodeURI(desc.path)}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          message: `Apply suggestion to ${desc.path}`,
+          content: encode(lines.join("\n")),
+          sha: file.sha,
+          branch,
+        }),
+      });
+    };
     return P;
   }
 

@@ -155,15 +155,24 @@
       });
       head.appendChild(dismiss);
     }
-    if (sugMeta && P.can.applySuggestion && P.token) {
+    // Apply needs a target line: GitLab carries a suggestion id, GitHub
+    // reconstructs the line range from the anchored new-side row.
+    const line = +(anchorTr?.dataset.new || 0);
+    if (P.can.applySuggestion && P.token && (sugMeta || line)) {
       const btn = document.createElement("button");
       btn.className = "pt-apply";
-      btn.textContent = sugMeta.applied ? "Applied" : "Apply suggestion";
-      btn.disabled = sugMeta.applied || sugMeta.appliable === false;
+      btn.textContent = sugMeta?.applied ? "Applied" : "Apply suggestion";
+      btn.disabled = !!sugMeta?.applied || sugMeta?.appliable === false;
       btn.addEventListener("click", async () => {
         btn.disabled = true;
         try {
-          await P.applySuggestion(sugMeta);
+          await P.applySuggestion({
+            id: sugMeta?.id,
+            path: anchorTr?.dataset.path,
+            startLine: line - part.minus,
+            endLine: line + part.plus,
+            text: part.sug,
+          });
           btn.textContent = "Applied";
           status("suggestion applied");
         } catch (e) {
