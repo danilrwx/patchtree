@@ -178,9 +178,13 @@
     wrap.appendChild(mdToolbar(ta, suggestionText));
     const send = document.createElement("button");
     send.textContent = "Comment";
+    send.className = "pt-primary";
     const cancel = document.createElement("button");
     cancel.textContent = "Cancel";
-    wrap.append(ta, send, cancel);
+    const actions = document.createElement("div");
+    actions.className = "pt-form-actions";
+    actions.append(cancel, send);
+    wrap.append(ta, actions);
     const close = () => {
       wrap.remove();
       onClose?.();
