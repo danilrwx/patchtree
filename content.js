@@ -112,21 +112,92 @@ function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderLineHTML(text, ranges) {
-  if (!ranges || ranges.length === 0) return esc(text);
-  const sorted = ranges.slice().sort((a, b) => a.s - b.s || b.e - a.e);
-  let out = "";
-  let pos = 0;
-  for (const r of sorted) {
-    if (r.s < pos) continue;
-    const s = Math.max(0, Math.min(r.s, text.length));
-    const e = Math.max(s, Math.min(r.e, text.length));
-    if (s > pos) out += esc(text.slice(pos, s));
-    out += `<span class="pt-${r.c}">` + esc(text.slice(s, e)) + "</span>";
-    pos = e;
+function renderLineHTML(text, ranges, bg) {
+  const colors = [];
+  if (ranges?.length) {
+    let pos = 0;
+    for (const r of ranges.slice().sort((a, b) => a.s - b.s || b.e - a.e)) {
+      if (r.s < pos) continue;
+      const s = Math.max(0, Math.min(r.s, text.length));
+      const e = Math.max(s, Math.min(r.e, text.length));
+      if (e > s) colors.push({ s, e, c: r.c });
+      pos = e;
+    }
   }
-  if (pos < text.length) out += esc(text.slice(pos));
+  if (!colors.length && !bg?.length) return esc(text);
+
+  const cuts = new Set([0, text.length]);
+  for (const r of colors) {
+    cuts.add(r.s);
+    cuts.add(r.e);
+  }
+  for (const r of bg || []) {
+    cuts.add(Math.max(0, Math.min(r.s, text.length)));
+    cuts.add(Math.max(0, Math.min(r.e, text.length)));
+  }
+  const points = [...cuts].sort((a, b) => a - b);
+  let out = "";
+  for (let i = 0; i < points.length - 1; i++) {
+    const s = points[i];
+    const e = points[i + 1];
+    if (e <= s) continue;
+    const cls = [];
+    const color = colors.find((r) => r.s <= s && r.e >= e);
+    if (color) cls.push(`pt-${color.c}`);
+    const bgr = bg?.find((r) => r.s <= s && r.e >= e);
+    if (bgr) cls.push(`pt-${bgr.c}`);
+    out += cls.length
+      ? `<span class="${cls.join(" ")}">${esc(text.slice(s, e))}</span>`
+      : esc(text.slice(s, e));
+  }
   return out;
+}
+
+// intra-line diff: LCS over word tokens, changed spans get a stronger tint
+function wordDiff(a, b) {
+  const tokenize = (s) => {
+    const out = [];
+    for (const m of s.matchAll(/\w+|\s+|[^\w\s]/g)) out.push({ t: m[0], s: m.index });
+    return out;
+  };
+  const A = tokenize(a);
+  const B = tokenize(b);
+  if (!A.length || !B.length || A.length * B.length > 40000) return null;
+
+  const dp = Array.from({ length: A.length + 1 }, () => new Uint16Array(B.length + 1));
+  for (let i = A.length - 1; i >= 0; i--)
+    for (let j = B.length - 1; j >= 0; j--)
+      dp[i][j] = A[i].t === B[j].t ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+
+  const keepA = new Array(A.length).fill(false);
+  const keepB = new Array(B.length).fill(false);
+  let i = 0;
+  let j = 0;
+  let common = 0;
+  while (i < A.length && j < B.length) {
+    if (A[i].t === B[j].t) {
+      keepA[i] = keepB[j] = true;
+      common++;
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  if (common / Math.max(A.length, B.length) < 0.3) return null;
+
+  const ranges = (toks, keep, cls) => {
+    const out = [];
+    for (let k = 0; k < toks.length; k++) {
+      if (keep[k]) continue;
+      const s = toks[k].s;
+      const e = s + toks[k].t.length;
+      const last = out[out.length - 1];
+      if (last && last.e === s) last.e = e;
+      else out.push({ s, e, c: cls });
+    }
+    return out;
+  };
+  return { a: ranges(A, keepA, "word-del"), b: ranges(B, keepB, "word-add") };
 }
 
 function makeTable(widths) {
@@ -423,15 +494,26 @@ function buildFileView(file) {
         if (newTd) cells.new[row].tds.push(newTd);
         regOld(pair.old.text, oldTd);
       } else {
+        const wd = pair.old && pair.new ? wordDiff(pair.old.text, pair.new.text) : null;
         if (pair.old) {
           const utd = unifiedLine("pt-del", pair.old, null, pair.old.text);
           const row = regOld(pair.old.text, utd);
           if (oldTd) cells.old[row].tds.push(oldTd);
+          if (wd?.a.length) {
+            cells.old[row].bg = wd.a;
+            for (const td of cells.old[row].tds)
+              td.innerHTML = renderLineHTML(pair.old.text, null, wd.a);
+          }
         }
         if (pair.new) {
           const utd = unifiedLine("pt-add", null, pair.new, pair.new.text);
           const row = regNew(pair.new.text, utd);
           if (newTd) cells.new[row].tds.push(newTd);
+          if (wd?.b.length) {
+            cells.new[row].bg = wd.b;
+            for (const td of cells.new[row].tds)
+              td.innerHTML = renderLineHTML(pair.new.text, null, wd.b);
+          }
         }
       }
     }
@@ -458,7 +540,7 @@ async function highlightSide(lang, text, sideCells) {
   for (const [row, ranges] of Object.entries(resp.rows)) {
     const cell = sideCells[+row];
     if (!cell) continue;
-    for (const td of cell.tds) td.innerHTML = renderLineHTML(cell.text, ranges);
+    for (const td of cell.tds) td.innerHTML = renderLineHTML(cell.text, ranges, cell.bg);
   }
 }
 
@@ -616,6 +698,8 @@ const THEME_VARS = (c) => ({
   "del-no-bg": hexRgba(c[8], 0.3),
   "hunk-bg": hexRgba(c[13], 0.12),
   "hunk-fg": `#${c[4]}`,
+  "word-add": hexRgba(c[11], 0.38),
+  "word-del": hexRgba(c[8], 0.38),
   keyword: `#${c[14]}`,
   string: `#${c[11]}`,
   comment: `#${c[3]}`,

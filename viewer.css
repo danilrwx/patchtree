@@ -101,6 +101,8 @@ html.pt-on {
   --pt-add-no-bg: #aceebb;
   --pt-del-bg: #ffebe9;
   --pt-del-no-bg: #ffcecb;
+  --pt-word-add: #abf2bc;
+  --pt-word-del: #ffc2bd;
   --pt-hunk-bg: #ddf4ff;
   --pt-hunk-fg: #57606a;
 
@@ -134,6 +136,8 @@ html.pt-on {
     --pt-add-no-bg: rgba(63, 185, 80, 0.3);
     --pt-del-bg: rgba(248, 81, 73, 0.1);
     --pt-del-no-bg: rgba(248, 81, 73, 0.3);
+    --pt-word-add: rgba(46, 160, 67, 0.4);
+    --pt-word-del: rgba(248, 81, 73, 0.4);
     --pt-hunk-bg: rgba(56, 139, 253, 0.1);
     --pt-hunk-fg: #9198a1;
 
@@ -760,6 +764,9 @@ html.pt-on {
 .pt-add .pt-no { background: var(--pt-add-no-bg); }
 .pt-del .pt-code, .pt-del .pt-mark { background: var(--pt-del-bg); }
 .pt-del .pt-no { background: var(--pt-del-no-bg); }
+
+.pt-word-add { background: var(--pt-word-add); border-radius: 2px; }
+.pt-word-del { background: var(--pt-word-del); border-radius: 2px; }
 
 .pt-add-code { background: var(--pt-add-bg); }
 .pt-add-no { background: var(--pt-add-no-bg); }
