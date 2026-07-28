@@ -1342,7 +1342,12 @@ async function main() {
       return idx;
     };
     const go = (el) => el && window.scrollTo({ top: window.scrollY + top(el) - 56 });
-    const goCenter = (el) => el?.scrollIntoView({ block: "center" });
+    const goCenter = (el) => {
+      if (!el) return;
+      el.scrollIntoView({ block: "center" });
+      el.classList.add("pt-flash");
+      setTimeout(() => el.classList.remove("pt-flash"), 1200);
+    };
     const mid = window.innerHeight / 2;
     const cur = () => sections[Math.max(0, currentIdx(sections))];
     switch (e.key) {
