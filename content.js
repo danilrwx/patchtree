@@ -1304,7 +1304,8 @@ async function main() {
   });
   const openTokensDialog = async () => {
     document.getElementById("pt-tokens-dialog")?.remove();
-    const { gitlabs = {} } = await chrome.storage.sync.get("gitlabs");
+    let { gitlabs } = await chrome.storage.local.get("gitlabs");
+    if (!gitlabs) ({ gitlabs = {} } = await chrome.storage.sync.get("gitlabs"));
 
     const overlay = document.createElement("div");
     overlay.id = "pt-themes-dialog";
@@ -1334,7 +1335,7 @@ async function main() {
         if (host && host !== "github.com") m[host] = { token: t.value.trim() };
       }
       if (ghInput.value.trim()) m["github.com"] = { token: ghInput.value.trim() };
-      chrome.storage.sync.set({ gitlabs: m });
+      chrome.storage.local.set({ gitlabs: m });
     };
 
     const addRow = (host = "", tok = "") => {

@@ -5,10 +5,20 @@
 // Threads: { id, general, resolvable, resolved, pos: {path, oldPath, side, oldLine, newLine}|null, notes: [note] }
 // Note: { id, kind, author, authorId, createdAt, body, resolved, suggestions }
 window.ptProvider = (() => {
-  const tokenFor = (host) =>
-    chrome.storage.sync
-      .get("gitlabs")
-      .then(({ gitlabs = {} }) => gitlabs[host]?.token || null);
+  // tokens live in storage.local (never synced to the browser vendor's cloud);
+  // migrate any previously sync-stored tokens on first read
+  async function readTokens() {
+    const local = await chrome.storage.local.get("gitlabs");
+    if (local.gitlabs) return local.gitlabs;
+    const { gitlabs } = await chrome.storage.sync.get("gitlabs");
+    if (gitlabs) {
+      await chrome.storage.local.set({ gitlabs });
+      chrome.storage.sync.remove("gitlabs");
+      return gitlabs;
+    }
+    return {};
+  }
+  const tokenFor = (host) => readTokens().then((g) => g[host]?.token || null);
 
   function gitlab(projectPath, iid) {
     const project = encodeURIComponent(projectPath);

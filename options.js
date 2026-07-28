@@ -12,7 +12,7 @@ async function save() {
     if (h && h !== "github.com") gitlabs[h] = { token: tok.value.trim() };
   }
   if (ghToken.value.trim()) gitlabs["github.com"] = { token: ghToken.value.trim() };
-  await chrome.storage.sync.set({ gitlabs });
+  await chrome.storage.local.set({ gitlabs });
 }
 
 function addRow(host = "", tok = "") {
@@ -36,9 +36,12 @@ function addRow(host = "", tok = "") {
 document.getElementById("add").addEventListener("click", () => addRow());
 ghToken.addEventListener("change", save);
 
-chrome.storage.sync.get("gitlabs").then(({ gitlabs = {} }) => {
+async function load() {
+  let { gitlabs } = await chrome.storage.local.get("gitlabs");
+  if (!gitlabs) ({ gitlabs = {} } = await chrome.storage.sync.get("gitlabs"));
   ghToken.value = gitlabs["github.com"]?.token || "";
   const rest = Object.entries(gitlabs).filter(([host]) => host !== "github.com");
   for (const [host, v] of rest) addRow(host, v.token || "");
   if (rest.length === 0) addRow();
-});
+}
+load();
