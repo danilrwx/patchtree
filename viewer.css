@@ -438,8 +438,11 @@ html.pt-on {
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 150px;
+}
+
+.pt-gallery-sentinel {
+  grid-column: 1 / -1;
+  height: 1px;
 }
 
 .pt-theme-card:hover { border-color: var(--pt-muted); }

@@ -1080,18 +1080,43 @@ async function main() {
     grid.className = "pt-theme-grid";
     panel.appendChild(grid);
 
-    const themes = (await chrome.runtime.sendMessage({ type: "themes" })) || [];
-    if (!themes.length) grid.textContent = "themes.json missing — run make themes and reload";
-    for (const t of themes) if (t?.palette && t?.name) grid.appendChild(themeCard(t));
+    const all = ((await chrome.runtime.sendMessage({ type: "themes" })) || []).filter(
+      (t) => t?.palette && t?.name
+    );
+    if (!all.length) grid.textContent = "themes.json missing — run make themes and reload";
+
+    // 500+ cards of styled <pre> freeze layout if rendered at once —
+    // render in batches as the grid scrolls
+    const BATCH = 48;
+    let filtered = all;
+    let rendered = 0;
+    const sentinel = document.createElement("div");
+    sentinel.className = "pt-gallery-sentinel";
+    grid.appendChild(sentinel);
+    const renderBatch = () => {
+      const frag = document.createDocumentFragment();
+      for (const t of filtered.slice(rendered, rendered + BATCH)) frag.appendChild(themeCard(t));
+      rendered = Math.min(rendered + BATCH, filtered.length);
+      grid.insertBefore(frag, sentinel);
+    };
+    new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && rendered < filtered.length) renderBatch();
+      },
+      { root: grid, rootMargin: "300px" }
+    ).observe(sentinel);
+    renderBatch();
 
     const applyFilter = () => {
       const q = search.value.trim().toLowerCase();
       const v = variantSel.value;
-      for (const card of grid.children)
-        card.style.display =
-          (!q || card.dataset.name.includes(q)) && (v === "all" || card.dataset.variant === v)
-            ? ""
-            : "none";
+      filtered = all.filter(
+        (t) =>
+          (!q || t.name.toLowerCase().includes(q)) && (v === "all" || t.variant === v)
+      );
+      for (const c of grid.querySelectorAll(".pt-theme-card")) c.remove();
+      rendered = 0;
+      renderBatch();
     };
     search.addEventListener("input", applyFilter);
     variantSel.addEventListener("change", applyFilter);
