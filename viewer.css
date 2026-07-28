@@ -239,8 +239,7 @@ html.pt-on {
 }
 
 #pt-bar button,
-#pt-bar select,
-#pt-review summary,
+#pt-bar summary,
 .pt-comment-form button {
   font: 13px/20px system-ui, sans-serif;
   padding: 4px 12px;
@@ -252,9 +251,102 @@ html.pt-on {
 }
 
 #pt-bar button:hover,
-#pt-bar select:hover,
+#pt-bar summary:hover,
 .pt-comment-form button:hover {
   background: var(--pt-header-bg);
+}
+
+.pt-dd {
+  position: relative;
+}
+
+.pt-dd > summary {
+  list-style: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pt-dd > summary::after {
+  content: "▾";
+  color: var(--pt-muted);
+}
+
+.pt-dd-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 240px;
+  max-width: 480px;
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  z-index: 6;
+}
+
+.pt-dd-right .pt-dd-menu {
+  left: auto;
+  right: 0;
+  min-width: 180px;
+}
+
+.pt-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font: 13px/1.5 system-ui, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pt-dd-item > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-dd-item:hover {
+  background: var(--pt-header-bg);
+}
+
+.pt-dd-item.pt-active {
+  background: var(--pt-hunk-bg);
+}
+
+.pt-sha {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--pt-muted);
+  flex-shrink: 0;
+}
+
+.pt-seg {
+  display: flex;
+  border: 1px solid var(--pt-muted);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#pt-bar .pt-seg button {
+  border: none;
+  border-radius: 0;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  color: var(--pt-muted);
+}
+
+#pt-bar .pt-seg button.pt-active {
+  background: var(--pt-hunk-bg);
+  color: var(--pt-fg);
 }
 
 .pt-primary,
@@ -331,8 +423,15 @@ html.pt-on {
 }
 
 #pt-commits {
-  max-width: 340px;
   margin-right: 8px;
+}
+
+#pt-commits > summary {
+  max-width: 380px;
+}
+
+#pt-commits .pt-dd-menu {
+  min-width: 340px;
 }
 
 #pt-filter {

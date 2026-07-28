@@ -203,40 +203,50 @@
   }
 
   function buildCommitSelect(bar) {
-    const select = document.createElement("select");
-    select.id = "pt-commits";
-    select.append(new Option("All commits", ""));
-    bar.prepend(select);
+    const { dd, sum, menu } = window.ptView.makeDropdown("All commits");
+    dd.id = "pt-commits";
+    bar.prepend(dd);
+    const items = [];
 
-    apiPaged(`/projects/${project}/merge_requests/${iid}/commits?`)
-      .then((commits) => {
-        for (const c of commits)
-          select.append(new Option(`${c.short_id}  ${c.title}`.slice(0, 80), c.id));
-      })
-      .catch((e) => status(`commits unavailable: ${e.message}`, true));
-
-    select.addEventListener("change", async () => {
-      currentCommit = select.value;
-      select.disabled = true;
+    const choose = async (sha, label, item) => {
+      dd.open = false;
+      if (sha === currentCommit) return;
+      currentCommit = sha;
+      sum.textContent = label.length > 44 ? label.slice(0, 43) + "…" : label;
+      for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
         let text = window.ptView.initialRaw;
-        if (currentCommit) {
-          const r = await fetch(
-            `${location.origin}/${projectPath}/-/commit/${currentCommit}.diff`
-          );
+        if (sha) {
+          const r = await fetch(`${location.origin}/${projectPath}/-/commit/${sha}.diff`);
           if (!r.ok) throw new Error(`${r.status}`);
           text = await r.text();
         }
         window.ptView.renderDiff(text);
-        if (!currentCommit)
+        if (!sha)
           loadDiscussions().catch((e) => status(`discussions unavailable: ${e.message}`, true));
       } catch (e) {
         status(`commit diff failed: ${e.message}`, true);
-      } finally {
-        select.disabled = false;
       }
-    });
-    return select;
+    };
+
+    const addItem = (sha, html, label) => {
+      const item = window.ptView.menuItem(menu, html, (it) => choose(sha, label, it));
+      items.push(item);
+      return item;
+    };
+
+    addItem("", "All commits", "All commits").classList.add("pt-active");
+    apiPaged(`/projects/${project}/merge_requests/${iid}/commits?`)
+      .then((commits) => {
+        for (const c of commits)
+          addItem(
+            c.id,
+            `<span class="pt-sha">${esc(c.short_id)}</span><span>${esc(c.title)}</span>`,
+            c.title
+          );
+      })
+      .catch((e) => status(`commits unavailable: ${e.message}`, true));
+    return dd;
   }
 
   function buildReviewDropdown(bar) {
