@@ -296,7 +296,7 @@ window.ptProvider = (() => {
       kind: "github",
       can: { resolve: false, drafts: false, applySuggestion: false, whitespace: false },
       token: null,
-      tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic PAT, repo scope)",
+      tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic or fine-grained PAT)",
       setRefs: (i) => (refs = i),
     };
 

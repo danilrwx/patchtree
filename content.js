@@ -1323,7 +1323,7 @@ async function main() {
 
     const ghInput = document.createElement("input");
     ghInput.type = "password";
-    ghInput.placeholder = "ghp_…";
+    ghInput.placeholder = "ghp_… or github_pat_…";
     ghInput.value = gitlabs["github.com"]?.token || "";
 
     const save = () => {
@@ -1374,7 +1374,7 @@ async function main() {
 
     const ghSection = document.createElement("div");
     ghSection.innerHTML =
-      `<h4>GitHub</h4><p>Classic personal access token with the <code>repo</code> scope, used on github.com and patch-diff.githubusercontent.com.</p>`;
+      `<h4>GitHub</h4><p>Classic token (<code>repo</code> scope) or a fine-grained token with Pull requests read &amp; write. Used on github.com and patch-diff.githubusercontent.com.</p>`;
     ghInput.addEventListener("change", save);
     ghSection.appendChild(ghInput);
     panel.appendChild(ghSection);
