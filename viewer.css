@@ -219,6 +219,14 @@ html.pt-on {
   color: #bf8700;
   flex-shrink: 0;
   font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+.pt-tree-cmt:not(:empty):hover {
+  background: var(--pt-hunk-bg);
+  text-decoration: underline;
 }
 
 @media (max-width: 1000px) {

@@ -642,6 +642,17 @@ function buildTree(views) {
         `<span class="pt-tree-stats"><span class="pt-adds">+${v.adds}</span> <span class="pt-dels">−${v.dels}</span></span>`;
       a.addEventListener("click", (e) => {
         e.preventDefault();
+        if (e.target.closest(".pt-tree-cmt")) {
+          const row = [...v.section.querySelectorAll(".pt-comments-row")].find(
+            (r) => r.offsetParent
+          );
+          if (row) {
+            row.scrollIntoView({ block: "center" });
+            row.classList.add("pt-flash");
+            setTimeout(() => row.classList.remove("pt-flash"), 1200);
+            return;
+          }
+        }
         v.section.scrollIntoView();
       });
       v.treeLink = a;
