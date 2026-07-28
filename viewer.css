@@ -97,8 +97,13 @@ html.pt-on body {
   padding-right: 4px;
 }
 
+#pt-tree {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 #pt-tree details {
-  padding-left: 10px;
+  padding-left: 14px;
 }
 
 #pt-tree > details {
@@ -108,19 +113,29 @@ html.pt-on body {
 #pt-tree summary {
   cursor: pointer;
   color: var(--pt-muted);
-  padding: 1px 0;
+  padding: 3px 6px;
+  border-radius: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+#pt-tree summary:hover {
+  background: var(--pt-header-bg);
+}
+
 .pt-tree-file {
   display: flex;
-  gap: 6px;
-  padding: 1px 0 1px 10px;
+  gap: 8px;
+  padding: 3px 6px 3px 14px;
+  border-radius: 4px;
   color: var(--pt-fg);
   text-decoration: none;
   white-space: nowrap;
+}
+
+.pt-tree-file:hover {
+  background: var(--pt-header-bg);
 }
 
 #pt-tree > .pt-tree-file {
