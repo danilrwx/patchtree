@@ -1200,6 +1200,25 @@ html.pt-on {
   margin-top: 8px;
 }
 
+.pt-form-actions button,
+.pt-dialog .pt-form-actions button {
+  font: var(--pt-ui-size, 14px)/1.55 var(--pt-ui);
+  padding: 4px 12px;
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  background: var(--pt-bg);
+  color: var(--pt-fg);
+  cursor: pointer;
+}
+
+.pt-form-actions button:hover {
+  background: var(--pt-header-bg);
+}
+
+.pt-form-actions button.pt-primary:hover {
+  background: #0d6b3f !important;
+}
+
 .pt-comment-form textarea {
   margin-bottom: 0;
 }
