@@ -756,33 +756,39 @@ async function main() {
   });
   setRow("Theme", themeSel);
 
-  const fontInput = (key, listId, fonts, placeholder) => {
-    const input = document.createElement("input");
-    input.setAttribute("list", listId);
-    input.placeholder = placeholder;
-    input.value = settings[key] || "";
-    const dl = document.createElement("datalist");
-    dl.id = listId;
-    for (const f of fonts) dl.append(new Option(f));
-    gear.menu.appendChild(dl);
-    input.addEventListener("change", () => {
-      settings[key] = input.value.trim();
+  // bundled faces report unloaded until first use, so fonts.check() is false for them
+  const BUNDLED_FONTS = new Set(["JetBrains Mono", "Inter"]);
+  const fontSelect = (key, candidates) => {
+    const sel = document.createElement("select");
+    sel.append(new Option("Default", ""));
+    const avail = candidates.filter(
+      (f) => BUNDLED_FONTS.has(f) || document.fonts.check(`12px "${f}"`)
+    );
+    if (settings[key] && !avail.includes(settings[key])) avail.unshift(settings[key]);
+    for (const f of avail) sel.append(new Option(f, f));
+    sel.value = settings[key] || "";
+    sel.addEventListener("change", () => {
+      settings[key] = sel.value;
       applySettings(settings);
       saveSettings();
     });
-    return input;
+    return sel;
   };
   setRow(
     "UI font",
-    fontInput("uiFont", "pt-fonts-ui",
-      ["Inter", "SF Pro Text", "Segoe UI", "Roboto", "Helvetica Neue", "IBM Plex Sans", "Noto Sans"],
-      "system-ui")
+    fontSelect("uiFont", [
+      "Inter", "SF Pro Text", "Helvetica Neue", "Segoe UI", "Roboto", "IBM Plex Sans",
+      "Noto Sans", "Open Sans", "Lato", "Manrope", "Geist", "Ubuntu", "PT Sans",
+    ])
   );
   setRow(
     "Code font",
-    fontInput("codeFont", "pt-fonts-mono",
-      ["JetBrains Mono", "Fira Code", "SF Mono", "Menlo", "Monaco", "Cascadia Code", "Hack", "IBM Plex Mono", "Source Code Pro", "Iosevka"],
-      "ui-monospace")
+    fontSelect("codeFont", [
+      "JetBrains Mono", "SF Mono", "Menlo", "Monaco", "Consolas", "Fira Code",
+      "Cascadia Code", "Hack", "IBM Plex Mono", "Source Code Pro", "Iosevka",
+      "Iosevka NFM", "Berkeley Mono", "Victor Mono", "Geist Mono", "Commit Mono",
+      "MesloLGS NF", "Ubuntu Mono", "PT Mono",
+    ])
   );
 
   const tabSel = document.createElement("select");
