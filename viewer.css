@@ -91,8 +91,8 @@ html.pt-on body {
 #pt-tree {
   grid-area: tree;
   position: sticky;
-  top: 34px;
-  max-height: calc(100vh - 40px);
+  top: 46px;
+  max-height: calc(100vh - 54px);
   overflow: auto;
   padding-right: 4px;
 }
@@ -303,12 +303,14 @@ html.pt-on body {
   border: 1px solid var(--pt-border);
   border-radius: 6px;
   margin: 12px 0;
-  overflow: hidden;
+  /* clip, not hidden: an overflow:hidden box becomes the sticky header's
+     scrollport and permanently offsets it inside the section */
+  overflow: clip;
 }
 
 .pt-file-header {
   position: sticky;
-  top: 30px;
+  top: 42px;
   z-index: 2;
   display: flex;
   gap: 10px;
