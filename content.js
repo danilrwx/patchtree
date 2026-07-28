@@ -472,6 +472,8 @@ function applySettings(s) {
   if (s.codeFont) st.setProperty("--pt-mono", `"${s.codeFont}", ui-monospace, monospace`);
   else st.removeProperty("--pt-mono");
   st.setProperty("--pt-tab", s.tabSize || 4);
+  st.setProperty("--pt-size", (s.fontSize || 12) + "px");
+  st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
 
   const palette = BASE16[s.theme];
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;
@@ -680,6 +682,29 @@ async function main() {
     saveSettings();
   });
   setRow("Tab width", tabSel);
+
+  const sizeInput = document.createElement("input");
+  sizeInput.type = "number";
+  sizeInput.min = 9;
+  sizeInput.max = 20;
+  sizeInput.value = settings.fontSize || 12;
+  sizeInput.addEventListener("change", () => {
+    settings.fontSize = Math.max(9, Math.min(20, +sizeInput.value || 12));
+    sizeInput.value = settings.fontSize;
+    applySettings(settings);
+    saveSettings();
+  });
+  setRow("Code font size", sizeInput);
+
+  const italicCb = document.createElement("input");
+  italicCb.type = "checkbox";
+  italicCb.checked = !settings.noItalic;
+  italicCb.addEventListener("change", () => {
+    settings.noItalic = !italicCb.checked;
+    applySettings(settings);
+    saveSettings();
+  });
+  setRow("Italic comments", italicCb);
 
   const sep = document.createElement("div");
   sep.className = "pt-dd-sep";

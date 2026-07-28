@@ -76,7 +76,7 @@ html.pt-on body {
 #pt-root {
   font-family: var(--pt-mono);
   -webkit-font-smoothing: antialiased;
-  font-size: 12px;
+  font-size: var(--pt-size, 12px);
   line-height: 1.5;
   padding: 8px 12px 40px;
   display: grid;
@@ -324,6 +324,10 @@ html.pt-on {
   border: 1px solid var(--pt-border);
   border-radius: 4px;
   padding: 3px 6px;
+}
+
+.pt-set-row input[type="checkbox"] {
+  width: auto;
 }
 
 .pt-dd-sep {
@@ -728,7 +732,7 @@ html.pt-on {
 
 .pt-keyword { color: var(--pt-keyword); }
 .pt-string { color: var(--pt-string); }
-.pt-comment { color: var(--pt-comment); font-style: italic; }
+.pt-comment { color: var(--pt-comment); font-style: var(--pt-comment-style, italic); }
 .pt-function, .pt-method, .pt-constructor { color: var(--pt-function); }
 .pt-type { color: var(--pt-type); }
 .pt-constant, .pt-boolean { color: var(--pt-constant); }
