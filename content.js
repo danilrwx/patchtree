@@ -133,6 +133,15 @@ function buildFileView(file) {
 
   const table = document.createElement("table");
   table.className = "pt-table";
+  // table-layout: fixed sizes columns from the first row, which is a
+  // colspan=4 hunk header — explicit cols keep the number gutters narrow
+  const colgroup = document.createElement("colgroup");
+  for (const w of ["44px", "44px", "16px", ""]) {
+    const col = document.createElement("col");
+    if (w) col.style.width = w;
+    colgroup.appendChild(col);
+  }
+  table.appendChild(colgroup);
 
   // cells[side][row] -> {td, text}; side rows are 0-based indexes into the
   // reconstructed old/new texts used for tree-sitter parsing

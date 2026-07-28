@@ -1,12 +1,10 @@
 "use strict";
 
 (() => {
-  const m = /^(.*?)\/(.+)\/-\/merge_requests\/(\d+)\.(?:diff|patch)$/.exec(
-    location.origin + location.pathname
-  );
+  const m = /^\/(.+)\/-\/merge_requests\/(\d+)\.(?:diff|patch)$/.exec(location.pathname);
   if (!m) return;
-  const projectPath = m[2];
-  const iid = m[3];
+  const projectPath = m[1];
+  const iid = m[2];
   const project = encodeURIComponent(projectPath);
 
   let token = null;
