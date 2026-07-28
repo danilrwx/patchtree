@@ -1,4 +1,6 @@
 html.pt-on {
+  --pt-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pt-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --pt-bg: #ffffff;
   --pt-fg: #1f2328;
   --pt-muted: #59636e;
@@ -72,7 +74,8 @@ html.pt-on body {
 }
 
 #pt-root {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--pt-mono);
+  -webkit-font-smoothing: antialiased;
   font-size: 12px;
   line-height: 1.5;
   padding: 8px 12px 40px;
@@ -235,13 +238,13 @@ html.pt-on {
 .pt-review-panel,
 #pt-status,
 #pt-hint {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--pt-ui);
 }
 
 #pt-bar button,
 #pt-bar summary,
 .pt-comment-form button {
-  font: 13px/20px system-ui, sans-serif;
+  font: 13px/20px var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid var(--pt-muted);
   border-radius: 4px;
@@ -296,6 +299,38 @@ html.pt-on {
   min-width: 180px;
 }
 
+#pt-settings .pt-dd-menu {
+  min-width: 280px;
+}
+
+.pt-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  font: 12px/1.6 var(--pt-ui);
+  color: var(--pt-fg);
+  cursor: default;
+}
+
+.pt-set-row input,
+.pt-set-row select {
+  width: 150px;
+  box-sizing: border-box;
+  font: 12px/1.6 var(--pt-ui);
+  color: var(--pt-fg);
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.pt-dd-sep {
+  border-top: 1px solid var(--pt-border);
+  margin: 4px 0;
+}
+
 .pt-dd-item {
   display: flex;
   align-items: center;
@@ -303,7 +338,7 @@ html.pt-on {
   padding: 5px 10px;
   border-radius: 4px;
   cursor: pointer;
-  font: 13px/1.5 system-ui, sans-serif;
+  font: 13px/1.5 var(--pt-ui);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -322,7 +357,7 @@ html.pt-on {
 }
 
 .pt-sha {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--pt-mono);
   font-size: 12px;
   color: var(--pt-muted);
   flex-shrink: 0;
@@ -415,7 +450,7 @@ html.pt-on {
 }
 
 .pt-review-panel .pt-primary {
-  font: 13px/20px system-ui, sans-serif;
+  font: 13px/20px var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid #108548;
   border-radius: 4px;
@@ -438,7 +473,7 @@ html.pt-on {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  font: 13px/20px system-ui, sans-serif;
+  font: 13px/20px var(--pt-ui);
   color: var(--pt-fg);
   background: var(--pt-bg);
   border: 1px solid var(--pt-border);
@@ -496,7 +531,7 @@ html.pt-on {
   gap: 5px;
   align-items: center;
   margin-left: 12px;
-  font: 400 12px/20px system-ui, sans-serif;
+  font: 400 12px/20px var(--pt-ui);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -567,6 +602,12 @@ html.pt-on {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   padding-right: 8px;
+  tab-size: var(--pt-tab, 4);
+}
+
+#pt-raw,
+#pt-preamble {
+  tab-size: var(--pt-tab, 4);
 }
 
 .pt-add .pt-code, .pt-add .pt-mark { background: var(--pt-add-bg); }
@@ -620,7 +661,7 @@ html.pt-on {
   margin-top: 4px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-family: system-ui, sans-serif;
+  font-family: var(--pt-ui);
 }
 
 .pt-comment-form textarea {
@@ -657,7 +698,7 @@ html.pt-on {
 }
 
 .pt-md-bar button {
-  font: 12px/18px system-ui, sans-serif;
+  font: 12px/18px var(--pt-ui);
   padding: 2px 8px;
   margin: 0;
   border: 1px solid transparent;
@@ -676,7 +717,7 @@ html.pt-on {
 
 .pt-md-h, .pt-md-b { font-weight: 700 !important; }
 .pt-md-i { font-style: italic; font-family: Georgia, serif !important; }
-.pt-md-code, .pt-md-sug { font-family: ui-monospace, Menlo, monospace !important; }
+.pt-md-code, .pt-md-sug { font-family: var(--pt-mono) !important; }
 
 .pt-review-panel .pt-md-bar { max-width: none; }
 
@@ -705,6 +746,6 @@ html.pt-on {
 
 #pt-approved {
   color: #1a7f37;
-  font: 600 13px/20px system-ui, sans-serif;
+  font: 600 13px/20px var(--pt-ui);
   align-self: center;
 }
