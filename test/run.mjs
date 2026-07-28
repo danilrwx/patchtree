@@ -107,10 +107,15 @@ t("renderLineHTML: identical span keeps the last capture", () => {
   assert.ok(!html.includes("pt-string"), html);
 });
 
-// changelog.sh groups conventional commits by type (runs over this repo)
+// changelog.sh groups conventional commits by type. Use root..HEAD so the
+// range is non-empty regardless of where tags currently point.
 t("changelog.sh groups commits by type", () => {
   const script = new URL("scripts/changelog.sh", root).pathname;
-  const out = execSync(`'${script}' v1.0.0..HEAD`, { shell: "/bin/bash" }).toString();
+  const rootCommit = execSync("git rev-list --max-parents=0 HEAD")
+    .toString()
+    .trim()
+    .split("\n")[0];
+  const out = execSync(`'${script}' ${rootCommit}..HEAD`, { shell: "/bin/bash" }).toString();
   assert.ok(/### .*Features/.test(out), out);
   assert.ok(/### .*Fixes/.test(out), out);
   // scoped commits render the scope in bold
