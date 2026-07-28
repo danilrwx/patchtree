@@ -205,6 +205,11 @@ async function expandGap(view, ex) {
       }
       cellsArr.push({ tds, text });
     }
+    // a fully expanded gap makes the following @@ header redundant noise
+    if (to === ex.newTo) {
+      for (const t of [ex.u.nextElementSibling, ex.s?.nextElementSibling])
+        if (t?.classList.contains("pt-hunk")) t.remove();
+    }
     ex.u.remove();
     ex.s?.remove();
     ex.done = true;
@@ -768,46 +773,58 @@ async function main() {
   });
   setRow("Theme", themeSel);
 
-  // bundled faces report unloaded until first use, so fonts.check() is false for them
-  const BUNDLED_FONTS = new Set([
-    "JetBrains Mono",
-    "Inter",
-    "JetBrainsMono Nerd Font Mono",
-    "FiraCode Nerd Font Mono",
-    "Hack Nerd Font Mono",
-    "MesloLGS Nerd Font Mono",
-  ]);
-  const fontSelect = (key, candidates) => {
+  const fontControl = (key, bundled) => {
+    const wrap = document.createElement("span");
+    wrap.className = "pt-font-ctl";
     const sel = document.createElement("select");
     sel.append(new Option("Default", ""));
-    const avail = candidates.filter(
-      (f) => BUNDLED_FONTS.has(f) || document.fonts.check(`12px "${f}"`)
-    );
-    if (settings[key] && !avail.includes(settings[key])) avail.unshift(settings[key]);
-    for (const f of avail) sel.append(new Option(f, f));
-    sel.value = settings[key] || "";
-    sel.addEventListener("change", () => {
-      settings[key] = sel.value;
+    for (const f of bundled) {
+      const o = new Option(f, f);
+      o.style.fontFamily = `"${f}"`;
+      sel.append(o);
+    }
+    sel.append(new Option("Custom…", "__custom"));
+    const input = document.createElement("input");
+    input.placeholder = "system font name";
+    input.style.display = "none";
+
+    const current = settings[key] || "";
+    if (bundled.includes(current)) sel.value = current;
+    else if (current) {
+      sel.value = "__custom";
+      input.value = current;
+      input.style.display = "";
+    }
+    sel.style.fontFamily = bundled.includes(current) ? `"${current}"` : "";
+
+    const save = (v) => {
+      settings[key] = v;
       applySettings(settings);
       saveSettings();
+    };
+    sel.addEventListener("change", () => {
+      if (sel.value === "__custom") {
+        input.style.display = "";
+        input.focus();
+      } else {
+        input.style.display = "none";
+        sel.style.fontFamily = sel.value ? `"${sel.value}"` : "";
+        save(sel.value);
+      }
     });
-    return sel;
+    input.addEventListener("change", () => save(input.value.trim()));
+    wrap.append(sel, input);
+    return wrap;
   };
-  setRow(
-    "UI font",
-    fontSelect("uiFont", [
-      "Inter", "SF Pro Text", "Helvetica Neue", "Segoe UI", "Roboto", "IBM Plex Sans",
-      "Noto Sans", "Open Sans", "Lato", "Manrope", "Geist", "Ubuntu", "PT Sans",
-    ])
-  );
+  setRow("UI font", fontControl("uiFont", ["Inter"]));
   setRow(
     "Code font",
-    fontSelect("codeFont", [
-      "JetBrains Mono", "JetBrainsMono Nerd Font Mono", "FiraCode Nerd Font Mono",
-      "Hack Nerd Font Mono", "MesloLGS Nerd Font Mono", "SF Mono", "Menlo", "Monaco",
-      "Consolas", "Fira Code", "Cascadia Code", "Hack", "IBM Plex Mono",
-      "Source Code Pro", "Iosevka", "Iosevka NFM", "Berkeley Mono", "Victor Mono",
-      "Geist Mono", "Commit Mono", "MesloLGS NF", "Ubuntu Mono", "PT Mono",
+    fontControl("codeFont", [
+      "JetBrains Mono",
+      "JetBrainsMono Nerd Font Mono",
+      "FiraCode Nerd Font Mono",
+      "Hack Nerd Font Mono",
+      "MesloLGS Nerd Font Mono",
     ])
   );
 

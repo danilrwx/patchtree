@@ -421,6 +421,18 @@ html.pt-on {
   width: auto;
 }
 
+.pt-font-ctl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 150px;
+}
+
+.pt-font-ctl select,
+.pt-font-ctl input {
+  width: 100%;
+}
+
 .pt-dd-sep {
   border-top: 1px solid var(--pt-border);
   margin: 4px 0;
