@@ -81,6 +81,14 @@ function highlight(langName, text) {
     });
 }
 
+chrome.action.onClicked.addListener((tab) => {
+  if (!tab?.url) return;
+  const gl = /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)/.exec(tab.url);
+  const gh = /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+)/.exec(tab.url);
+  const base = gl?.[1] || gh?.[1];
+  if (base) chrome.tabs.create({ url: `${base}.diff`, index: tab.index + 1 });
+});
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type !== "highlight") return;
   highlight(msg.lang, msg.text).then(sendResponse, (err) => {

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 13px system-ui; padding: 12px; min-width: 480px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+    td, th { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+    input { width: 95%; font: inherit; border: none; outline: none; background: transparent; }
+    button { font: inherit; }
+    p { color: #666; }
+  </style>
+</head>
+<body>
+  <h3>GitLab instances</h3>
+  <p>Host → personal access token (scope: <code>api</code>). The token enables comments, approve and request-changes on <code>.diff</code> pages of that host.</p>
+  <table id="list">
+    <tr><th>Host</th><th>Token</th><th></th></tr>
+  </table>
+  <button id="add">Add host</button>
+  <script src="options.js"></script>
+</body>
+</html>

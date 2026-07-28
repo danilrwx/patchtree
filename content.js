@@ -104,6 +104,7 @@ function buildFileView(file) {
   section.className = "pt-file";
 
   const path = file.newPath || file.oldPath || "(unknown)";
+  section.dataset.path = path;
   let adds = 0;
   let dels = 0;
   for (const h of file.hunks)
@@ -163,12 +164,16 @@ function buildFileView(file) {
       tdCode.className = "pt-code";
       tdCode.textContent = l.s;
 
+      tr.dataset.path = file.newPath || file.oldPath || "";
+      tr.dataset.oldPath = file.oldPath || "";
       if (l.t !== "+") {
+        tr.dataset.old = oldNo;
         tdOld.textContent = oldNo++;
         cells.old.push({ td: l.t === "-" ? tdCode : null, text: l.s });
         oldParts.push(l.s);
       }
       if (l.t !== "-") {
+        tr.dataset.new = newNo;
         tdNew.textContent = newNo++;
         cells.new.push({ td: tdCode, text: l.s });
         newParts.push(l.s);
@@ -257,6 +262,9 @@ async function main() {
     highlightSide(v.lang, v.texts.new, v.cells.new);
     highlightSide(v.lang, v.texts.old, v.cells.old);
   }
+
+  window.ptView = { bar, root };
+  window.dispatchEvent(new CustomEvent("pt-rendered"));
 }
 
 main();

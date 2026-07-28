@@ -204,6 +204,69 @@ html.pt-on body {
 .pt-del .pt-code, .pt-del .pt-mark { background: var(--pt-del-bg); }
 .pt-del .pt-no { background: var(--pt-del-no-bg); }
 
+#pt-status {
+  margin-right: auto;
+  align-self: center;
+  color: var(--pt-muted);
+}
+
+#pt-status.pt-error { color: #cf222e; }
+
+#pt-hint {
+  align-self: center;
+  color: var(--pt-muted);
+}
+
+.pt-comments-row td,
+.pt-inline-form td {
+  padding: 6px 10px 6px 60px;
+  background: var(--pt-header-bg);
+  border-top: 1px solid var(--pt-border);
+  border-bottom: 1px solid var(--pt-border);
+}
+
+.pt-note {
+  max-width: 720px;
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  background: var(--pt-bg);
+  padding: 6px 10px;
+  margin: 4px 0;
+}
+
+.pt-note.pt-resolved { opacity: 0.55; }
+
+.pt-note-author { font-weight: 600; margin-right: 8px; }
+.pt-note-date { color: var(--pt-muted); font-size: 11px; }
+
+.pt-note-body {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: system-ui, sans-serif;
+}
+
+.pt-comment-form textarea {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  box-sizing: border-box;
+  font: inherit;
+  color: var(--pt-fg);
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  padding: 6px;
+  margin-bottom: 4px;
+}
+
+.pt-comment-form button { margin-right: 6px; }
+
+#pt-bar .pt-comment-form,
+#pt-bar + .pt-comment-form {
+  margin: 4px 0;
+}
+
 .pt-keyword { color: var(--pt-keyword); }
 .pt-string { color: var(--pt-string); }
 .pt-comment { color: var(--pt-comment); font-style: italic; }

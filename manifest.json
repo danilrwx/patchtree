@@ -7,10 +7,18 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "action": {
+    "default_title": "Open pretty diff"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "permissions": ["storage", "activeTab"],
   "content_scripts": [
     {
       "matches": ["*://*/*.diff", "*://*/*.patch"],
-      "js": ["content.js"],
+      "js": ["content.js", "gitlab.js"],
       "css": ["viewer.css"],
       "run_at": "document_idle"
     }
