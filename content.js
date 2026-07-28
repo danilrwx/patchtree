@@ -348,7 +348,12 @@ function buildTree(views) {
 
   const render = (node) => {
     const frag = document.createDocumentFragment();
-    for (const [name, child] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
+    for (let [name, child] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
+      while (child.dirs.size === 1 && child.files.length === 0) {
+        const [subName, subChild] = child.dirs.entries().next().value;
+        name += "/" + subName;
+        child = subChild;
+      }
       const det = document.createElement("details");
       det.open = true;
       const sum = document.createElement("summary");

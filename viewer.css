@@ -77,7 +77,7 @@ html.pt-on body {
   line-height: 1.5;
   padding: 8px 12px 40px;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-areas: "bar bar" "tree main";
   gap: 0 12px;
   align-items: start;
@@ -95,6 +95,10 @@ html.pt-on body {
   max-height: calc(100vh - 54px);
   overflow: auto;
   padding-right: 4px;
+  width: 280px;
+  min-width: 180px;
+  max-width: 640px;
+  resize: horizontal;
 }
 
 #pt-tree {
