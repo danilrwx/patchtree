@@ -108,7 +108,7 @@
     if (shown) status(`${shown} thread(s) loaded`);
   }
 
-  function commentForm(placeholder, onSubmit) {
+  function commentForm(placeholder, onSubmit, onClose) {
     const wrap = document.createElement("div");
     wrap.className = "pt-comment-form";
     const ta = document.createElement("textarea");
@@ -119,19 +119,23 @@
     const cancel = document.createElement("button");
     cancel.textContent = "Cancel";
     wrap.append(ta, send, cancel);
-    cancel.addEventListener("click", () => wrap.remove());
+    const close = () => {
+      wrap.remove();
+      onClose?.();
+    };
+    cancel.addEventListener("click", close);
     send.addEventListener("click", async () => {
       if (!ta.value.trim()) return;
       send.disabled = true;
       try {
         await onSubmit(ta.value);
-        wrap.remove();
+        close();
       } catch (e) {
         status(`comment failed: ${e.message}`, true);
         send.disabled = false;
       }
     });
-    ta.focus();
+    setTimeout(() => ta.focus());
     return wrap;
   }
 
@@ -147,29 +151,33 @@
     const cell = formRow.insertCell();
     cell.colSpan = 4;
     cell.appendChild(
-      commentForm("Comment on this line…", async (body) => {
-        const position = {
-          base_sha: diffRefs.base_sha,
-          start_sha: diffRefs.start_sha,
-          head_sha: diffRefs.head_sha,
-          position_type: "text",
-          new_path: tr.dataset.path,
-          old_path: tr.dataset.oldPath || tr.dataset.path,
-        };
-        if (tr.dataset.new) position.new_line = +tr.dataset.new;
-        if (tr.dataset.old) position.old_line = +tr.dataset.old;
-        const d = await api(`/projects/${project}/merge_requests/${iid}/discussions`, {
-          method: "POST",
-          body: JSON.stringify({ body, position }),
-        });
-        const row = document.createElement("tr");
-        row.className = "pt-comments-row";
-        const td2 = row.insertCell();
-        td2.colSpan = 4;
-        td2.innerHTML = (d.notes || []).map(noteHTML).join("");
-        insertAfter(formRow, row);
-        status("comment posted");
-      })
+      commentForm(
+        "Comment on this line…",
+        async (body) => {
+          const position = {
+            base_sha: diffRefs.base_sha,
+            start_sha: diffRefs.start_sha,
+            head_sha: diffRefs.head_sha,
+            position_type: "text",
+            new_path: tr.dataset.path,
+            old_path: tr.dataset.oldPath || tr.dataset.path,
+          };
+          if (tr.dataset.new) position.new_line = +tr.dataset.new;
+          if (tr.dataset.old) position.old_line = +tr.dataset.old;
+          const d = await api(`/projects/${project}/merge_requests/${iid}/discussions`, {
+            method: "POST",
+            body: JSON.stringify({ body, position }),
+          });
+          const row = document.createElement("tr");
+          row.className = "pt-comments-row";
+          const td2 = row.insertCell();
+          td2.colSpan = 4;
+          td2.innerHTML = (d.notes || []).map(noteHTML).join("");
+          insertAfter(formRow, row);
+          status("comment posted");
+        },
+        () => formRow.remove()
+      )
     );
     insertAfter(tr, formRow);
   }
@@ -209,8 +217,9 @@
         }
       });
 
-      addButton(bar, "Comment", (e) => {
-        if (bar.querySelector(".pt-comment-form")) return;
+      addButton(bar, "Comment", () => {
+        const main = document.getElementById("pt-main");
+        if (main.querySelector(":scope > .pt-comment-form")) return;
         const form = commentForm("Comment on the merge request…", async (body) => {
           await api(`/projects/${project}/merge_requests/${iid}/notes`, {
             method: "POST",
@@ -218,7 +227,7 @@
           });
           status("comment posted");
         });
-        bar.parentNode.insertBefore(form, bar.nextSibling);
+        main.prepend(form);
       });
 
       const approveBtn = addButton(bar, "Approve", async () => {
