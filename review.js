@@ -370,11 +370,12 @@
     btn.addEventListener("click", () => {
       if (td.querySelector(".pt-comment-form")) return;
       btn.style.display = "none";
+      const anchor = () => btn.closest(".pt-thread-actions") || btn;
       const form = commentForm(
         "Reply…",
         async (body) => {
           const note = await P.reply(t, body);
-          btn.before(await renderNote(note, anchorTr));
+          anchor().before(await renderNote(note, anchorTr, t));
           status("reply posted");
         },
         () => (btn.style.display = ""),
@@ -386,12 +387,12 @@
               const draft = await P.postDraft(null, body, t.id);
               drafts.push(draft);
               updateReviewSummary();
-              btn.before(renderDraft(draft, anchorTr));
+              anchor().before(renderDraft(draft, anchorTr));
               status("added to review");
             }
           : null
       );
-      (btn.closest(".pt-thread-actions") || btn).before(form);
+      anchor().before(form);
     });
     return btn;
   }
