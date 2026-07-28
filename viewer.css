@@ -639,6 +639,37 @@ html.pt-on {
 
 .pt-comment-form button { margin-right: 6px; }
 
+.pt-md-bar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 4px;
+  max-width: 720px;
+}
+
+.pt-md-bar button {
+  font: 12px/18px system-ui, sans-serif;
+  padding: 2px 8px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pt-md-bar button:hover {
+  background: var(--pt-header-bg);
+  color: var(--pt-fg);
+  border-color: var(--pt-border);
+}
+
+.pt-md-h, .pt-md-b { font-weight: 700 !important; }
+.pt-md-i { font-style: italic; font-family: Georgia, serif !important; }
+.pt-md-code, .pt-md-sug { font-family: ui-monospace, Menlo, monospace !important; }
+
+.pt-review-panel .pt-md-bar { max-width: none; }
+
 #pt-bar .pt-comment-form,
 #pt-bar + .pt-comment-form {
   margin: 4px 0;

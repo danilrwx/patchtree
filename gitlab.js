@@ -108,12 +108,74 @@
     if (shown) status(`${shown} thread(s) loaded`);
   }
 
-  function commentForm(placeholder, onSubmit, onClose) {
+  function surround(ta, before, after = before) {
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e) || "text";
+    ta.setRangeText(before + sel + after, s, e);
+    ta.focus();
+    ta.selectionStart = s + before.length;
+    ta.selectionEnd = s + before.length + sel.length;
+  }
+
+  function prefixLines(ta, prefixFor) {
+    const v = ta.value;
+    const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
+    let end = v.indexOf("\n", ta.selectionEnd);
+    if (end === -1) end = v.length;
+    const block = v
+      .slice(start, end)
+      .split("\n")
+      .map((line, i) => prefixFor(i) + line)
+      .join("\n");
+    ta.setRangeText(block, start, end);
+    ta.focus();
+    ta.selectionStart = start;
+    ta.selectionEnd = start + block.length;
+  }
+
+  function mdToolbar(ta, suggestionText) {
+    const bar = document.createElement("div");
+    bar.className = "pt-md-bar";
+    const add = (label, title, cls, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.title = title;
+      b.className = cls;
+      b.addEventListener("click", fn);
+      bar.appendChild(b);
+    };
+    add("H", "Heading", "pt-md-h", () => prefixLines(ta, () => "### "));
+    add("B", "Bold", "pt-md-b", () => surround(ta, "**"));
+    add("I", "Italic", "pt-md-i", () => surround(ta, "_"));
+    add("<>", "Code", "pt-md-code", () => {
+      const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+      if (sel.includes("\n")) surround(ta, "```\n", "\n```");
+      else surround(ta, "`");
+    });
+    add("• —", "Bulleted list", "pt-md-ul", () => prefixLines(ta, () => "- "));
+    add("1. —", "Numbered list", "pt-md-ol", () => prefixLines(ta, (i) => `${i + 1}. `));
+    if (suggestionText != null)
+      add("±", "Insert suggestion", "pt-md-sug", () => {
+        const s = ta.selectionStart;
+        const block = "```suggestion:-0+0\n" + suggestionText + "\n```\n";
+        ta.setRangeText(block, s, ta.selectionEnd);
+        ta.focus();
+        const lineStart = s + block.indexOf("\n") + 1;
+        ta.selectionStart = lineStart;
+        ta.selectionEnd = lineStart + suggestionText.length;
+      });
+    return bar;
+  }
+
+  function commentForm(placeholder, onSubmit, onClose, suggestionText) {
     const wrap = document.createElement("div");
     wrap.className = "pt-comment-form";
     const ta = document.createElement("textarea");
     ta.placeholder = placeholder;
     ta.rows = 3;
+    wrap.appendChild(mdToolbar(ta, suggestionText));
     const send = document.createElement("button");
     send.textContent = "Comment";
     const cancel = document.createElement("button");
@@ -196,7 +258,8 @@
           insertAfter(formRow, row);
           status("comment posted");
         },
-        () => formRow.remove()
+        () => formRow.remove(),
+        tr.dataset.new ? [...tr.querySelectorAll(".pt-code")].pop().textContent : null
       )
     );
     insertAfter(tr, formRow);
@@ -262,6 +325,7 @@
     const ta = document.createElement("textarea");
     ta.rows = 4;
     ta.placeholder = "Summary comment (optional)";
+    panel.appendChild(mdToolbar(ta));
     panel.appendChild(ta);
 
     const actions = [
