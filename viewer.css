@@ -504,6 +504,45 @@ html.pt-on {
   padding-top: 8px;
 }
 
+.pt-tokens { width: min(560px, 92vw); }
+.pt-tokens h4 { margin: 14px 0 2px; }
+.pt-tokens p { margin: 2px 0 8px; }
+
+.pt-tokens-table { width: 100%; border-collapse: collapse; }
+.pt-tokens-table td { padding: 2px 4px 2px 0; }
+.pt-tokens-table td:last-child { width: 28px; }
+
+.pt-tokens input {
+  width: 100%;
+  box-sizing: border-box;
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
+  color: var(--pt-fg);
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.pt-tokens-table td:last-child button {
+  border: none;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-tokens-table td:last-child button:hover { color: #cf222e; }
+
+.pt-token-add {
+  margin-top: 6px;
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
+  color: var(--pt-fg);
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+
 .pt-gallery-custom summary { cursor: pointer; color: var(--pt-muted); }
 .pt-gallery-custom textarea {
   width: 100%;

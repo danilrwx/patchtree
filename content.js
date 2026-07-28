@@ -1302,9 +1302,108 @@ async function main() {
     }
     window.ptUpdateProgress?.();
   });
+  const openTokensDialog = async () => {
+    document.getElementById("pt-tokens-dialog")?.remove();
+    const { gitlabs = {} } = await chrome.storage.sync.get("gitlabs");
+
+    const overlay = document.createElement("div");
+    overlay.id = "pt-themes-dialog";
+    const panel = document.createElement("div");
+    panel.className = "pt-dialog pt-tokens";
+    panel.innerHTML =
+      `<div class="pt-gallery-head"><h3>Access tokens</h3></div>` +
+      `<p>Tokens enable review actions; they are stored locally and never leave the browser except to their own host. Changes apply after reloading the diff page.</p>`;
+
+    const glSection = document.createElement("div");
+    glSection.innerHTML =
+      `<h4>GitLab instances</h4><p>Personal access token with the <code>api</code> scope.</p>`;
+    const rows = document.createElement("table");
+    rows.className = "pt-tokens-table";
+    glSection.appendChild(rows);
+
+    const ghInput = document.createElement("input");
+    ghInput.type = "password";
+    ghInput.placeholder = "ghp_…";
+    ghInput.value = gitlabs["github.com"]?.token || "";
+
+    const save = () => {
+      const m = {};
+      for (const tr of rows.querySelectorAll("tr")) {
+        const [h, t] = tr.querySelectorAll("input");
+        const host = h.value.trim();
+        if (host && host !== "github.com") m[host] = { token: t.value.trim() };
+      }
+      if (ghInput.value.trim()) m["github.com"] = { token: ghInput.value.trim() };
+      chrome.storage.sync.set({ gitlabs: m });
+    };
+
+    const addRow = (host = "", tok = "") => {
+      const tr = rows.insertRow();
+      const c1 = tr.insertCell();
+      const c2 = tr.insertCell();
+      const c3 = tr.insertCell();
+      const hi = document.createElement("input");
+      hi.placeholder = "gitlab.example.com";
+      hi.value = host;
+      const ti = document.createElement("input");
+      ti.type = "password";
+      ti.placeholder = "glpat-…";
+      ti.value = tok;
+      const rm = document.createElement("button");
+      rm.textContent = "✕";
+      rm.addEventListener("click", () => {
+        tr.remove();
+        save();
+      });
+      c1.appendChild(hi);
+      c2.appendChild(ti);
+      c3.appendChild(rm);
+      hi.addEventListener("change", save);
+      ti.addEventListener("change", save);
+    };
+    for (const [host, v] of Object.entries(gitlabs))
+      if (host !== "github.com") addRow(host, v.token || "");
+    if (!rows.rows.length) addRow();
+
+    const addBtn = document.createElement("button");
+    addBtn.textContent = "Add instance";
+    addBtn.className = "pt-token-add";
+    addBtn.addEventListener("click", () => addRow());
+    glSection.appendChild(addBtn);
+    panel.appendChild(glSection);
+
+    const ghSection = document.createElement("div");
+    ghSection.innerHTML =
+      `<h4>GitHub</h4><p>Classic personal access token with the <code>repo</code> scope, used on github.com and patch-diff.githubusercontent.com.</p>`;
+    ghInput.addEventListener("change", save);
+    ghSection.appendChild(ghInput);
+    panel.appendChild(ghSection);
+
+    const actions = document.createElement("div");
+    actions.className = "pt-form-actions";
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "Done";
+    closeBtn.className = "pt-primary";
+    closeBtn.addEventListener("click", () => {
+      save();
+      overlay.remove();
+    });
+    actions.appendChild(closeBtn);
+    panel.appendChild(actions);
+
+    overlay.appendChild(panel);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        save();
+        overlay.remove();
+      }
+    });
+    document.body.appendChild(overlay);
+  };
+
   menuItem(gear.menu, "Access tokens…", () => {
     gear.dd.open = false;
-    chrome.runtime.sendMessage({ type: "openOptions" });
+    openTokensDialog();
   });
 
   const sep2 = document.createElement("div");
