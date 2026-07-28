@@ -8,7 +8,7 @@ review workflows for **GitLab** (any instance, including self-hosted) and
 Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 (or click the extension icon on any MR/PR page) and review right there.
 
-![overview](docs/overview.jpg)
+![overview](screenshots/overview.png)
 
 ## Features
 
@@ -28,6 +28,8 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   toggle per file.
 - Large diffs stay fast: only visible file sections are rendered.
 
+![split view](screenshots/split-view.png)
+
 ### Navigation
 
 - Resizable, filterable **file tree** (filter matches paths *and* diff
@@ -38,12 +40,14 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 - **Keyboard**: `j`/`k` files, `n`/`p` threads (centered), `v` viewed,
   `x` fold, `/` focus filter.
 - **Commit filter** dropdown — view the diff of a single commit.
+
+  ![commit filter](screenshots/commits.png)
 - Alt-click a line number → copy a **permalink** to that line's blob.
 - Copy-path and open-at-head buttons in every file header.
 
 ### Review
 
-![review](docs/review.jpg)
+![thread with a suggestion](screenshots/thread.png)
 
 - **Threads on lines** (anchored to the old or new side, half-width in
   split view), replies, edit and delete of your comments.
@@ -53,16 +57,25 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   with the commented line; existing suggestions render as a red/green
   widget with **Apply suggestion** (GitLab).
 - **Multiline comments**: shift-click a line number to extend the range.
+
+![comment form](screenshots/comment-form.png)
+![multiline suggestion](screenshots/multiline-suggestion.png)
 - **Resolve/unresolve** threads (GitLab) and an **unresolved dropdown**
   in the toolbar that jumps to each open thread.
+
+  ![unresolved threads](screenshots/unresolved.png)
 - **Draft reviews** (GitLab): “Add to review” collects pending comments,
   published together by Submit review.
 - **Submit review** panel: summary comment + Comment / Approve (or
   Unapprove) / Request changes; approval state shown as a badge.
+
+  ![submit review](screenshots/submit-review.png)
 - General (non-diff) MR/PR discussion rendered above the first file.
 - Pipeline/checks status and merge-conflict indicator in the toolbar.
 
 ### Appearance
+
+![settings](screenshots/settings.png)
 
 - **Theme gallery**: all 500+ base16/base24 schemes from
   [tinted-theming](https://github.com/tinted-theming/schemes) (MIT) with

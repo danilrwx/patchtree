@@ -976,14 +976,15 @@ async function main() {
     if (area === "sync" && ch.settings) applySettings(ch.settings.newValue || {});
   });
 
-  const setRow = (labelText, control) => {
+  const buildRow = (labelText, control) => {
     const row = document.createElement("label");
     row.className = "pt-set-row";
     const span = document.createElement("span");
     span.textContent = labelText;
     row.append(span, control);
-    gear.menu.appendChild(row);
+    return row;
   };
+  const setRow = (labelText, control) => gear.menu.appendChild(buildRow(labelText, control));
 
   const { customThemes = {} } = await chrome.storage.sync.get("customThemes");
   window.ptCustomThemes = customThemes;
@@ -1344,7 +1345,12 @@ async function main() {
     makeDropdown,
     menuItem,
     esc,
-    addSettingRow: setRow,
+    addSettingRow: (labelText, control) => {
+      const row = buildRow(labelText, control);
+      const sep = gear.menu.querySelector(".pt-dd-sep");
+      if (sep) gear.menu.insertBefore(row, sep);
+      else gear.menu.appendChild(row);
+    },
     addMenuItem: (html, fn) => menuItem(gear.menu, html, fn),
     markCommented: (counts) => {
       for (const v of views) {
