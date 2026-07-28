@@ -430,9 +430,33 @@ async function main() {
   root.appendChild(tree);
   filter.addEventListener("input", () => applyTreeFilter(treeList, filter.value));
 
+  const splitter = document.createElement("div");
+  splitter.id = "pt-splitter";
+  root.appendChild(splitter);
+
   const main = document.createElement("div");
   main.id = "pt-main";
   root.appendChild(main);
+
+  const { treeWidth } = await chrome.storage.sync.get("treeWidth");
+  if (treeWidth) tree.style.width = treeWidth + "px";
+  splitter.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const left = tree.getBoundingClientRect().left;
+    document.body.style.userSelect = "none";
+    const move = (ev) => {
+      const w = Math.max(160, Math.min(800, ev.clientX - left));
+      tree.style.width = w + "px";
+    };
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      document.body.style.userSelect = "";
+      chrome.storage.sync.set({ treeWidth: tree.getBoundingClientRect().width });
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  });
 
   const rawPre = document.createElement("pre");
   rawPre.id = "pt-raw";

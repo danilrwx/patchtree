@@ -77,9 +77,9 @@ html.pt-on body {
   line-height: 1.5;
   padding: 8px 12px 40px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas: "bar bar" "tree main";
-  gap: 0 12px;
+  grid-template-columns: auto 8px minmax(0, 1fr);
+  grid-template-areas: "bar bar bar" "tree split main";
+  gap: 0 4px;
   align-items: start;
 }
 
@@ -96,9 +96,23 @@ html.pt-on body {
   overflow: auto;
   padding-right: 4px;
   width: 280px;
-  min-width: 180px;
-  max-width: 640px;
-  resize: horizontal;
+  min-width: 160px;
+  max-width: 800px;
+}
+
+#pt-splitter {
+  grid-area: split;
+  align-self: stretch;
+  cursor: col-resize;
+  border-left: 1px solid var(--pt-border);
+  margin-left: 3px;
+  position: sticky;
+  top: 46px;
+  height: calc(100vh - 54px);
+}
+
+#pt-splitter:hover {
+  border-left: 2px solid var(--pt-muted);
 }
 
 #pt-tree {
@@ -110,7 +124,7 @@ html.pt-on body {
   padding-left: 14px;
 }
 
-#pt-tree > details {
+#pt-tree-list > details {
   padding-left: 0;
 }
 
@@ -171,8 +185,8 @@ html.pt-on {
   background: var(--pt-header-bg);
 }
 
-#pt-tree > .pt-tree-file {
-  padding-left: 0;
+#pt-tree-list > .pt-tree-file {
+  padding-left: 6px;
 }
 
 .pt-tree-file:hover .pt-tree-name {
@@ -194,7 +208,7 @@ html.pt-on {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "bar" "main";
   }
-  #pt-tree { display: none; }
+  #pt-tree, #pt-splitter { display: none; }
 }
 
 .pt-mode-unified .pt-split { display: none; }
