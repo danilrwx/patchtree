@@ -812,7 +812,11 @@ async function main() {
         save(sel.value);
       }
     });
-    input.addEventListener("change", () => save(input.value.trim()));
+    let debounce;
+    input.addEventListener("input", () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => save(input.value.trim()), 400);
+    });
     wrap.append(sel, input);
     return wrap;
   };
