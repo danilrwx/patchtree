@@ -21,6 +21,18 @@ jobs:
         with:
           node-version: 22
 
+      - name: Cache pinned binary assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor
+            fonts
+            queries
+            themes.json
+          # keyed on the fetch scripts, which pin every upstream version —
+          # a version bump changes the hash and refreshes the cache
+          key: assets-${{ hashFiles('scripts/fetch-vendor.sh', 'scripts/fetch-queries.sh', 'scripts/fetch-fonts.sh', 'scripts/fetch-themes.sh') }}
+
       - name: Fetch pinned binary assets
         run: make deps
 
