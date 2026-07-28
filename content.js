@@ -1076,12 +1076,14 @@ async function main() {
     const sections = views.map((v) => v.section).filter((s) => s.offsetParent);
     const threads = [...document.querySelectorAll(".pt-comments-row")].filter((r) => r.offsetParent);
     const top = (el) => el.getBoundingClientRect().top;
-    const currentIdx = (els) => {
+    const currentIdx = (els, limit = 61) => {
       let idx = -1;
-      for (let i = 0; i < els.length; i++) if (top(els[i]) <= 61) idx = i;
+      for (let i = 0; i < els.length; i++) if (top(els[i]) <= limit) idx = i;
       return idx;
     };
     const go = (el) => el && window.scrollTo({ top: window.scrollY + top(el) - 56 });
+    const goCenter = (el) => el?.scrollIntoView({ block: "center" });
+    const mid = window.innerHeight / 2;
     const cur = () => sections[Math.max(0, currentIdx(sections))];
     switch (e.key) {
       case "j":
@@ -1091,10 +1093,10 @@ async function main() {
         go(sections[Math.max(0, currentIdx(sections) - 1)]);
         break;
       case "n":
-        go(threads[Math.min(threads.length - 1, currentIdx(threads) + 1)]);
+        goCenter(threads[Math.min(threads.length - 1, currentIdx(threads, mid) + 1)]);
         break;
       case "p":
-        go(threads[Math.max(0, currentIdx(threads) - 1)]);
+        goCenter(threads[Math.max(0, currentIdx(threads, mid) - 1)]);
         break;
       case "v":
         cur()?.querySelector(".pt-viewed:not(.pt-fullfile) input")?.click();

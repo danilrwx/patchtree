@@ -1056,8 +1056,22 @@ html.pt-on {
   align-self: center;
 }
 
+#pt-unresolved > summary {
+  color: #bf8700;
+  font-weight: 600;
+}
+
+#pt-unresolved .pt-dd-menu {
+  min-width: 320px;
+}
+
+.pt-flash {
+  outline: 2px solid #bf8700;
+  outline-offset: -1px;
+  transition: outline-color 0.4s;
+}
+
 #pt-progress,
-#pt-unresolved,
 #pt-conflicts,
 #pt-ci {
   font: calc(var(--pt-ui-size, 13px) - 1px)/1.55 var(--pt-ui);
@@ -1068,7 +1082,6 @@ html.pt-on {
 }
 
 #pt-progress.pt-done { color: #1a7f37; }
-#pt-unresolved:not(:empty) { color: #bf8700; font-weight: 600; }
 #pt-conflicts { color: #cf222e; }
 #pt-ci[data-state="success"] { color: #1a7f37; }
 #pt-ci[data-state="failed"] { color: #cf222e; }

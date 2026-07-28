@@ -22,11 +22,32 @@
 
   function updateUnresolved() {
     if (!unresolvedEl) return;
-    const n = lastDiscussions.filter((d) => {
+    const open = lastDiscussions.filter((d) => {
       const first = (d.notes || []).find((x) => x.resolvable);
       return first && !first.resolved;
-    }).length;
-    unresolvedEl.textContent = n ? `${n} unresolved` : "";
+    });
+    unresolvedEl.dd.style.display = open.length ? "" : "none";
+    unresolvedEl.sum.querySelector(".pt-dd-label").textContent = `${open.length} unresolved`;
+    unresolvedEl.menu.textContent = "";
+    for (const d of open) {
+      const note = (d.notes || []).find((n) => !n.system);
+      const pos = note?.position;
+      const loc = pos
+        ? `${(pos.new_path || pos.old_path).split("/").pop()}:${pos.new_line || pos.old_line}`
+        : "MR discussion";
+      const snippet = (note?.body || "").replace(/\s+/g, " ").slice(0, 60);
+      window.ptView.menuItem(
+        unresolvedEl.menu,
+        `<span class="pt-sha">${esc(loc)}</span><span>${esc(snippet)}</span>`,
+        () => {
+          unresolvedEl.dd.open = false;
+          const target = d._target?.isConnected ? d._target : null;
+          target?.scrollIntoView({ block: "center" });
+          target?.classList.add("pt-flash");
+          setTimeout(() => target?.classList.remove("pt-flash"), 1200);
+        }
+      );
+    }
   }
 
   function esc(s) {
@@ -365,6 +386,7 @@
       const t = document.createElement("div");
       t.className = "pt-thread";
       box.appendChild(t);
+      d._target = t;
       Promise.all(notes.map((n) => renderNote(n, null))).then((els) => {
         t.append(...els);
         if (token) t.appendChild(threadActions(d, t, null));
@@ -396,6 +418,7 @@
       for (const tr of trs) {
         const { row, td } = threadRow(tr, side, "pt-comments-row");
         insertAfter(tr, row);
+        if (!d._target || !d._target.isConnected) d._target = row;
         Promise.all(notes.map((n) => renderNote(n, tr))).then((els) => {
           td.append(...els);
           if (token) td.appendChild(threadActions(d, td, tr));
@@ -966,9 +989,10 @@
     badge.hidden = true;
     select.after(badge);
 
-    unresolvedEl = document.createElement("span");
-    unresolvedEl.id = "pt-unresolved";
-    select.after(unresolvedEl);
+    unresolvedEl = window.ptView.makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
+    unresolvedEl.dd.id = "pt-unresolved";
+    unresolvedEl.dd.style.display = "none";
+    select.after(unresolvedEl.dd);
 
     const wsCb = document.createElement("input");
     wsCb.type = "checkbox";
