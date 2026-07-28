@@ -17,6 +17,14 @@ SOURCES=(
   "html $RAW/tree-sitter/tree-sitter-html/v0.23.2/queries/highlights.scm"
   "typescript $RAW/tree-sitter/tree-sitter-typescript/v0.23.2/queries/highlights.scm"
   "yaml $RAW/helix-editor/helix/25.07.1/runtime/queries/yaml/highlights.scm"
+  "cpp $RAW/tree-sitter/tree-sitter-cpp/v0.23.4/queries/highlights.scm"
+  "java $RAW/tree-sitter/tree-sitter-java/v0.23.5/queries/highlights.scm"
+  "ruby $RAW/tree-sitter/tree-sitter-ruby/v0.23.1/queries/highlights.scm"
+  "php $RAW/tree-sitter/tree-sitter-php/v0.24.2/queries/highlights.scm"
+  "c_sharp $RAW/tree-sitter/tree-sitter-c-sharp/v0.23.5/queries/highlights.scm"
+  "lua $RAW/tree-sitter-grammars/tree-sitter-lua/v0.4.1/queries/highlights.scm"
+  "toml $RAW/tree-sitter-grammars/tree-sitter-toml/v0.7.0/queries/highlights.scm"
+  "hcl $RAW/helix-editor/helix/25.07.1/runtime/queries/hcl/highlights.scm"
 )
 
 mkdir -p queries

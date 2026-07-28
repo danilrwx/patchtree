@@ -19,6 +19,20 @@ const LANG_BY_EXT = {
   rs: "rust",
   css: "css",
   html: "html",
+  cpp: "cpp",
+  cc: "cpp",
+  cxx: "cpp",
+  hpp: "cpp",
+  hh: "cpp",
+  java: "java",
+  rb: "ruby",
+  php: "php",
+  cs: "c_sharp",
+  lua: "lua",
+  toml: "toml",
+  tf: "hcl",
+  tfvars: "hcl",
+  hcl: "hcl",
 };
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.

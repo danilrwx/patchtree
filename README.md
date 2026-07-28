@@ -9,7 +9,8 @@ tree-sitter syntax highlighting and a full review workflow for GitLab
 - Auto-renders any `*.diff` / `*.patch` plain-text page; inline and
   side-by-side views with word-level diff highlighting.
 - Syntax highlighting via web-tree-sitter (wasm) in the background service
-  worker: go, js/ts/tsx, python, bash, json, yaml, rust, c, css, html.
+  worker: go, js/ts/tsx, python, bash, json, yaml, rust, c, c++, java,
+  ruby, php, c#, lua, toml, hcl/terraform, css, html.
 - Resizable file tree with filtering (by path and by diff content),
   per-file fold, viewed state with progress, generated-file auto-collapse.
 - Expand hidden lines between hunks / full file view.

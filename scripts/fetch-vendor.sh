@@ -17,6 +17,14 @@ GRAMMARS=(
   "tree-sitter-html@0.23.2 tree-sitter-html.wasm"
   "tree-sitter-typescript@0.23.2 tree-sitter-tsx.wasm"
   "@tree-sitter-grammars/tree-sitter-yaml@0.7.1 tree-sitter-yaml.wasm"
+  "tree-sitter-cpp@0.23.4 tree-sitter-cpp.wasm"
+  "tree-sitter-java@0.23.5 tree-sitter-java.wasm"
+  "tree-sitter-ruby@0.23.1 tree-sitter-ruby.wasm"
+  "tree-sitter-php@0.24.2 tree-sitter-php.wasm"
+  "tree-sitter-c-sharp@0.23.5 tree-sitter-c_sharp.wasm"
+  "@tree-sitter-grammars/tree-sitter-lua@0.4.1 tree-sitter-lua.wasm"
+  "@tree-sitter-grammars/tree-sitter-toml@0.7.0 tree-sitter-toml.wasm"
+  "@tree-sitter-grammars/tree-sitter-hcl@1.2.0 tree-sitter-hcl.wasm"
 )
 
 tmp=$(mktemp -d)

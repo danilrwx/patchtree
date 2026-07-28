@@ -3,7 +3,7 @@ import { Parser, Language, Query } from "./vendor/web-tree-sitter.js";
 // typescript files are parsed with the tsx grammar so one wasm covers ts/tsx,
 // and its query is the javascript query plus typescript additions
 const GRAMMAR = { typescript: "tsx" };
-const QUERY_PARTS = { typescript: ["javascript", "typescript"] };
+const QUERY_PARTS = { typescript: ["javascript", "typescript"], cpp: ["c", "cpp"] };
 
 const MAX_CAPTURES = 50000;
 
