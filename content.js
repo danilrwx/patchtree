@@ -141,6 +141,70 @@ function makeTable(widths) {
   return table;
 }
 
+function setCtxMeta(tr, meta, o, n) {
+  tr.dataset.path = meta.path;
+  tr.dataset.oldPath = meta.oldPath;
+  tr.dataset.old = o;
+  tr.dataset.new = n;
+  tr.dataset.codeOld = o;
+  tr.dataset.codeNew = n;
+}
+
+function ctxRowU(meta, o, n, text) {
+  const tr = document.createElement("tr");
+  tr.className = "pt-ctx pt-exp";
+  const t1 = tr.insertCell();
+  t1.className = "pt-no";
+  t1.textContent = o;
+  const t2 = tr.insertCell();
+  t2.className = "pt-no";
+  t2.textContent = n;
+  tr.insertCell().className = "pt-mark";
+  const t4 = tr.insertCell();
+  t4.className = "pt-code";
+  t4.textContent = text;
+  setCtxMeta(tr, meta, o, n);
+  return tr;
+}
+
+function ctxRowS(meta, o, n, text) {
+  const tr = document.createElement("tr");
+  tr.className = "pt-srow pt-exp";
+  const mk = (no, txt) => {
+    const tn = tr.insertCell();
+    tn.className = "pt-no pt-ctx-no";
+    tn.textContent = no;
+    const tc = tr.insertCell();
+    tc.className = "pt-code pt-ctx-code";
+    tc.textContent = txt;
+  };
+  mk(o, text);
+  mk(n, text);
+  setCtxMeta(tr, meta, o, n);
+  return tr;
+}
+
+async function expandGap(view, ex) {
+  if (ex.busy || ex.done) return;
+  ex.busy = true;
+  try {
+    if (!window.ptView?.fetchFile) throw new Error("file contents unavailable here");
+    const lines = await window.ptView.fetchFile(view.path);
+    const to = Math.min(ex.newTo, lines.length);
+    for (let n = ex.newFrom; n <= to; n++) {
+      const o = ex.oldFrom + (n - ex.newFrom);
+      ex.u.before(ctxRowU(view.meta, o, n, lines[n - 1] ?? ""));
+      if (ex.s) ex.s.before(ctxRowS(view.meta, o, n, lines[n - 1] ?? ""));
+    }
+    ex.u.remove();
+    ex.s?.remove();
+    ex.done = true;
+  } catch (e) {
+    ex.busy = false;
+    ex.u.cells[0].textContent = `⚠ ${e.message}`;
+  }
+}
+
 function hunkRow(table, span, h) {
   const tr = table.insertRow();
   tr.className = "pt-hunk";
@@ -182,6 +246,17 @@ function buildFileView(file) {
     foldIcon.textContent = f ? "▸" : "▾";
   };
 
+  const fullLab = document.createElement("label");
+  fullLab.className = "pt-viewed pt-fullfile";
+  const fullCb = document.createElement("input");
+  fullCb.type = "checkbox";
+  fullLab.append(fullCb, "Full file");
+  header.appendChild(fullLab);
+  fullCb.addEventListener("change", () => {
+    section.classList.toggle("pt-exp-hide", !fullCb.checked);
+    if (fullCb.checked) for (const ex of view.expanders) expandGap(view, ex);
+  });
+
   const viewedLab = document.createElement("label");
   viewedLab.className = "pt-viewed";
   const viewedCb = document.createElement("input");
@@ -200,7 +275,7 @@ function buildFileView(file) {
   });
 
   header.addEventListener("click", (e) => {
-    if (e.target.closest(".pt-viewed")) return;
+    if (e.target.closest(".pt-viewed") || e.target.closest(".pt-fullfile")) return;
     setFolded(!section.classList.contains("pt-folded"));
   });
   if (file.binary) {
@@ -280,9 +355,40 @@ function buildFileView(file) {
     return td;
   };
 
+  view.meta = { path, oldPath: file.oldPath || "" };
+  view.expanders = [];
+  const canExpand = !full && !file.binary;
+  const addExpander = (oldFrom, newFrom, newTo) => {
+    const make = (table) => {
+      const tr = table.insertRow();
+      tr.className = "pt-expander";
+      const td = tr.insertCell();
+      td.colSpan = 4;
+      td.textContent = "⋯ expand hidden lines";
+      return tr;
+    };
+    const ex = { u: make(unified), s: split ? make(split) : null, oldFrom, newFrom, newTo };
+    const onClick = () => expandGap(view, ex);
+    ex.u.addEventListener("click", onClick);
+    ex.s?.addEventListener("click", onClick);
+    view.expanders.push(ex);
+  };
+
+  let nextOld = 1;
+  let nextNew = 1;
   for (const h of file.hunks) {
+    if (canExpand && h.newStart > nextNew)
+      addExpander(nextOld, nextNew, h.newStart - 1);
     hunkRow(unified, 4, h);
     if (split) hunkRow(split, 4, h);
+    let cntOld = 0;
+    let cntNew = 0;
+    for (const l of h.lines) {
+      if (l.t !== "+" && l.t !== "\\") cntOld++;
+      if (l.t !== "-" && l.t !== "\\") cntNew++;
+    }
+    nextOld = h.oldStart + cntOld;
+    nextNew = h.newStart + cntNew;
     for (const pair of alignHunk(h)) {
       let oldTd = null;
       let newTd = null;
@@ -313,6 +419,8 @@ function buildFileView(file) {
       }
     }
   }
+
+  if (canExpand) addExpander(nextOld, nextNew, Infinity);
 
   section.appendChild(unified);
   if (split) section.appendChild(split);

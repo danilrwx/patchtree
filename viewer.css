@@ -608,6 +608,24 @@ html.pt-on {
   table-layout: fixed;
 }
 
+.pt-expander td {
+  text-align: center;
+  background: var(--pt-hunk-bg);
+  color: var(--pt-muted);
+  cursor: pointer;
+  padding: 2px 12px;
+  font: calc(var(--pt-ui-size, 13px) - 2px)/1.6 var(--pt-ui);
+  user-select: none;
+}
+
+.pt-expander td:hover {
+  color: var(--pt-fg);
+}
+
+.pt-exp-hide .pt-exp {
+  display: none;
+}
+
 .pt-hunk td {
   background: var(--pt-hunk-bg);
   color: var(--pt-hunk-fg);

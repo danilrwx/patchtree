@@ -538,6 +538,27 @@
       status(`MR info unavailable: ${e.message}`, true);
     }
 
+    const fileCache = new Map();
+    window.ptView.fetchFile = (path) => {
+      if (!fileCache.has(path))
+        fileCache.set(
+          path,
+          (async () => {
+            const ref = diffRefs?.head_sha || "HEAD";
+            const r = await fetch(
+              `${location.origin}/api/v4/projects/${project}/repository/files/${encodeURIComponent(path)}/raw?ref=${ref}`,
+              { headers: headers() }
+            );
+            if (!r.ok) throw new Error(`file fetch: ${r.status}`);
+            return (await r.text()).split("\n");
+          })().catch((e) => {
+            fileCache.delete(path);
+            throw e;
+          })
+        );
+      return fileCache.get(path);
+    };
+
     try {
       const [me, appr] = await Promise.all([
         api("/user"),
