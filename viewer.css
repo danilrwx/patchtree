@@ -726,8 +726,110 @@ html.pt-on {
 
 .pt-note.pt-resolved { opacity: 0.55; }
 
-.pt-note-author { font-weight: 600; margin-right: 8px; }
+.pt-note-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pt-note-author { font-weight: 600; }
 .pt-note-date { color: var(--pt-muted); font-size: 11px; }
+
+.pt-note-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.pt-note-actions button {
+  font: 11px/1.4 var(--pt-ui);
+  padding: 1px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-note-actions button:hover {
+  background: var(--pt-header-bg);
+  color: var(--pt-fg);
+}
+
+.pt-md {
+  font: var(--pt-ui-size, 13px)/1.6 var(--pt-ui);
+}
+
+.pt-md p { margin: 4px 0; }
+.pt-md ul, .pt-md ol { margin: 4px 0; padding-left: 22px; }
+.pt-md h1, .pt-md h2, .pt-md h3, .pt-md h4 { margin: 8px 0 4px; line-height: 1.3; }
+.pt-md a { color: #0969da; }
+.pt-md img { max-width: 100%; }
+
+.pt-md blockquote {
+  margin: 4px 0;
+  padding: 0 10px;
+  border-left: 3px solid var(--pt-border);
+  color: var(--pt-muted);
+}
+
+.pt-md code {
+  font-family: var(--pt-mono);
+  font-size: 92%;
+  background: var(--pt-header-bg);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.pt-md pre {
+  background: var(--pt-header-bg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+}
+
+.pt-md pre code {
+  background: none;
+  padding: 0;
+}
+
+.pt-sug {
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.pt-sug-head {
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.6 var(--pt-ui);
+  background: var(--pt-header-bg);
+  border-bottom: 1px solid var(--pt-border);
+  padding: 4px 10px;
+  color: var(--pt-muted);
+}
+
+.pt-sug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--pt-mono);
+  font-size: var(--pt-size, 12px);
+}
+
+.pt-sug-table .pt-mark {
+  width: 22px;
+  text-align: center;
+}
+
+.pt-sug-table .pt-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 1px 8px 1px 0;
+}
+
+.pt-sug-table .pt-del .pt-mark,
+.pt-sug-table .pt-del .pt-code { background: var(--pt-del-bg); }
+.pt-sug-table .pt-add .pt-mark,
+.pt-sug-table .pt-add .pt-code { background: var(--pt-add-bg); }
 
 .pt-note-body {
   margin-top: 4px;

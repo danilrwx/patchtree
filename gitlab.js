@@ -9,6 +9,7 @@
 
   let token = null;
   let diffRefs = null;
+  let me = null;
 
   function esc(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -26,7 +27,7 @@
       headers: headers(opts.body ? { "Content-Type": "application/json" } : {}),
     });
     if (!resp.ok) throw new Error(`${resp.status} ${await resp.text().catch(() => "")}`.slice(0, 200));
-    return resp.json();
+    return resp.status === 204 ? null : resp.json();
   }
 
   async function apiPaged(path) {
@@ -62,14 +63,174 @@
     if (!isError) setTimeout(() => (el.textContent = ""), 5000);
   }
 
-  function noteHTML(note) {
-    const when = new Date(note.created_at).toLocaleString();
-    return (
-      `<div class="pt-note${note.resolved ? " pt-resolved" : ""}">` +
+  const mdCache = new Map();
+  async function renderMarkdown(text) {
+    if (!text.trim()) return "";
+    if (mdCache.has(text)) return mdCache.get(text);
+    let html;
+    try {
+      const d = await api("/markdown", {
+        method: "POST",
+        body: JSON.stringify({ text, gfm: true, project: projectPath }),
+      });
+      html = d.html;
+    } catch {
+      html = `<p>${esc(text).replace(/\n/g, "<br>")}</p>`;
+    }
+    mdCache.set(text, html);
+    return html;
+  }
+
+  function splitSuggestions(body) {
+    const parts = [];
+    const re = /```suggestion(?::-(\d+)\+(\d+))?\n([\s\S]*?)```/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(body))) {
+      if (m.index > last) parts.push({ md: body.slice(last, m.index) });
+      parts.push({ sug: m[3].replace(/\n$/, ""), minus: +(m[1] || 0), plus: +(m[2] || 0) });
+      last = m.index + m[0].length;
+    }
+    if (last < body.length) parts.push({ md: body.slice(last) });
+    return parts;
+  }
+
+  function suggestionWidget(part, anchorTr) {
+    const box = document.createElement("div");
+    box.className = "pt-sug";
+    const head = document.createElement("div");
+    head.className = "pt-sug-head";
+    head.textContent = "Suggested change";
+    box.appendChild(head);
+    const table = document.createElement("table");
+    table.className = "pt-sug-table";
+    const addRow = (cls, mark, text) => {
+      const tr = table.insertRow();
+      tr.className = cls;
+      const tm = tr.insertCell();
+      tm.className = "pt-mark";
+      tm.textContent = mark;
+      const tc = tr.insertCell();
+      tc.className = "pt-code";
+      tc.textContent = text;
+    };
+    const L = +(anchorTr?.dataset.new || 0);
+    if (L) {
+      const tbl = anchorTr.closest("table");
+      for (let n = L - part.minus; n <= L + part.plus; n++) {
+        const row = tbl.querySelector(
+          `tr[data-path="${CSS.escape(anchorTr.dataset.path)}"][data-new="${n}"]`
+        );
+        addRow("pt-del", "−", row ? [...row.querySelectorAll(".pt-code")].pop().textContent : "");
+      }
+    }
+    for (const line of part.sug.split("\n")) addRow("pt-add", "+", line);
+    box.appendChild(table);
+    return box;
+  }
+
+  async function renderNote(note, anchorTr) {
+    const div = document.createElement("div");
+    div.className = "pt-note" + (note.resolved ? " pt-resolved" : "");
+    const head = document.createElement("div");
+    head.className = "pt-note-head";
+    head.innerHTML =
       `<span class="pt-note-author">${esc(note.author?.name || "?")}</span>` +
-      `<span class="pt-note-date">${esc(when)}</span>` +
-      `<div class="pt-note-body">${esc(note.body || "")}</div></div>`
-    );
+      `<span class="pt-note-date">${esc(new Date(note.created_at).toLocaleString())}</span>`;
+    div.appendChild(head);
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "pt-note-body";
+    div.appendChild(bodyEl);
+
+    const paint = async () => {
+      bodyEl.textContent = "";
+      for (const p of splitSuggestions(note.body || "")) {
+        if (p.sug !== undefined) bodyEl.appendChild(suggestionWidget(p, anchorTr));
+        else {
+          const md = document.createElement("div");
+          md.className = "pt-md";
+          md.innerHTML = await renderMarkdown(p.md);
+          bodyEl.appendChild(md);
+        }
+      }
+    };
+    await paint();
+
+    if (token && me && note.author?.id === me.id) {
+      const actions = document.createElement("span");
+      actions.className = "pt-note-actions";
+      const editBtn = document.createElement("button");
+      editBtn.textContent = "✎";
+      editBtn.title = "Edit";
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "🗑";
+      delBtn.title = "Delete";
+      actions.append(editBtn, delBtn);
+      head.appendChild(actions);
+
+      editBtn.addEventListener("click", () => {
+        if (div.querySelector("textarea")) return;
+        const ta = document.createElement("textarea");
+        ta.rows = 5;
+        ta.value = note.body;
+        const save = document.createElement("button");
+        save.textContent = "Save";
+        save.className = "pt-primary";
+        const cancel = document.createElement("button");
+        cancel.textContent = "Cancel";
+        const act = document.createElement("div");
+        act.className = "pt-form-actions";
+        act.append(cancel, save);
+        const wrap = document.createElement("div");
+        wrap.className = "pt-comment-form";
+        wrap.append(mdToolbar(ta), ta, act);
+        bodyEl.style.display = "none";
+        div.appendChild(wrap);
+        cancel.addEventListener("click", () => {
+          wrap.remove();
+          bodyEl.style.display = "";
+        });
+        save.addEventListener("click", async () => {
+          save.disabled = true;
+          try {
+            const updated = await api(
+              `/projects/${project}/merge_requests/${iid}/notes/${note.id}`,
+              { method: "PUT", body: JSON.stringify({ body: ta.value }) }
+            );
+            note.body = updated.body;
+            wrap.remove();
+            bodyEl.style.display = "";
+            await paint();
+            status("comment updated");
+          } catch (e) {
+            status(`edit failed: ${e.message}`, true);
+            save.disabled = false;
+          }
+        });
+      });
+
+      delBtn.addEventListener("click", async () => {
+        if (delBtn.dataset.arm !== "1") {
+          delBtn.dataset.arm = "1";
+          delBtn.textContent = "sure?";
+          setTimeout(() => {
+            delBtn.dataset.arm = "";
+            delBtn.textContent = "🗑";
+          }, 3000);
+          return;
+        }
+        try {
+          await api(`/projects/${project}/merge_requests/${iid}/notes/${note.id}`, {
+            method: "DELETE",
+          });
+          div.remove();
+          status("comment deleted");
+        } catch (e) {
+          status(`delete failed: ${e.message}`, true);
+        }
+      });
+    }
+    return div;
   }
 
   function rowsFor(path, oldLine, newLine) {
@@ -130,8 +291,8 @@
       if (!trs.length) continue;
       for (const tr of trs) {
         const { row, td } = threadRow(tr, side, "pt-comments-row");
-        td.innerHTML = notes.map(noteHTML).join("");
         insertAfter(tr, row);
+        Promise.all(notes.map((n) => renderNote(n, tr))).then((els) => td.append(...els));
       }
       shown++;
     }
@@ -356,8 +517,10 @@
             body: JSON.stringify({ body, position }),
           });
           const { row, td: td2 } = threadRow(end, side, "pt-comments-row");
-          td2.innerHTML = (d.notes || []).map(noteHTML).join("");
           insertAfter(formRow, row);
+          Promise.all((d.notes || []).map((n) => renderNote(n, end))).then((els) =>
+            td2.append(...els)
+          );
           status("comment posted");
         },
         closeActiveForm,
@@ -560,10 +723,8 @@
     };
 
     try {
-      const [me, appr] = await Promise.all([
-        api("/user"),
-        api(`/projects/${project}/merge_requests/${iid}/approvals`),
-      ]);
+      me = await api("/user");
+      const appr = await api(`/projects/${project}/merge_requests/${iid}/approvals`);
       setApproved(!!appr.approved_by?.some((a) => a.user?.id === me.id));
     } catch {
       // approvals may be unavailable (no auth, CE without approvals) — badge stays hidden
