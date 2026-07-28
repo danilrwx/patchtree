@@ -1,3 +1,38 @@
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-style: italic;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/JetBrainsMono-Italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 700;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/JetBrainsMono-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 100 900;
+  font-style: normal;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/InterVariable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-weight: 100 900;
+  font-style: italic;
+  src: url("chrome-extension://__MSG_@@extension_id__/fonts/InterVariable-Italic.woff2") format("woff2");
+}
+
 html.pt-on {
   --pt-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --pt-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -77,8 +112,8 @@ html.pt-on body {
   font-family: var(--pt-mono);
   -webkit-font-smoothing: antialiased;
   font-size: var(--pt-size, 12px);
-  line-height: 1.5;
-  padding: 8px 12px 40px;
+  line-height: 1.6;
+  padding: 12px 16px 48px;
   display: grid;
   grid-template-columns: auto 8px minmax(0, 1fr);
   grid-template-areas: "bar bar bar" "tree split main";
@@ -94,8 +129,8 @@ html.pt-on body {
 #pt-tree {
   grid-area: tree;
   position: sticky;
-  top: 46px;
-  max-height: calc(100vh - 54px);
+  top: 54px;
+  max-height: calc(100vh - 64px);
   overflow: auto;
   padding-right: 4px;
   width: 280px;
@@ -110,8 +145,8 @@ html.pt-on body {
   border-left: 1px solid var(--pt-border);
   margin-left: 3px;
   position: sticky;
-  top: 46px;
-  height: calc(100vh - 54px);
+  top: 54px;
+  height: calc(100vh - 64px);
 }
 
 #pt-splitter:hover {
@@ -119,7 +154,7 @@ html.pt-on body {
 }
 
 #pt-tree {
-  font-size: 12px;
+  font-size: calc(var(--pt-ui-size, 13px) - 1px);
   line-height: 1.5;
 }
 
@@ -221,10 +256,10 @@ html.pt-on {
 #pt-bar {
   grid-area: bar;
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
   justify-content: flex-end;
-  padding: 4px 0 8px;
+  padding: 8px 0 10px;
   position: sticky;
   top: 0;
   background: var(--pt-bg);
@@ -244,7 +279,7 @@ html.pt-on {
 #pt-bar button,
 #pt-bar summary,
 .pt-comment-form button {
-  font: 13px/20px var(--pt-ui);
+  font: var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid var(--pt-muted);
   border-radius: 4px;
@@ -289,7 +324,7 @@ html.pt-on {
   border: 1px solid var(--pt-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  padding: 4px;
+  padding: 6px;
   z-index: 6;
 }
 
@@ -309,7 +344,7 @@ html.pt-on {
   justify-content: space-between;
   gap: 12px;
   padding: 4px 10px;
-  font: 12px/1.6 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.6 var(--pt-ui);
   color: var(--pt-fg);
   cursor: default;
 }
@@ -318,7 +353,7 @@ html.pt-on {
 .pt-set-row select {
   width: 150px;
   box-sizing: border-box;
-  font: 12px/1.6 var(--pt-ui);
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.6 var(--pt-ui);
   color: var(--pt-fg);
   background: var(--pt-bg);
   border: 1px solid var(--pt-border);
@@ -339,10 +374,10 @@ html.pt-on {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font: 13px/1.5 var(--pt-ui);
+  font: var(--pt-ui-size, 13px)/1.5 var(--pt-ui);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -454,7 +489,7 @@ html.pt-on {
 }
 
 .pt-review-panel .pt-primary {
-  font: 13px/20px var(--pt-ui);
+  font: var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid #108548;
   border-radius: 4px;
@@ -477,7 +512,7 @@ html.pt-on {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  font: 13px/20px var(--pt-ui);
+  font: var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
   color: var(--pt-fg);
   background: var(--pt-bg);
   border: 1px solid var(--pt-border);
@@ -502,7 +537,7 @@ html.pt-on {
 .pt-file {
   border: 1px solid var(--pt-border);
   border-radius: 6px;
-  margin: 12px 0;
+  margin: 16px 0;
   /* clip, not hidden: an overflow:hidden box becomes the sticky header's
      scrollport and permanently offsets it inside the section */
   overflow: clip;
@@ -510,14 +545,14 @@ html.pt-on {
 
 .pt-file-header {
   position: sticky;
-  top: 42px;
+  top: 50px;
   z-index: 2;
   display: flex;
   gap: 10px;
   align-items: baseline;
   background: var(--pt-header-bg);
   border-bottom: 1px solid var(--pt-border);
-  padding: 6px 10px;
+  padding: 8px 12px;
   font-weight: 600;
 }
 
@@ -535,7 +570,7 @@ html.pt-on {
   gap: 5px;
   align-items: center;
   margin-left: 12px;
-  font: 400 12px/20px var(--pt-ui);
+  font: 400 calc(var(--pt-ui-size, 13px) - 1px)/1.55 var(--pt-ui);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -576,7 +611,7 @@ html.pt-on {
 .pt-hunk td {
   background: var(--pt-hunk-bg);
   color: var(--pt-hunk-fg);
-  padding: 2px 10px;
+  padding: 4px 12px;
 }
 
 .pt-no {
@@ -641,7 +676,7 @@ html.pt-on {
 
 .pt-comments-row td,
 .pt-inline-form td {
-  padding: 6px 10px 6px 60px;
+  padding: 8px 12px 8px 60px;
   background: var(--pt-header-bg);
   border-top: 1px solid var(--pt-border);
   border-bottom: 1px solid var(--pt-border);
@@ -652,8 +687,8 @@ html.pt-on {
   border: 1px solid var(--pt-border);
   border-radius: 6px;
   background: var(--pt-bg);
-  padding: 6px 10px;
-  margin: 4px 0;
+  padding: 8px 12px;
+  margin: 6px 0;
 }
 
 .pt-note.pt-resolved { opacity: 0.55; }
@@ -702,7 +737,7 @@ html.pt-on {
 }
 
 .pt-md-bar button {
-  font: 12px/18px var(--pt-ui);
+  font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
   padding: 2px 8px;
   margin: 0;
   border: 1px solid transparent;
@@ -750,6 +785,6 @@ html.pt-on {
 
 #pt-approved {
   color: #1a7f37;
-  font: 600 13px/20px var(--pt-ui);
+  font: 600 var(--pt-ui-size, 13px)/1.55 var(--pt-ui);
   align-self: center;
 }

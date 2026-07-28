@@ -25,6 +25,12 @@
     "open_in_tab": true
   },
   "permissions": ["storage", "activeTab"],
+  "web_accessible_resources": [
+    {
+      "resources": ["fonts/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["*://*/*.diff", "*://*/*.patch"],

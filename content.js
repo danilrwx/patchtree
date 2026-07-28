@@ -473,6 +473,7 @@ function applySettings(s) {
   else st.removeProperty("--pt-mono");
   st.setProperty("--pt-tab", s.tabSize || 4);
   st.setProperty("--pt-size", (s.fontSize || 12) + "px");
+  st.setProperty("--pt-ui-size", (s.uiFontSize || 13) + "px");
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
 
   const palette = BASE16[s.theme];
@@ -683,18 +684,22 @@ async function main() {
   });
   setRow("Tab width", tabSel);
 
-  const sizeInput = document.createElement("input");
-  sizeInput.type = "number";
-  sizeInput.min = 9;
-  sizeInput.max = 20;
-  sizeInput.value = settings.fontSize || 12;
-  sizeInput.addEventListener("change", () => {
-    settings.fontSize = Math.max(9, Math.min(20, +sizeInput.value || 12));
-    sizeInput.value = settings.fontSize;
-    applySettings(settings);
-    saveSettings();
-  });
-  setRow("Code font size", sizeInput);
+  const sizeRow = (label, key, dflt) => {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = 9;
+    input.max = 20;
+    input.value = settings[key] || dflt;
+    input.addEventListener("change", () => {
+      settings[key] = Math.max(9, Math.min(20, +input.value || dflt));
+      input.value = settings[key];
+      applySettings(settings);
+      saveSettings();
+    });
+    setRow(label, input);
+  };
+  sizeRow("Code font size", "fontSize", 12);
+  sizeRow("UI font size", "uiFontSize", 13);
 
   const italicCb = document.createElement("input");
   italicCb.type = "checkbox";
