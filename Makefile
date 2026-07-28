@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-.PHONY: all deps vendor queries fonts zip check clean
+.PHONY: all deps vendor queries fonts themes zip zip-firefox check changelog clean
 
 all: deps
 
@@ -40,6 +40,10 @@ zip-firefox: check
 	node scripts/firefox-manifest.mjs build/firefox/manifest.json
 	cd build/firefox && zip -qr ../../patchtree-firefox.zip .
 	@ls -la patchtree-firefox.zip
+
+# grouped conventional-commit changelog; RANGE overrides (e.g. RANGE=v1.0.0..HEAD)
+changelog:
+	@./scripts/changelog.sh $(RANGE)
 
 clean:
 	rm -rf vendor fonts queries themes.json build patchtree.zip patchtree-firefox.zip
