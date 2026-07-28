@@ -819,9 +819,14 @@ async function main() {
     e.preventDefault();
     const left = tree.getBoundingClientRect().left;
     document.body.style.userSelect = "none";
+    let pending = 0;
     const move = (ev) => {
       const w = Math.max(160, Math.min(800, ev.clientX - left));
-      tree.style.width = w + "px";
+      if (pending) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        tree.style.width = w + "px";
+      });
     };
     const up = () => {
       document.removeEventListener("mousemove", move);

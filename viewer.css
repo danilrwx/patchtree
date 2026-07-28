@@ -676,6 +676,10 @@ html.pt-on {
   border: 1px solid var(--pt-border);
   border-radius: 6px;
   margin: 16px 0;
+  /* render only sections near the viewport — resize/reflow cost stops
+     scaling with the whole diff */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
   /* clip, not hidden: an overflow:hidden box becomes the sticky header's
      scrollport and permanently offsets it inside the section */
   overflow: clip;
