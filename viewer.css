@@ -321,6 +321,34 @@ html.pt-on body {
   font-weight: 600;
 }
 
+.pt-file-header {
+  cursor: pointer;
+}
+
+.pt-fold {
+  color: var(--pt-muted);
+  user-select: none;
+}
+
+.pt-viewed {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-left: 12px;
+  font: 400 12px/20px system-ui, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pt-folded .pt-table,
+.pt-folded .pt-binary {
+  display: none !important;
+}
+
+.pt-viewed-file {
+  opacity: 0.5;
+}
+
 .pt-rename {
   color: var(--pt-muted);
   font-weight: 400;

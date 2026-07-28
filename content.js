@@ -24,6 +24,9 @@ const LANG_BY_EXT = {
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
 
+let viewedSet = new Set();
+let saveViewed = () => {};
+
 function langFor(path) {
   if (!path) return null;
   const base = path.split("/").pop();
@@ -163,6 +166,7 @@ function buildFileView(file) {
   const header = document.createElement("div");
   header.className = "pt-file-header";
   header.innerHTML =
+    `<span class="pt-fold">▾</span>` +
     `<span class="pt-path">${esc(path)}</span>` +
     (file.oldPath && file.newPath && file.oldPath !== file.newPath
       ? `<span class="pt-rename">← ${esc(file.oldPath)}</span>`
@@ -171,6 +175,34 @@ function buildFileView(file) {
   section.appendChild(header);
 
   const view = { section, path, adds, dels, cells: null, texts: null, lang: langFor(path) };
+
+  const foldIcon = header.querySelector(".pt-fold");
+  const setFolded = (f) => {
+    section.classList.toggle("pt-folded", f);
+    foldIcon.textContent = f ? "▸" : "▾";
+  };
+
+  const viewedLab = document.createElement("label");
+  viewedLab.className = "pt-viewed";
+  const viewedCb = document.createElement("input");
+  viewedCb.type = "checkbox";
+  viewedCb.checked = viewedSet.has(path);
+  viewedLab.append(viewedCb, "Viewed");
+  header.appendChild(viewedLab);
+  if (viewedCb.checked) setFolded(true);
+
+  viewedCb.addEventListener("change", () => {
+    if (viewedCb.checked) viewedSet.add(path);
+    else viewedSet.delete(path);
+    saveViewed();
+    setFolded(viewedCb.checked);
+    view.treeLink?.classList.toggle("pt-viewed-file", viewedCb.checked);
+  });
+
+  header.addEventListener("click", (e) => {
+    if (e.target.closest(".pt-viewed")) return;
+    setFolded(!section.classList.contains("pt-folded"));
+  });
   if (file.binary) {
     const p = document.createElement("div");
     p.className = "pt-binary";
@@ -337,6 +369,8 @@ function buildTree(views) {
         e.preventDefault();
         v.section.scrollIntoView();
       });
+      v.treeLink = a;
+      if (viewedSet.has(v.path)) a.classList.add("pt-viewed-file");
       frag.appendChild(a);
     }
     return frag;
@@ -366,6 +400,11 @@ async function main() {
   const raw = document.body.innerText;
   if (!looksLikeDiff(raw)) return;
   if (parseDiff(raw).files.length === 0) return;
+
+  const viewedKey = `viewed:${location.host}${location.pathname}`;
+  const stored = await chrome.storage.local.get(viewedKey);
+  viewedSet = new Set(stored[viewedKey] || []);
+  saveViewed = () => chrome.storage.local.set({ [viewedKey]: [...viewedSet] });
 
   const root = document.createElement("div");
   root.id = "pt-root";
