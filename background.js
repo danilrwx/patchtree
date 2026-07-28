@@ -48,36 +48,97 @@ function cssClass(captureName) {
   return captureName.split(".")[0];
 }
 
+function lineStartsOf(text) {
+  const ls = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === "\n") ls.push(i + 1);
+  return ls;
+}
+
+// split a [startIndex,endIndex) span into per-line {s,e,c} entries
+function pushSpan(rows, startIndex, endIndex, c, lineStarts, text, rowOf) {
+  const sr = rowOf(startIndex);
+  const er = rowOf(endIndex);
+  for (let row = sr; row <= er; row++) {
+    const lineStart = lineStarts[row];
+    const lineEnd = row + 1 < lineStarts.length ? lineStarts[row + 1] - 1 : text.length;
+    const s = Math.max(startIndex, lineStart) - lineStart;
+    const e = Math.min(endIndex, lineEnd) - lineStart;
+    if (e > s) (rows[row] ||= []).push({ s, e, c });
+  }
+}
+
+function parseWith(language, text) {
+  parser.setLanguage(language);
+  return parser.parse(text);
+}
+
 function highlight(langName, text) {
+  if (langName === "gotmpl") return highlightGotmpl(text);
   return init()
     .then(() => loadLang(langName))
     .then(({ language, query }) => {
-      parser.setLanguage(language);
-      const tree = parser.parse(text);
+      const tree = parseWith(language, text);
       if (!tree) return { rows: {} };
-
-      const lineStarts = [0];
-      for (let i = 0; i < text.length; i++)
-        if (text[i] === "\n") lineStarts.push(i + 1);
-
+      const lineStarts = lineStartsOf(text);
       const rows = {};
       const captures = query.captures(tree.rootNode);
       const n = Math.min(captures.length, MAX_CAPTURES);
       for (let i = 0; i < n; i++) {
         const { name, node } = captures[i];
         const c = cssClass(name);
-        const sr = node.startPosition.row;
-        const er = node.endPosition.row;
-        for (let row = sr; row <= er; row++) {
+        for (let row = node.startPosition.row; row <= node.endPosition.row; row++) {
           const lineStart = lineStarts[row];
           const lineEnd = row + 1 < lineStarts.length ? lineStarts[row + 1] - 1 : text.length;
           const s = Math.max(node.startIndex, lineStart) - lineStart;
           const e = Math.min(node.endIndex, lineEnd) - lineStart;
-          if (e <= s) continue;
-          (rows[row] ||= []).push({ s, e, c });
+          if (e > s) (rows[row] ||= []).push({ s, e, c });
         }
       }
       tree.delete();
+      return { rows };
+    });
+}
+
+// Helm/Go templates: yaml is injected into the template's text spans
+// (like nvim-treesitter's gotmpl injections) — yaml highlights the plain
+// content, gotmpl highlights the {{ … }} actions on top.
+function highlightGotmpl(text) {
+  return init()
+    .then(() => Promise.all([loadLang("gotmpl"), loadLang("yaml")]))
+    .then(([gt, yaml]) => {
+      const lineStarts = lineStartsOf(text);
+      const rowOf = (idx) => {
+        let lo = 0;
+        let hi = lineStarts.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1;
+          if (lineStarts[mid] <= idx) lo = mid;
+          else hi = mid - 1;
+        }
+        return lo;
+      };
+      const rows = {};
+
+      const gtTree = parseWith(gt.language, text);
+      // collect (text) node spans — the parts outside {{ … }} where yaml applies
+      const textSpans = [];
+      const walk = (node) => {
+        if (node.type === "text") textSpans.push([node.startIndex, node.endIndex]);
+        for (let i = 0; i < node.childCount; i++) walk(node.child(i));
+      };
+      walk(gtTree.rootNode);
+      const insideText = (s, e) => textSpans.some(([ts, te]) => ts <= s && e <= te);
+
+      const yamlTree = parseWith(yaml.language, text);
+      for (const { name, node } of yaml.query.captures(yamlTree.rootNode).slice(0, MAX_CAPTURES))
+        if (insideText(node.startIndex, node.endIndex))
+          pushSpan(rows, node.startIndex, node.endIndex, cssClass(name), lineStarts, text, rowOf);
+      yamlTree.delete();
+
+      for (const { name, node } of gt.query.captures(gtTree.rootNode).slice(0, MAX_CAPTURES))
+        pushSpan(rows, node.startIndex, node.endIndex, cssClass(name), lineStarts, text, rowOf);
+      gtTree.delete();
+
       return { rows };
     });
 }

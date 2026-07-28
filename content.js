@@ -53,7 +53,11 @@ function langFor(path) {
 // {{ … }} actions is highlighted as a template too (yaml text stays plain,
 // the actions get colored), everything else keeps its yaml highlighting.
 function resolveLang(path, text) {
-  if (/\.tpl$/i.test(path || "")) return "gotmpl";
+  const p = path || "";
+  const name = p.split("/").pop().toLowerCase();
+  // always-templated files: helm .tpl, werf configs
+  if (/\.tpl$/i.test(p) || name === "werf.yaml" || /\.?werf\.inc\.yaml$/.test(name))
+    return "gotmpl";
   const base = langFor(path);
   if (base === "yaml" && /\{\{.*?\}\}/s.test(text || "")) return "gotmpl";
   return base;
