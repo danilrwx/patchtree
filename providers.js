@@ -305,7 +305,7 @@ window.ptProvider = (() => {
 
     const P = {
       kind: "github",
-      can: { resolve: false, drafts: false, applySuggestion: false, whitespace: false },
+      can: { resolve: true, drafts: false, applySuggestion: false, whitespace: false },
       token: null,
       tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic or fine-grained PAT)",
       setRefs: (i) => (refs = i),
@@ -316,6 +316,19 @@ window.ptProvider = (() => {
       if (P.token) h.Authorization = `Bearer ${P.token}`;
       return h;
     };
+
+    async function graphql(query, variables) {
+      const resp = await fetch(`${API}/graphql`, {
+        method: "POST",
+        cache: "no-store",
+        headers: headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ query, variables }),
+      });
+      const data = await resp.json();
+      if (data.errors?.length)
+        throw new Error(data.errors.map((e) => e.message).join("; ").slice(0, 200));
+      return data.data;
+    }
 
     async function api(path, opts = {}, accept) {
       const resp = await fetch(`${API}${path}`, {
@@ -377,7 +390,8 @@ window.ptProvider = (() => {
         conflicts: pr.mergeable === false,
       };
     };
-    P.threads = async () => {
+    // REST fallback used when there is no token (GraphQL needs auth); read-only
+    async function threadsRest() {
       const cs = await apiPaged(`${base}/pulls/${num}/comments?`);
       const roots = new Map();
       for (const c of cs) {
@@ -388,9 +402,10 @@ window.ptProvider = (() => {
       const out = [];
       for (const [rootId, list] of roots) {
         const c0 = list[0];
-        if (c0.line == null) continue; // outdated position
+        if (c0.line == null) continue;
         out.push({
           id: rootId,
+          replyToId: rootId,
           general: false,
           resolvable: false,
           resolved: false,
@@ -404,6 +419,60 @@ window.ptProvider = (() => {
           notes: list.map((c) => noteN(c, "line")),
         });
       }
+      return out;
+    }
+
+    const THREADS_GQL = `query($owner:String!,$repo:String!,$num:Int!){
+      repository(owner:$owner,name:$repo){ pullRequest(number:$num){
+        reviewThreads(first:100){ nodes{
+          id isResolved path line diffSide
+          comments(first:100){ nodes{
+            databaseId body createdAt
+            author{ login ... on User { databaseId } }
+          }}
+        }}
+      }}}`;
+
+    P.threads = async () => {
+      const out = [];
+      if (P.token) {
+        try {
+          const d = await graphql(THREADS_GQL, { owner, repo, num: +num });
+          for (const th of d.repository.pullRequest.reviewThreads.nodes) {
+            const comments = th.comments.nodes;
+            if (!comments.length || th.line == null) continue;
+            const side = th.diffSide === "LEFT" ? "old" : "new";
+            out.push({
+              id: th.id,
+              replyToId: comments[0].databaseId,
+              general: false,
+              resolvable: true,
+              resolved: th.isResolved,
+              pos: {
+                path: th.path,
+                oldPath: th.path,
+                side,
+                oldLine: side === "old" ? th.line : null,
+                newLine: side === "new" ? th.line : null,
+              },
+              notes: comments.map((c) => ({
+                id: c.databaseId,
+                kind: "line",
+                author: c.author?.login || "?",
+                authorId: c.author?.databaseId,
+                createdAt: c.createdAt,
+                body: c.body || "",
+                resolved: th.isResolved,
+                suggestions: null,
+              })),
+            });
+          }
+        } catch {
+          out.push(...(await threadsRest()));
+        }
+      } else {
+        out.push(...(await threadsRest()));
+      }
       const ics = await apiPaged(`${base}/issues/${num}/comments?`);
       if (ics.length)
         out.push({
@@ -416,6 +485,14 @@ window.ptProvider = (() => {
         });
       return out;
     };
+
+    P.resolveThread = (t, v) =>
+      graphql(
+        v
+          ? `mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}`
+          : `mutation($id:ID!){unresolveReviewThread(input:{threadId:$id}){thread{isResolved}}}`,
+        { id: t.id }
+      );
     P.postThread = async (p, body) => {
       const payload = {
         body,
@@ -444,7 +521,7 @@ window.ptProvider = (() => {
           "issue"
         );
       return noteN(
-        await api(`${base}/pulls/${num}/comments/${t.id}/replies`, {
+        await api(`${base}/pulls/${num}/comments/${t.replyToId || t.id}/replies`, {
           method: "POST",
           body: JSON.stringify({ body }),
         }),

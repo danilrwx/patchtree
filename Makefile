@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-.PHONY: all deps vendor queries fonts themes zip zip-firefox check changelog clean
+.PHONY: all deps vendor queries fonts themes zip zip-firefox check test changelog clean
 
 all: deps
 
@@ -23,7 +23,11 @@ check:
 	node --check providers.js
 	node --check review.js
 	node --check options.js
+	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
+
+test: check
+	node test/run.mjs
 
 zip: check
 	rm -f patchtree.zip

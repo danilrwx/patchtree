@@ -38,6 +38,9 @@ jobs:
       - name: Fetch pinned binary assets
         run: make deps
 
+      - name: Test
+        run: make test
+
       - name: Build extension zips
         run: make zip zip-firefox
 

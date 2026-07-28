@@ -647,6 +647,11 @@ html.pt-on {
   background: var(--pt-hunk-bg);
 }
 
+.pt-dd-item.pt-kbd {
+  outline: 2px solid var(--pt-muted);
+  outline-offset: -2px;
+}
+
 .pt-sha {
   font-family: var(--pt-mono);
   font-size: 12px;

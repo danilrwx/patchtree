@@ -128,6 +128,7 @@ websites” in the add-on's Permissions tab.
 - `make` — fetch all pinned assets (`vendor`, `queries`, `fonts`,
   `themes`); each target skips work when files are already present.
 - `make check` — syntax-check the sources.
+- `make test` — run the pure-logic checks in `test/run.mjs`.
 - `make zip` / `make zip-firefox` — build distribution archives.
 - `make clean` — remove fetched assets and archives.
 

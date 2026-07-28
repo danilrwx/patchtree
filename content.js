@@ -780,9 +780,11 @@ function makeSelect(options, value, onChange, cfg = {}) {
   const label = sum.querySelector(".pt-dd-label");
   let current = value;
   let opts = options;
+  let items = [];
 
   const render = () => {
     menu.textContent = "";
+    items = [];
     const cur = opts.find((o) => o.value === current) || opts[0];
     label.textContent = cur ? cur.label : "";
     if (cfg.styleFont) sum.style.fontFamily = cur && cur.value ? `"${cur.value}"` : "";
@@ -795,9 +797,35 @@ function makeSelect(options, value, onChange, cfg = {}) {
       });
       if (cfg.styleFont && o.value) item.style.fontFamily = `"${o.value}"`;
       if (o.value === current) item.classList.add("pt-active");
+      items.push(item);
     }
   };
   render();
+
+  const setKbd = (idx) => {
+    for (const it of items) it.classList.remove("pt-kbd");
+    const el = items[idx];
+    if (el) {
+      el.classList.add("pt-kbd");
+      el.scrollIntoView({ block: "nearest" });
+    }
+  };
+
+  sum.addEventListener("keydown", (e) => {
+    if (!dd.open) return; // native summary handles Enter/Space to open
+    let idx = items.findIndex((it) => it.classList.contains("pt-kbd"));
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (idx < 0) idx = items.findIndex((it) => it.classList.contains("pt-active"));
+      idx = e.key === "ArrowDown" ? Math.min(items.length - 1, idx + 1) : Math.max(0, idx - 1);
+      setKbd(idx);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      (items[idx] || items.find((it) => it.classList.contains("pt-active")))?.click();
+    } else if (e.key === "Escape") {
+      dd.open = false;
+    }
+  });
 
   dd.addEventListener("toggle", () => {
     if (!dd.open) {
@@ -809,6 +837,7 @@ function makeSelect(options, value, onChange, cfg = {}) {
     menu.style.left = `${r.left}px`;
     menu.style.top = `${r.bottom + 4}px`;
     menu.style.minWidth = `${r.width}px`;
+    setKbd(items.findIndex((it) => it.classList.contains("pt-active")));
   });
 
   dd.ptValue = () => current;

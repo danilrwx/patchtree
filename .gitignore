@@ -6,3 +6,4 @@ queries/
 themes.json
 build/
 patchtree*.zip
+.bg.mjs
