@@ -94,6 +94,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     chrome.runtime.openOptionsPage();
     return;
   }
+  if (msg?.type === "fetchText") {
+    fetch(msg.url)
+      .then(async (r) => sendResponse({ ok: r.ok, text: await r.text() }))
+      .catch((e) => sendResponse({ ok: false, text: String(e) }));
+    return true;
+  }
   if (msg?.type !== "highlight") return;
   highlight(msg.lang, msg.text).then(sendResponse, (err) => {
     console.warn("highlight failed:", msg.lang, err);
