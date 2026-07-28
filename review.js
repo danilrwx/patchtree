@@ -391,7 +391,7 @@
             }
           : null
       );
-      btn.before(form);
+      (btn.closest(".pt-thread-actions") || btn).before(form);
     });
     return btn;
   }

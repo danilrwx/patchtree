@@ -428,7 +428,8 @@ html.pt-on {
 .pt-theme-grid {
   overflow: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: 172px;
   gap: 12px;
   padding: 2px;
 }
@@ -438,6 +439,9 @@ html.pt-on {
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .pt-gallery-sentinel {
@@ -454,12 +458,12 @@ html.pt-on {
 
 .pt-theme-sample {
   margin: 0;
-  padding: 10px 12px;
-  font: 10px/1.6 var(--pt-mono);
+  padding: 12px 14px;
+  font: 11px/1.7 var(--pt-mono);
   white-space: pre;
   overflow: hidden;
-  height: 96px;
-  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
 }
 
 .pt-theme-meta {
@@ -468,6 +472,7 @@ html.pt-on {
   gap: 8px;
   padding: 6px 10px;
   font-size: calc(var(--pt-ui-size, 14px) - 1px);
+  flex-shrink: 0;
 }
 
 .pt-theme-badges {
