@@ -750,6 +750,7 @@ function applySettings(s) {
   st.setProperty("--pt-size", (s.fontSize || 14) + "px");
   st.setProperty("--pt-ui-size", (s.uiFontSize || 14) + "px");
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
+  st.setProperty("--pt-liga", s.noLigatures ? '"calt" 0, "liga" 0' : "normal");
 
   const palette = BASE16[s.theme] || window.ptCustomThemes?.[s.theme];
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;
@@ -1105,6 +1106,7 @@ async function main() {
       "FiraCode Nerd Font Mono",
       "Hack Nerd Font Mono",
       "MesloLGS Nerd Font Mono",
+      "Iosevka Nerd Font Mono",
     ])
   );
 
@@ -1144,6 +1146,16 @@ async function main() {
     saveSettings();
   });
   setRow("Italic comments", italicCb);
+
+  const ligaCb = document.createElement("input");
+  ligaCb.type = "checkbox";
+  ligaCb.checked = !settings.noLigatures;
+  ligaCb.addEventListener("change", () => {
+    settings.noLigatures = !ligaCb.checked;
+    applySettings(settings);
+    saveSettings();
+  });
+  setRow("Ligatures", ligaCb);
 
   const sep = document.createElement("div");
   sep.className = "pt-dd-sep";

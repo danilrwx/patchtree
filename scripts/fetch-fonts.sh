@@ -28,7 +28,7 @@ python3 -c "import fontTools, brotli" 2>/dev/null || {
   echo "fonttools+brotli required: python3 -m pip install fonttools brotli" >&2
   exit 1
 }
-for family in JetBrainsMono FiraCode Hack Meslo; do
+for family in JetBrainsMono FiraCode Hack Meslo Iosevka; do
   curl -sfL "https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD/$family.tar.xz" \
     -o "$tmp/$family.tar.xz"
   mkdir -p "$tmp/$family"
@@ -38,7 +38,8 @@ for ttf in \
   JetBrainsMono/JetBrainsMonoNerdFontMono-Regular JetBrainsMono/JetBrainsMonoNerdFontMono-Bold \
   FiraCode/FiraCodeNerdFontMono-Regular FiraCode/FiraCodeNerdFontMono-Bold \
   Hack/HackNerdFontMono-Regular Hack/HackNerdFontMono-Bold \
-  Meslo/MesloLGSNerdFontMono-Regular Meslo/MesloLGSNerdFontMono-Bold; do
+  Meslo/MesloLGSNerdFontMono-Regular Meslo/MesloLGSNerdFontMono-Bold \
+  Iosevka/IosevkaNerdFontMono-Regular Iosevka/IosevkaNerdFontMono-Bold; do
   base=$(basename "$ttf")
   echo "  $base.woff2"
   python3 - "$tmp/$ttf.ttf" "fonts/$base.woff2" <<'EOF'
