@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 # Fetch web-tree-sitter runtime and prebuilt grammar wasm binaries from npm.
 # Every artifact comes from a pinned package version so builds are reproducible.
 set -euo pipefail
@@ -26,6 +27,16 @@ GRAMMARS=(
   "@tree-sitter-grammars/tree-sitter-toml@0.7.0 tree-sitter-toml.wasm"
   "@tree-sitter-grammars/tree-sitter-hcl@1.2.0 tree-sitter-hcl.wasm"
 )
+
+if [ "${FORCE:-}" != "1" ]; then
+  missing=0
+  [ -s vendor/web-tree-sitter.js ] && [ -s vendor/web-tree-sitter.wasm ] || missing=1
+  for entry in "${GRAMMARS[@]}"; do [ -s "vendor/wasm/${entry#* }" ] || missing=1; done
+  if [ "$missing" = 0 ]; then
+    echo "vendor/ up to date (FORCE=1 to refetch)"
+    exit 0
+  fi
+fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

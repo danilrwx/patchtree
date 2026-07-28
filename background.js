@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 import { Parser, Language, Query } from "./vendor/web-tree-sitter.js";
 
 // typescript files are parsed with the tsx grammar so one wasm covers ts/tsx,
@@ -93,6 +94,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "openOptions") {
     chrome.runtime.openOptionsPage();
     return;
+  }
+  if (msg?.type === "themes") {
+    fetch(chrome.runtime.getURL("themes.json"))
+      .then((r) => r.json())
+      .then((t) => sendResponse(t))
+      .catch(() => sendResponse(null));
+    return true;
   }
   if (msg?.type === "fetchText") {
     fetch(msg.url)

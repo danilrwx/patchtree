@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 # Fetch tree-sitter highlight queries from the grammar repositories,
 # pinned to the tags matching the wasm versions in fetch-vendor.sh.
 set -euo pipefail
@@ -26,6 +27,15 @@ SOURCES=(
   "toml $RAW/tree-sitter-grammars/tree-sitter-toml/v0.7.0/queries/highlights.scm"
   "hcl $RAW/helix-editor/helix/25.07.1/runtime/queries/hcl/highlights.scm"
 )
+
+if [ "${FORCE:-}" != "1" ]; then
+  missing=0
+  for entry in "${SOURCES[@]}"; do [ -s "queries/${entry%% *}.scm" ] || missing=1; done
+  if [ "$missing" = 0 ]; then
+    echo "queries/ up to date (FORCE=1 to refetch)"
+    exit 0
+  fi
+fi
 
 mkdir -p queries
 for entry in "${SOURCES[@]}"; do

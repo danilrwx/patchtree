@@ -33,7 +33,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["fonts/*"],
+      "resources": ["fonts/*", "themes.json"],
       "matches": ["<all_urls>"]
     }
   ],

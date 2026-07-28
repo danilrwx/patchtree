@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 "use strict";
 
 // Review providers: one normalized interface, two implementations.

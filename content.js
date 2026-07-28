@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 "use strict";
 
 const LANG_BY_EXT = {
@@ -14,6 +15,7 @@ const LANG_BY_EXT = {
   json: "json",
   yaml: "yaml",
   yml: "yaml",
+  tpl: "yaml",
   c: "c",
   h: "c",
   rs: "rust",
@@ -636,6 +638,7 @@ function buildTree(views) {
       a.dataset.path = v.path.toLowerCase();
       a.innerHTML =
         `<span class="pt-tree-name">${esc(v.path.split("/").pop())}</span>` +
+        `<span class="pt-tree-cmt"></span>` +
         `<span class="pt-tree-stats"><span class="pt-adds">+${v.adds}</span> <span class="pt-dels">−${v.dels}</span></span>`;
       a.addEventListener("click", (e) => {
         e.preventDefault();
@@ -703,6 +706,10 @@ window.ptIcons = {
   reply: octicon(
     "M6.78 1.97a.75.75 0 0 1 0 1.06L3.81 6h6.44A4.75 4.75 0 0 1 15 10.75v2.5a.75.75 0 0 1-1.5 0v-2.5a3.25 3.25 0 0 0-3.25-3.25H3.81l2.97 2.97a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L1.97 7.78a.75.75 0 0 1 0-1.06l3.75-3.75a.751.751 0 0 1 1.06 0Z",
     12
+  ),
+  comment: octicon(
+    "M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z",
+    11
   ),
   check: octicon(
     "M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z",
@@ -797,7 +804,7 @@ function applySettings(s) {
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
   st.setProperty("--pt-liga", s.noLigatures ? '"calt" 0, "liga" 0' : "normal");
 
-  const palette = BASE16[s.theme] || window.ptCustomThemes?.[s.theme];
+  const palette = BASE16[s.theme] || window.ptCustomThemes?.[s.theme] || s.themePalette;
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;
   for (const k of Object.keys(THEME_VARS(BASE16["Default Dark"].split(" ")))) {
     if (vars) st.setProperty(`--pt-${k}`, vars[k]);
@@ -984,14 +991,16 @@ async function main() {
   const themeSel = document.createElement("select");
   const rebuildThemeOptions = () => {
     themeSel.textContent = "";
-    for (const name of ["GitHub", ...Object.keys(BASE16), ...Object.keys(customThemes)])
-      themeSel.append(new Option(name, name));
-    themeSel.value =
-      BASE16[settings.theme] || customThemes[settings.theme] ? settings.theme : "GitHub";
+    const names = ["GitHub", ...Object.keys(BASE16), ...Object.keys(customThemes)];
+    if (settings.theme && settings.themePalette && !names.includes(settings.theme))
+      names.push(settings.theme);
+    for (const name of names) themeSel.append(new Option(name, name));
+    themeSel.value = names.includes(settings.theme) && settings.theme ? settings.theme : "GitHub";
   };
   rebuildThemeOptions();
   themeSel.addEventListener("change", () => {
     settings.theme = themeSel.value === "GitHub" ? "" : themeSel.value;
+    settings.themePalette = "";
     applySettings(settings);
     saveSettings();
   });
@@ -1011,63 +1020,95 @@ async function main() {
     return { name, colors: colors.join(" ") };
   };
 
-  const openThemesDialog = () => {
+  const applyTheme = (name, palette) => {
+    settings.theme = name;
+    settings.themePalette = palette;
+    applySettings(settings);
+    saveSettings();
+    rebuildThemeOptions();
+  };
+
+  const themeCard = (t) => {
+    const c = t.palette.split(" ");
+    const card = document.createElement("div");
+    card.className = "pt-theme-card";
+    card.dataset.name = t.name.toLowerCase();
+    card.dataset.variant = t.variant;
+    const span = (color, text) => `<span style="color:#${color}">${esc(text)}</span>`;
+    card.innerHTML =
+      `<pre class="pt-theme-sample" style="background:#${c[0]};color:#${c[5]}">` +
+      `${span(c[3], "// load and apply a scheme")}\n` +
+      `${span(c[14], "fn")} ${span(c[13], "apply")}(${span(c[8], "name")}: ${span(c[10], "&str")}) {\n` +
+      `  ${span(c[14], "let")} theme = scheme.${span(c[13], "with_base")}(${span(c[9], "16")});\n` +
+      `  ${span(c[13], "println!")}(${span(c[11], '"applied: {}"')}, name);\n` +
+      `}</pre>` +
+      `<div class="pt-theme-meta"><b>${esc(t.name)}</b>` +
+      `<span class="pt-theme-badges">${t.system === "base24" ? "<i>BASE24</i>" : ""}<i>${t.variant.toUpperCase()}</i></span></div>`;
+    if (settings.theme === t.name) card.classList.add("pt-active");
+    card.addEventListener("click", () => {
+      applyTheme(t.name, t.palette);
+      for (const el of card.parentNode.querySelectorAll(".pt-theme-card.pt-active"))
+        el.classList.remove("pt-active");
+      card.classList.add("pt-active");
+    });
+    return card;
+  };
+
+  const openThemesDialog = async () => {
     document.getElementById("pt-themes-dialog")?.remove();
     const overlay = document.createElement("div");
     overlay.id = "pt-themes-dialog";
     const panel = document.createElement("div");
-    panel.className = "pt-dialog";
-    panel.innerHTML =
-      `<h3>Custom base16 themes</h3>` +
-      `<p>Paste a <a href="https://github.com/tinted-theming/schemes" target="_blank" rel="noopener">tinted-theming</a> scheme yaml (base00…base0F):</p>`;
-    const ta = document.createElement("textarea");
-    ta.rows = 8;
-    ta.placeholder = 'scheme: "Atelier Seaside"\nbase00: "131513"\nbase01: "242924"\n…';
-    panel.appendChild(ta);
-    const err = document.createElement("p");
-    err.className = "pt-dialog-err";
-    panel.appendChild(err);
+    panel.className = "pt-dialog pt-gallery";
 
-    const list = document.createElement("div");
-    const renderList = () => {
-      list.textContent = "";
-      for (const name of Object.keys(customThemes)) {
-        const row = document.createElement("div");
-        row.className = "pt-dialog-row";
-        const sw = customThemes[name].split(" ");
-        row.innerHTML =
-          `<span class="pt-swatches">${[0, 8, 11, 13, 14]
-            .map((i) => `<i style="background:#${sw[i]}"></i>`)
-            .join("")}</span>` + `<span>${esc(name)}</span>`;
-        const del = document.createElement("button");
-        del.textContent = "✕";
-        del.addEventListener("click", async () => {
-          delete customThemes[name];
-          await chrome.storage.sync.set({ customThemes });
-          if (settings.theme === name) {
-            settings.theme = "";
-            applySettings(settings);
-            saveSettings();
-          }
-          rebuildThemeOptions();
-          renderList();
-        });
-        row.appendChild(del);
-        list.appendChild(row);
-      }
-    };
-    renderList();
-    panel.appendChild(list);
-
-    const actions = document.createElement("div");
-    actions.className = "pt-form-actions";
+    const head = document.createElement("div");
+    head.className = "pt-gallery-head";
+    head.innerHTML = `<h3>Theme gallery</h3>`;
+    const search = document.createElement("input");
+    search.type = "search";
+    search.placeholder = "Search themes…";
+    const variantSel = document.createElement("select");
+    for (const v of ["all", "dark", "light"]) variantSel.append(new Option(v, v));
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "Close";
     closeBtn.addEventListener("click", () => overlay.remove());
-    const saveBtn = document.createElement("button");
-    saveBtn.textContent = "Add theme";
-    saveBtn.className = "pt-primary";
-    saveBtn.addEventListener("click", async () => {
+    head.append(search, variantSel, closeBtn);
+    panel.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "pt-theme-grid";
+    panel.appendChild(grid);
+
+    const themes = (await chrome.runtime.sendMessage({ type: "themes" })) || [];
+    if (!themes.length) grid.textContent = "themes.json missing — run make themes and reload";
+    for (const t of themes) if (t?.palette && t?.name) grid.appendChild(themeCard(t));
+
+    const applyFilter = () => {
+      const q = search.value.trim().toLowerCase();
+      const v = variantSel.value;
+      for (const card of grid.children)
+        card.style.display =
+          (!q || card.dataset.name.includes(q)) && (v === "all" || card.dataset.variant === v)
+            ? ""
+            : "none";
+    };
+    search.addEventListener("input", applyFilter);
+    variantSel.addEventListener("change", applyFilter);
+
+    const foot = document.createElement("details");
+    foot.className = "pt-gallery-custom";
+    foot.innerHTML =
+      `<summary>Paste a custom scheme yaml (base16/base24)</summary>` +
+      `<p>Any <a href="https://github.com/tinted-theming/schemes" target="_blank" rel="noopener">tinted-theming</a>-format scheme works.</p>`;
+    const ta = document.createElement("textarea");
+    ta.rows = 6;
+    ta.placeholder = 'name: "My Scheme"\nbase00: "131513"\n…';
+    const err = document.createElement("p");
+    err.className = "pt-dialog-err";
+    const addBtn = document.createElement("button");
+    addBtn.textContent = "Add and apply";
+    addBtn.className = "pt-primary";
+    addBtn.addEventListener("click", async () => {
       const parsed = parseBase16Yaml(ta.value);
       if (!parsed) {
         err.textContent = "could not find all base00…base0F colors";
@@ -1076,23 +1117,21 @@ async function main() {
       err.textContent = "";
       customThemes[parsed.name] = parsed.colors;
       await chrome.storage.sync.set({ customThemes });
-      settings.theme = parsed.name;
-      applySettings(settings);
-      saveSettings();
-      rebuildThemeOptions();
-      renderList();
+      applyTheme(parsed.name, parsed.colors);
       ta.value = "";
     });
-    actions.append(closeBtn, saveBtn);
-    panel.appendChild(actions);
+    foot.append(ta, err, addBtn);
+    panel.appendChild(foot);
+
     overlay.appendChild(panel);
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) overlay.remove();
     });
     document.body.appendChild(overlay);
+    search.focus();
   };
 
-  menuItem(gear.menu, "Custom themes…", () => {
+  menuItem(gear.menu, "Theme gallery…", () => {
     gear.dd.open = false;
     openThemesDialog();
   });
@@ -1307,6 +1346,14 @@ async function main() {
     esc,
     addSettingRow: setRow,
     addMenuItem: (html, fn) => menuItem(gear.menu, html, fn),
+    markCommented: (counts) => {
+      for (const v of views) {
+        const el = v.treeLink?.querySelector(".pt-tree-cmt");
+        if (!el) continue;
+        const n = counts.get(v.path) || 0;
+        el.innerHTML = n ? `${window.ptIcons.comment}${n}` : "";
+      }
+    },
   };
   window.dispatchEvent(new CustomEvent("pt-rendered"));
 }

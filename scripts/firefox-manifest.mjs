@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 // Rewrite manifest.json in place for the Firefox build:
 // event-page background instead of a service worker, plus the gecko id.
 import { readFileSync, writeFileSync } from "fs";

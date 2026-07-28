@@ -2,5 +2,6 @@ node_modules/
 vendor/
 fonts/
 queries/
+themes.json
 build/
 patchtree*.zip

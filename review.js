@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 "use strict";
 
 (() => {
@@ -123,12 +124,32 @@
     return parts;
   }
 
-  function suggestionWidget(part, anchorTr, sugMeta) {
+  function suggestionWidget(part, anchorTr, sugMeta, thread) {
     const box = document.createElement("div");
     box.className = "pt-sug";
     const head = document.createElement("div");
     head.className = "pt-sug-head";
     head.textContent = "Suggested change";
+    if (thread?.resolvable && !thread.resolved && P.can.resolve && P.token) {
+      const dismiss = document.createElement("button");
+      dismiss.className = "pt-apply";
+      dismiss.textContent = "Dismiss";
+      dismiss.title = "Resolve the thread without applying";
+      dismiss.addEventListener("click", async () => {
+        dismiss.disabled = true;
+        try {
+          await P.resolveThread(thread, true);
+          thread.resolved = true;
+          updateUnresolved();
+          dismiss.textContent = "Dismissed";
+          status("suggestion dismissed");
+        } catch (e) {
+          status(`dismiss failed: ${e.message}`, true);
+          dismiss.disabled = false;
+        }
+      });
+      head.appendChild(dismiss);
+    }
     if (sugMeta && P.can.applySuggestion && P.token) {
       const btn = document.createElement("button");
       btn.className = "pt-apply";
@@ -175,7 +196,7 @@
     return box;
   }
 
-  async function renderNote(note, anchorTr) {
+  async function renderNote(note, anchorTr, thread) {
     const div = document.createElement("div");
     div.className = "pt-note" + (note.resolved ? " pt-resolved" : "");
     const head = document.createElement("div");
@@ -193,7 +214,7 @@
       let sugIdx = 0;
       for (const p of splitSuggestions(note.body || "")) {
         if (p.sug !== undefined)
-          bodyEl.appendChild(suggestionWidget(p, anchorTr, note.suggestions?.[sugIdx++]));
+          bodyEl.appendChild(suggestionWidget(p, anchorTr, note.suggestions?.[sugIdx++], thread));
         else {
           const md = document.createElement("div");
           md.className = "pt-md";
@@ -444,7 +465,7 @@
         const { row, td } = threadRow(tr, t.pos.side, "pt-comments-row");
         insertAfter(tr, row);
         if (!t._target || !t._target.isConnected) t._target = row;
-        Promise.all(t.notes.map((n) => renderNote(n, tr))).then((els) => {
+        Promise.all(t.notes.map((n) => renderNote(n, tr, t))).then((els) => {
           td.append(...els);
           if (P.token) td.appendChild(threadActions(t, td, tr));
         });
@@ -453,6 +474,10 @@
     }
     if (general.length) renderGeneralThreads(general);
     updateUnresolved();
+    const counts = new Map();
+    for (const t of threads)
+      if (t.pos) counts.set(t.pos.path, (counts.get(t.pos.path) || 0) + 1);
+    window.ptView.markCommented?.(counts);
     if (shown) status(`${shown} thread(s) loaded`);
   }
 

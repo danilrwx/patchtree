@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 # Fetch bundled web fonts from pinned upstream releases.
-# Nerd Font ttf files are converted to woff2 (requires python3 + fonttools + brotli).
+# Nerd Font ttf files are converted to woff2 with the ttf2woff2 npm package.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -8,6 +9,24 @@ JB=v2.304
 INTER=v4.1
 NERD=v3.4.0
 RAW=https://raw.githubusercontent.com
+
+EXPECTED=(
+  JetBrainsMono-Regular JetBrainsMono-Italic JetBrainsMono-Bold
+  InterVariable InterVariable-Italic
+  JetBrainsMonoNerdFontMono-Regular JetBrainsMonoNerdFontMono-Bold
+  FiraCodeNerdFontMono-Regular FiraCodeNerdFontMono-Bold
+  HackNerdFontMono-Regular HackNerdFontMono-Bold
+  MesloLGSNerdFontMono-Regular MesloLGSNerdFontMono-Bold
+  IosevkaNerdFontMono-Regular IosevkaNerdFontMono-Bold
+)
+if [ "${FORCE:-}" != "1" ]; then
+  missing=0
+  for f in "${EXPECTED[@]}"; do [ -s "fonts/$f.woff2" ] || missing=1; done
+  if [ "$missing" = 0 ]; then
+    echo "fonts/ up to date (FORCE=1 to refetch)"
+    exit 0
+  fi
+fi
 
 mkdir -p fonts
 tmp=$(mktemp -d)
@@ -24,10 +43,6 @@ for f in InterVariable InterVariable-Italic; do
 done
 
 echo "Nerd Fonts $NERD"
-python3 -c "import fontTools, brotli" 2>/dev/null || {
-  echo "fonttools+brotli required: python3 -m pip install fonttools brotli" >&2
-  exit 1
-}
 for family in JetBrainsMono FiraCode Hack Meslo Iosevka; do
   curl -sfL "https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD/$family.tar.xz" \
     -o "$tmp/$family.tar.xz"
@@ -42,12 +57,6 @@ for ttf in \
   Iosevka/IosevkaNerdFontMono-Regular Iosevka/IosevkaNerdFontMono-Bold; do
   base=$(basename "$ttf")
   echo "  $base.woff2"
-  python3 - "$tmp/$ttf.ttf" "fonts/$base.woff2" <<'EOF'
-import sys
-from fontTools.ttLib import TTFont
-f = TTFont(sys.argv[1])
-f.flavor = "woff2"
-f.save(sys.argv[2])
-EOF
+  npx --yes ttf2woff2 < "$tmp/$ttf.ttf" > "fonts/$base.woff2"
 done
 echo "fonts/ done"
