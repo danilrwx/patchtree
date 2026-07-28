@@ -90,6 +90,10 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === "openOptions") {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
   if (msg?.type !== "highlight") return;
   highlight(msg.lang, msg.text).then(sendResponse, (err) => {
     console.warn("highlight failed:", msg.lang, err);

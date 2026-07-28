@@ -72,11 +72,11 @@
     );
   }
 
-  function rowFor(path, oldLine, newLine) {
+  function rowsFor(path, oldLine, newLine) {
     const sel = newLine
       ? `tr[data-path="${CSS.escape(path)}"][data-new="${newLine}"]`
       : `tr[data-path="${CSS.escape(path)}"][data-old="${oldLine}"]`;
-    return document.querySelector(sel);
+    return document.querySelectorAll(sel);
   }
 
   function insertAfter(tr, el) {
@@ -93,14 +93,16 @@
       const pos = notes[0]?.position;
       if (!pos || pos.position_type !== "text") continue;
       const path = pos.new_path || pos.old_path;
-      const tr = rowFor(path, pos.old_line, pos.new_line);
-      if (!tr) continue;
-      const row = document.createElement("tr");
-      row.className = "pt-comments-row";
-      const td = row.insertCell();
-      td.colSpan = 4;
-      td.innerHTML = notes.map(noteHTML).join("");
-      insertAfter(tr, row);
+      const trs = rowsFor(path, pos.old_line, pos.new_line);
+      if (!trs.length) continue;
+      for (const tr of trs) {
+        const row = document.createElement("tr");
+        row.className = "pt-comments-row";
+        const td = row.insertCell();
+        td.colSpan = 4;
+        td.innerHTML = notes.map(noteHTML).join("");
+        insertAfter(tr, row);
+      }
       shown++;
     }
     if (shown) status(`${shown} thread(s) loaded`);

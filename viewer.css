@@ -76,11 +76,84 @@ html.pt-on body {
   font-size: 12px;
   line-height: 1.5;
   padding: 8px 12px 40px;
-  max-width: 1200px;
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-areas: "bar bar" "tree main";
+  gap: 0 12px;
+  align-items: start;
 }
 
+#pt-main {
+  grid-area: main;
+  min-width: 0;
+}
+
+#pt-tree {
+  grid-area: tree;
+  position: sticky;
+  top: 34px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+#pt-tree details {
+  padding-left: 10px;
+}
+
+#pt-tree > details {
+  padding-left: 0;
+}
+
+#pt-tree summary {
+  cursor: pointer;
+  color: var(--pt-muted);
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-tree-file {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0 1px 10px;
+  color: var(--pt-fg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#pt-tree > .pt-tree-file {
+  padding-left: 0;
+}
+
+.pt-tree-file:hover .pt-tree-name {
+  text-decoration: underline;
+}
+
+.pt-tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-tree-stats {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1000px) {
+  #pt-root {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "bar" "main";
+  }
+  #pt-tree { display: none; }
+}
+
+.pt-mode-unified .pt-split { display: none; }
+.pt-mode-split .pt-unified { display: none; }
+
 #pt-bar {
+  grid-area: bar;
   display: flex;
   gap: 8px;
   justify-content: flex-end;
@@ -203,6 +276,13 @@ html.pt-on body {
 .pt-add .pt-no { background: var(--pt-add-no-bg); }
 .pt-del .pt-code, .pt-del .pt-mark { background: var(--pt-del-bg); }
 .pt-del .pt-no { background: var(--pt-del-no-bg); }
+
+.pt-add-code { background: var(--pt-add-bg); }
+.pt-add-no { background: var(--pt-add-no-bg); }
+.pt-del-code { background: var(--pt-del-bg); }
+.pt-del-no { background: var(--pt-del-no-bg); }
+.pt-void { background: var(--pt-header-bg); }
+.pt-split .pt-code { border-left: 1px solid var(--pt-border); }
 
 #pt-status {
   margin-right: auto;

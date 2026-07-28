@@ -27,7 +27,6 @@ const MAX_HIGHLIGHT_CHARS = 300 * 1024;
 function langFor(path) {
   if (!path) return null;
   const base = path.split("/").pop();
-  if (base === "Dockerfile") return null;
   const ext = base.includes(".") ? base.split(".").pop().toLowerCase() : "";
   return LANG_BY_EXT[ext] || null;
 }
@@ -70,12 +69,38 @@ function parseDiff(text) {
     else if (line.startsWith(" ") || line === "") hunk.lines.push({ t: " ", s: line.slice(1) });
     else if (line.startsWith("\\")) hunk.lines.push({ t: "\\", s: line });
     else {
-      // trailer between hunks (e.g. next file header line handled above)
       hunk = null;
       file.header.push(line);
     }
   }
   return { preamble: preamble.join("\n").trim(), files };
+}
+
+// Pair up deletions with the additions that replaced them so the split view
+// can show them side by side; context lines pair with themselves.
+function alignHunk(h) {
+  const pairs = [];
+  let dels = [];
+  let adds = [];
+  const flush = () => {
+    const n = Math.max(dels.length, adds.length);
+    for (let i = 0; i < n; i++) pairs.push({ old: dels[i] || null, new: adds[i] || null });
+    dels = [];
+    adds = [];
+  };
+  let oldNo = h.oldStart;
+  let newNo = h.newStart;
+  for (const l of h.lines) {
+    if (l.t === "\\") continue;
+    if (l.t === "-") dels.push({ no: oldNo++, text: l.s });
+    else if (l.t === "+") adds.push({ no: newNo++, text: l.s });
+    else {
+      flush();
+      pairs.push({ old: { no: oldNo++, text: l.s }, new: { no: newNo++, text: l.s }, ctx: true });
+    }
+  }
+  flush();
+  return pairs;
 }
 
 function esc(s) {
@@ -97,6 +122,26 @@ function renderLineHTML(text, ranges) {
   }
   if (pos < text.length) out += esc(text.slice(pos));
   return out;
+}
+
+function makeTable(widths) {
+  const table = document.createElement("table");
+  const colgroup = document.createElement("colgroup");
+  for (const w of widths) {
+    const col = document.createElement("col");
+    if (w) col.style.width = w;
+    colgroup.appendChild(col);
+  }
+  table.appendChild(colgroup);
+  return table;
+}
+
+function hunkRow(table, span, h) {
+  const tr = table.insertRow();
+  tr.className = "pt-hunk";
+  const td = tr.insertCell();
+  td.colSpan = span;
+  td.textContent = `@@ -${h.oldStart} +${h.newStart} @@${h.context}`;
 }
 
 function buildFileView(file) {
@@ -123,80 +168,112 @@ function buildFileView(file) {
     `<span class="pt-stats"><span class="pt-adds">+${adds}</span> <span class="pt-dels">−${dels}</span></span>`;
   section.appendChild(header);
 
+  const view = { section, path, adds, dels, cells: null, texts: null, lang: langFor(path) };
   if (file.binary) {
     const p = document.createElement("div");
     p.className = "pt-binary";
     p.textContent = "binary file";
     section.appendChild(p);
-    return { section, cells: null };
+    return view;
   }
 
-  const table = document.createElement("table");
-  table.className = "pt-table";
-  // table-layout: fixed sizes columns from the first row, which is a
-  // colspan=4 hunk header — explicit cols keep the number gutters narrow
-  const colgroup = document.createElement("colgroup");
-  for (const w of ["44px", "44px", "16px", ""]) {
-    const col = document.createElement("col");
-    if (w) col.style.width = w;
-    colgroup.appendChild(col);
-  }
-  table.appendChild(colgroup);
-
-  // cells[side][row] -> {td, text}; side rows are 0-based indexes into the
-  // reconstructed old/new texts used for tree-sitter parsing
+  // cells[side][row] -> {tds: [], text}; row indexes the reconstructed
+  // old/new side texts sent to tree-sitter, tds live in both tables
   const cells = { old: [], new: [] };
   const oldParts = [];
   const newParts = [];
 
+  const unified = makeTable(["44px", "44px", "16px", ""]);
+  unified.className = "pt-table pt-unified";
+  const split = makeTable(["44px", "", "44px", ""]);
+  split.className = "pt-table pt-split";
+
+  const rowMeta = (tr, o, n) => {
+    tr.dataset.path = file.newPath || file.oldPath || "";
+    tr.dataset.oldPath = file.oldPath || "";
+    if (o) tr.dataset.old = o.no;
+    if (n) tr.dataset.new = n.no;
+  };
+
+  const regOld = (text, td) => {
+    const row = cells.old.length;
+    cells.old.push({ tds: td ? [td] : [], text });
+    oldParts.push(text);
+    return row;
+  };
+  const regNew = (text, td) => {
+    const row = cells.new.length;
+    cells.new.push({ tds: td ? [td] : [], text });
+    newParts.push(text);
+    return row;
+  };
+
+  const unifiedLine = (cls, o, n, text) => {
+    const tr = unified.insertRow();
+    tr.className = cls;
+    const tdOld = tr.insertCell();
+    tdOld.className = "pt-no";
+    tdOld.textContent = o ? o.no : "";
+    const tdNew = tr.insertCell();
+    tdNew.className = "pt-no";
+    tdNew.textContent = n ? n.no : "";
+    const tdMark = tr.insertCell();
+    tdMark.className = "pt-mark";
+    tdMark.textContent = cls === "pt-add" ? "+" : cls === "pt-del" ? "-" : "";
+    const td = tr.insertCell();
+    td.className = "pt-code";
+    td.textContent = text;
+    rowMeta(tr, o, n);
+    return td;
+  };
+
+  const splitCell = (tr, entry, cls) => {
+    const tdNo = tr.insertCell();
+    tdNo.className = "pt-no" + (entry ? ` ${cls}-no` : " pt-void");
+    const td = tr.insertCell();
+    td.className = "pt-code" + (entry ? ` ${cls}-code` : " pt-void");
+    if (entry) {
+      tdNo.textContent = entry.no;
+      td.textContent = entry.text;
+    }
+    return td;
+  };
+
   for (const h of file.hunks) {
-    const hr = table.insertRow();
-    hr.className = "pt-hunk";
-    const td = hr.insertCell();
-    td.colSpan = 4;
-    td.textContent = `@@ -${h.oldStart} +${h.newStart} @@${h.context}`;
+    hunkRow(unified, 4, h);
+    hunkRow(split, 4, h);
+    for (const pair of alignHunk(h)) {
+      const str = split.insertRow();
+      str.className = "pt-srow";
+      rowMeta(str, pair.old, pair.new);
+      const oldTd = splitCell(str, pair.old, pair.ctx ? "pt-ctx" : "pt-del");
+      const newTd = splitCell(str, pair.new, pair.ctx ? "pt-ctx" : "pt-add");
 
-    let oldNo = h.oldStart;
-    let newNo = h.newStart;
-    for (const l of h.lines) {
-      if (l.t === "\\") continue;
-      const tr = table.insertRow();
-      tr.className = l.t === "+" ? "pt-add" : l.t === "-" ? "pt-del" : "pt-ctx";
-      const tdOld = tr.insertCell();
-      tdOld.className = "pt-no";
-      const tdNew = tr.insertCell();
-      tdNew.className = "pt-no";
-      const tdMark = tr.insertCell();
-      tdMark.className = "pt-mark";
-      tdMark.textContent = l.t === " " ? "" : l.t;
-      const tdCode = tr.insertCell();
-      tdCode.className = "pt-code";
-      tdCode.textContent = l.s;
-
-      tr.dataset.path = file.newPath || file.oldPath || "";
-      tr.dataset.oldPath = file.oldPath || "";
-      if (l.t !== "+") {
-        tr.dataset.old = oldNo;
-        tdOld.textContent = oldNo++;
-        cells.old.push({ td: l.t === "-" ? tdCode : null, text: l.s });
-        oldParts.push(l.s);
-      }
-      if (l.t !== "-") {
-        tr.dataset.new = newNo;
-        tdNew.textContent = newNo++;
-        cells.new.push({ td: tdCode, text: l.s });
-        newParts.push(l.s);
+      if (pair.ctx) {
+        const utd = unifiedLine("pt-ctx", pair.old, pair.new, pair.new.text);
+        const row = regNew(pair.new.text, utd);
+        cells.new[row].tds.push(newTd);
+        regOld(pair.old.text, oldTd);
+      } else {
+        if (pair.old) {
+          const utd = unifiedLine("pt-del", pair.old, null, pair.old.text);
+          const row = regOld(pair.old.text, utd);
+          cells.old[row].tds.push(oldTd);
+        }
+        if (pair.new) {
+          const utd = unifiedLine("pt-add", null, pair.new, pair.new.text);
+          const row = regNew(pair.new.text, utd);
+          cells.new[row].tds.push(newTd);
+        }
       }
     }
   }
 
-  section.appendChild(table);
-  return {
-    section,
-    cells,
-    texts: { old: oldParts.join("\n"), new: newParts.join("\n") },
-    lang: langFor(path),
-  };
+  section.appendChild(unified);
+  section.appendChild(split);
+  view.cells = cells;
+  view.texts = { old: oldParts.join("\n"), new: newParts.join("\n") };
+  return view;
 }
 
 async function highlightSide(lang, text, sideCells) {
@@ -210,9 +287,54 @@ async function highlightSide(lang, text, sideCells) {
   if (!resp || !resp.rows) return;
   for (const [row, ranges] of Object.entries(resp.rows)) {
     const cell = sideCells[+row];
-    if (!cell || !cell.td) continue;
-    cell.td.innerHTML = renderLineHTML(cell.text, ranges);
+    if (!cell) continue;
+    for (const td of cell.tds) td.innerHTML = renderLineHTML(cell.text, ranges);
   }
+}
+
+function buildTree(views) {
+  const rootNode = { dirs: new Map(), files: [] };
+  for (const v of views) {
+    const parts = v.path.split("/");
+    let node = rootNode;
+    for (const part of parts.slice(0, -1)) {
+      if (!node.dirs.has(part)) node.dirs.set(part, { dirs: new Map(), files: [] });
+      node = node.dirs.get(part);
+    }
+    node.files.push(v);
+  }
+
+  const render = (node) => {
+    const frag = document.createDocumentFragment();
+    for (const [name, child] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
+      const det = document.createElement("details");
+      det.open = true;
+      const sum = document.createElement("summary");
+      sum.textContent = name;
+      det.appendChild(sum);
+      det.appendChild(render(child));
+      frag.appendChild(det);
+    }
+    for (const v of node.files.sort((a, b) => a.path.localeCompare(b.path))) {
+      const a = document.createElement("a");
+      a.className = "pt-tree-file";
+      a.href = "#";
+      a.innerHTML =
+        `<span class="pt-tree-name">${esc(v.path.split("/").pop())}</span>` +
+        `<span class="pt-tree-stats"><span class="pt-adds">+${v.adds}</span> <span class="pt-dels">−${v.dels}</span></span>`;
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        v.section.scrollIntoView();
+      });
+      frag.appendChild(a);
+    }
+    return frag;
+  };
+
+  const side = document.createElement("nav");
+  side.id = "pt-tree";
+  side.appendChild(render(rootNode));
+  return side;
 }
 
 function looksLikeDiff(text) {
@@ -232,20 +354,45 @@ async function main() {
 
   const bar = document.createElement("div");
   bar.id = "pt-bar";
-  const btn = document.createElement("button");
-  btn.textContent = "raw";
-  bar.appendChild(btn);
   root.appendChild(bar);
+
+  const main = document.createElement("div");
+  main.id = "pt-main";
+  root.appendChild(main);
 
   if (parsed.preamble) {
     const pre = document.createElement("pre");
     pre.id = "pt-preamble";
     pre.textContent = parsed.preamble;
-    root.appendChild(pre);
+    main.appendChild(pre);
   }
 
   const views = parsed.files.map(buildFileView);
-  for (const v of views) root.appendChild(v.section);
+  root.insertBefore(buildTree(views), main);
+  for (const v of views) main.appendChild(v.section);
+
+  const { view: savedView = "unified" } = await chrome.storage.sync.get("view");
+  root.classList.add(savedView === "split" ? "pt-mode-split" : "pt-mode-unified");
+
+  const viewBtn = document.createElement("button");
+  viewBtn.textContent = savedView === "split" ? "inline" : "side-by-side";
+  viewBtn.addEventListener("click", () => {
+    const toSplit = root.classList.contains("pt-mode-unified");
+    root.classList.toggle("pt-mode-split", toSplit);
+    root.classList.toggle("pt-mode-unified", !toSplit);
+    viewBtn.textContent = toSplit ? "inline" : "side-by-side";
+    chrome.storage.sync.set({ view: toSplit ? "split" : "unified" });
+  });
+  bar.appendChild(viewBtn);
+
+  const rawBtn = document.createElement("button");
+  rawBtn.textContent = "raw";
+  bar.appendChild(rawBtn);
+
+  const optBtn = document.createElement("button");
+  optBtn.textContent = "⚙ settings";
+  optBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "openOptions" }));
+  bar.appendChild(optBtn);
 
   const oldBody = document.body;
   const rawPre = document.createElement("pre");
@@ -258,12 +405,12 @@ async function main() {
   document.documentElement.classList.add("pt-on");
 
   let showingRaw = false;
-  btn.addEventListener("click", () => {
+  rawBtn.addEventListener("click", () => {
     showingRaw = !showingRaw;
     rawPre.style.display = showingRaw ? "" : "none";
-    for (const v of views) v.section.style.display = showingRaw ? "none" : "";
-    document.getElementById("pt-preamble")?.style.setProperty("display", showingRaw ? "none" : "");
-    btn.textContent = showingRaw ? "pretty" : "raw";
+    main.style.display = showingRaw ? "none" : "";
+    document.getElementById("pt-tree").style.display = showingRaw ? "none" : "";
+    rawBtn.textContent = showingRaw ? "pretty" : "raw";
   });
 
   for (const v of views) {
