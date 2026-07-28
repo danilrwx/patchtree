@@ -28,12 +28,12 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   toggle per file.
 - Large diffs stay fast: only visible file sections are rendered.
 
-![split view](screenshots/split-view.png)
-
 ### Navigation
 
 - Resizable, filterable **file tree** (filter matches paths *and* diff
-  content), folder icons, per-file `+N −M`.
+  content), folder icons, per-file `+N −M`, comment-count badge.
+
+  ![file tree](screenshots/tree.png)
 - **Viewed** checkboxes with an `N/M viewed` progress counter,
   fold/unfold, auto-collapsed `generated` files (lock files, `*.pb.go`,
   `vendor/`, minified assets).
@@ -58,8 +58,9 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   widget with **Apply suggestion** (GitLab).
 - **Multiline comments**: shift-click a line number to extend the range.
 
-![comment form](screenshots/comment-form.png)
-![multiline suggestion](screenshots/multiline-suggestion.png)
+![comment editor](screenshots/comment-form.png)
+![insert suggestion](screenshots/suggestion-editor.png)
+![multiline comment](screenshots/multiline.png)
 - **Resolve/unresolve** threads (GitLab) and an **unresolved dropdown**
   in the toolbar that jumps to each open thread.
 
@@ -86,6 +87,8 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   name; separate UI/code font sizes, tab width, italic comments and
   ligatures toggles.
 
+  ![theme gallery](screenshots/theme-gallery.png)
+
 ## Install
 
 Binary assets (wasm grammars, fonts, highlight queries, theme data) are
@@ -99,9 +102,13 @@ make          # needs node+npm and curl; re-runs are no-ops (FORCE=1 to refetch)
 ```
 
 Then `chrome://extensions` → Developer mode → Load unpacked → this
-directory. In the extension options add your GitLab host (PAT scope
-`api`) and/or `github.com` (classic PAT with `repo`) to enable review
-actions; rendering works without tokens.
+directory. To enable review actions, open the ⚙ menu → **Access
+tokens** on any diff page and add a GitLab host (PAT scope `api`) and/or
+a GitHub token (classic `repo`, or fine-grained with Pull requests
+read & write); rendering works without tokens. Tokens are stored in
+`storage.local` and never synced.
+
+![access tokens](screenshots/tokens.png)
 
 Make sure the extension's **Site access** is “On all sites” (or grant
 your hosts explicitly) — without it the content script is not injected.
