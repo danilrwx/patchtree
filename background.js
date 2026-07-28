@@ -54,15 +54,13 @@ function lineStartsOf(text) {
   return ls;
 }
 
-// split a [startIndex,endIndex) span into per-line {s,e,c} entries
-function pushSpan(rows, startIndex, endIndex, c, lineStarts, text, rowOf) {
-  const sr = rowOf(startIndex);
-  const er = rowOf(endIndex);
-  for (let row = sr; row <= er; row++) {
+// split a node across the lines it spans into per-line {s,e,c} entries
+function pushNode(rows, node, c, lineStarts, text) {
+  for (let row = node.startPosition.row; row <= node.endPosition.row; row++) {
     const lineStart = lineStarts[row];
     const lineEnd = row + 1 < lineStarts.length ? lineStarts[row + 1] - 1 : text.length;
-    const s = Math.max(startIndex, lineStart) - lineStart;
-    const e = Math.min(endIndex, lineEnd) - lineStart;
+    const s = Math.max(node.startIndex, lineStart) - lineStart;
+    const e = Math.min(node.endIndex, lineEnd) - lineStart;
     if (e > s) (rows[row] ||= []).push({ s, e, c });
   }
 }
@@ -99,44 +97,27 @@ function highlight(langName, text) {
     });
 }
 
-// Helm/Go templates: yaml is injected into the template's text spans
-// (like nvim-treesitter's gotmpl injections) — yaml highlights the plain
-// content, gotmpl highlights the {{ … }} actions on top.
+// Helm/Go templates: highlight as yaml with the {{ … }} actions on top
+// (like nvim-treesitter's gotmpl setup). The yaml grammar chokes on inline
+// template syntax, so it parses a copy with every action blanked out — same
+// length and line breaks, so capture positions still map to the original —
+// then gotmpl actions are layered over it.
 function highlightGotmpl(text) {
   return init()
     .then(() => Promise.all([loadLang("gotmpl"), loadLang("yaml")]))
     .then(([gt, yaml]) => {
       const lineStarts = lineStartsOf(text);
-      const rowOf = (idx) => {
-        let lo = 0;
-        let hi = lineStarts.length - 1;
-        while (lo < hi) {
-          const mid = (lo + hi + 1) >> 1;
-          if (lineStarts[mid] <= idx) lo = mid;
-          else hi = mid - 1;
-        }
-        return lo;
-      };
       const rows = {};
 
-      const gtTree = parseWith(gt.language, text);
-      // collect (text) node spans — the parts outside {{ … }} where yaml applies
-      const textSpans = [];
-      const walk = (node) => {
-        if (node.type === "text") textSpans.push([node.startIndex, node.endIndex]);
-        for (let i = 0; i < node.childCount; i++) walk(node.child(i));
-      };
-      walk(gtTree.rootNode);
-      const insideText = (s, e) => textSpans.some(([ts, te]) => ts <= s && e <= te);
-
-      const yamlTree = parseWith(yaml.language, text);
+      const masked = text.replace(/\{\{[\s\S]*?\}\}/g, (m) => m.replace(/[^\n]/g, " "));
+      const yamlTree = parseWith(yaml.language, masked);
       for (const { name, node } of yaml.query.captures(yamlTree.rootNode).slice(0, MAX_CAPTURES))
-        if (insideText(node.startIndex, node.endIndex))
-          pushSpan(rows, node.startIndex, node.endIndex, cssClass(name), lineStarts, text, rowOf);
+        pushNode(rows, node, cssClass(name), lineStarts, text);
       yamlTree.delete();
 
+      const gtTree = parseWith(gt.language, text);
       for (const { name, node } of gt.query.captures(gtTree.rootNode).slice(0, MAX_CAPTURES))
-        pushSpan(rows, node.startIndex, node.endIndex, cssClass(name), lineStarts, text, rowOf);
+        pushNode(rows, node, cssClass(name), lineStarts, text);
       gtTree.delete();
 
       return { rows };
