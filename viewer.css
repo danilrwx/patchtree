@@ -338,9 +338,12 @@ html.pt-on {
 }
 
 .pt-set-row input,
-.pt-set-row select {
+.pt-set-row .pt-select {
   width: 150px;
   box-sizing: border-box;
+}
+
+.pt-set-row input {
   font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
   color: var(--pt-fg);
   background: var(--pt-bg);
@@ -353,6 +356,29 @@ html.pt-on {
   width: auto;
 }
 
+/* custom select: summary looks like an input box with a caret */
+.pt-select > summary {
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
+  color: var(--pt-fg);
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+
+.pt-select > summary::after {
+  margin-left: auto;
+}
+
+.pt-select > summary .pt-dd-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-select .pt-dd-menu {
+  min-width: 150px;
+}
+
 .pt-font-ctl {
   display: flex;
   flex-direction: column;
@@ -360,7 +386,7 @@ html.pt-on {
   width: 150px;
 }
 
-.pt-font-ctl select,
+.pt-font-ctl .pt-select,
 .pt-font-ctl input {
   width: 100%;
 }
@@ -421,7 +447,7 @@ html.pt-on {
 .pt-gallery-head h3 { margin: 0 auto 0 0; }
 
 .pt-gallery-head input,
-.pt-gallery-head select,
+.pt-gallery-head .pt-select > summary,
 .pt-gallery-head button {
   font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
   color: var(--pt-fg);

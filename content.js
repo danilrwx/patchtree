@@ -767,6 +767,55 @@ function menuItem(menu, html, onClick) {
   return item;
 }
 
+// styled replacement for a native <select>. options: [{value,label}].
+// The menu is positioned fixed on open so it isn't clipped by scrolling
+// parents (e.g. the settings menu). Returns the element plus ptValue()/ptSet().
+function makeSelect(options, value, onChange, cfg = {}) {
+  const { dd, sum, menu } = makeDropdown(`<span class="pt-dd-label"></span>`);
+  dd.classList.add("pt-select");
+  const label = sum.querySelector(".pt-dd-label");
+  let current = value;
+  let opts = options;
+
+  const render = () => {
+    menu.textContent = "";
+    const cur = opts.find((o) => o.value === current) || opts[0];
+    label.textContent = cur ? cur.label : "";
+    if (cfg.styleFont) sum.style.fontFamily = cur && cur.value ? `"${cur.value}"` : "";
+    for (const o of opts) {
+      const item = menuItem(menu, esc(o.label), () => {
+        current = o.value;
+        dd.open = false;
+        render();
+        onChange(o.value);
+      });
+      if (cfg.styleFont && o.value) item.style.fontFamily = `"${o.value}"`;
+      if (o.value === current) item.classList.add("pt-active");
+    }
+  };
+  render();
+
+  dd.addEventListener("toggle", () => {
+    if (!dd.open) {
+      menu.style.cssText = "";
+      return;
+    }
+    const r = sum.getBoundingClientRect();
+    menu.style.position = "fixed";
+    menu.style.left = `${r.left}px`;
+    menu.style.top = `${r.bottom + 4}px`;
+    menu.style.minWidth = `${r.width}px`;
+  });
+
+  dd.ptValue = () => current;
+  dd.ptSet = (newOpts, v) => {
+    if (newOpts) opts = newOpts;
+    if (v !== undefined) current = v;
+    render();
+  };
+  return dd;
+}
+
 // base16 palettes, base00..base0F
 const BASE16 = {
   "Gruvbox Dark": "1d2021 3c3836 504945 665c54 bdae93 d5c4a1 ebdbb2 fbf1c7 fb4934 fe8019 fabd2f b8bb26 8ec07c 83a598 d3869b d65d0e",
@@ -1014,22 +1063,19 @@ async function main() {
   const { customThemes = {} } = await chrome.storage.sync.get("customThemes");
   window.ptCustomThemes = customThemes;
 
-  const themeSel = document.createElement("select");
-  const rebuildThemeOptions = () => {
-    themeSel.textContent = "";
+  const themeOptions = () => {
     const names = ["GitHub", ...Object.keys(BASE16), ...Object.keys(customThemes)];
     if (settings.theme && settings.themePalette && !names.includes(settings.theme))
       names.push(settings.theme);
-    for (const name of names) themeSel.append(new Option(name, name));
-    themeSel.value = names.includes(settings.theme) && settings.theme ? settings.theme : "GitHub";
+    return names.map((n) => ({ value: n === "GitHub" ? "" : n, label: n }));
   };
-  rebuildThemeOptions();
-  themeSel.addEventListener("change", () => {
-    settings.theme = themeSel.value === "GitHub" ? "" : themeSel.value;
+  const themeSel = makeSelect(themeOptions(), settings.theme || "", (v) => {
+    settings.theme = v;
     settings.themePalette = "";
     applySettings(settings);
     saveSettings();
   });
+  const rebuildThemeOptions = () => themeSel.ptSet(themeOptions(), settings.theme || "");
   setRow("Theme", themeSel);
 
   // tinted-theming base16 yaml: base00..base0F hex values + scheme/name field
@@ -1093,8 +1139,11 @@ async function main() {
     const search = document.createElement("input");
     search.type = "search";
     search.placeholder = "Search themes…";
-    const variantSel = document.createElement("select");
-    for (const v of ["all", "dark", "light"]) variantSel.append(new Option(v, v));
+    const variantSel = makeSelect(
+      ["all", "dark", "light"].map((v) => ({ value: v, label: v })),
+      "all",
+      () => applyFilter()
+    );
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "Close";
     closeBtn.addEventListener("click", () => overlay.remove());
@@ -1134,7 +1183,7 @@ async function main() {
 
     const applyFilter = () => {
       const q = search.value.trim().toLowerCase();
-      const v = variantSel.value;
+      const v = variantSel.ptValue();
       filtered = all.filter(
         (t) =>
           (!q || t.name.toLowerCase().includes(q)) && (v === "all" || t.variant === v)
@@ -1144,7 +1193,6 @@ async function main() {
       renderBatch();
     };
     search.addEventListener("input", applyFilter);
-    variantSel.addEventListener("change", applyFilter);
 
     const foot = document.createElement("details");
     foot.className = "pt-gallery-custom";
@@ -1190,42 +1238,41 @@ async function main() {
   const fontControl = (key, bundled) => {
     const wrap = document.createElement("span");
     wrap.className = "pt-font-ctl";
-    const sel = document.createElement("select");
-    sel.append(new Option("Default", ""));
-    for (const f of bundled) {
-      const o = new Option(f, f);
-      o.style.fontFamily = `"${f}"`;
-      sel.append(o);
-    }
-    sel.append(new Option("Custom…", "__custom"));
+    const options = [
+      { value: "", label: "Default" },
+      ...bundled.map((f) => ({ value: f, label: f })),
+      { value: "__custom", label: "Custom…" },
+    ];
     const input = document.createElement("input");
     input.placeholder = "system font name";
     input.style.display = "none";
 
     const current = settings[key] || "";
-    if (bundled.includes(current)) sel.value = current;
-    else if (current) {
-      sel.value = "__custom";
+    const isBundled = bundled.includes(current);
+    if (current && !isBundled) {
       input.value = current;
       input.style.display = "";
     }
-    sel.style.fontFamily = bundled.includes(current) ? `"${current}"` : "";
 
     const save = (v) => {
       settings[key] = v;
       applySettings(settings);
       saveSettings();
     };
-    sel.addEventListener("change", () => {
-      if (sel.value === "__custom") {
-        input.style.display = "";
-        input.focus();
-      } else {
-        input.style.display = "none";
-        sel.style.fontFamily = sel.value ? `"${sel.value}"` : "";
-        save(sel.value);
-      }
-    });
+    const sel = makeSelect(
+      options,
+      isBundled ? current : current ? "__custom" : "",
+      (v) => {
+        if (v === "__custom") {
+          input.style.display = "";
+          input.focus();
+        } else {
+          input.style.display = "none";
+          save(v);
+        }
+      },
+      { styleFont: true }
+    );
     let debounce;
     input.addEventListener("input", () => {
       clearTimeout(debounce);
@@ -1247,14 +1294,15 @@ async function main() {
     ])
   );
 
-  const tabSel = document.createElement("select");
-  for (const n of [2, 4, 8]) tabSel.append(new Option(n, n));
-  tabSel.value = settings.tabSize || 4;
-  tabSel.addEventListener("change", () => {
-    settings.tabSize = +tabSel.value;
-    applySettings(settings);
-    saveSettings();
-  });
+  const tabSel = makeSelect(
+    [2, 4, 8].map((n) => ({ value: n, label: String(n) })),
+    settings.tabSize || 4,
+    (v) => {
+      settings.tabSize = v;
+      applySettings(settings);
+      saveSettings();
+    }
+  );
   setRow("Tab width", tabSel);
 
   const sizeRow = (label, key, dflt) => {
