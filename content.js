@@ -60,6 +60,8 @@ function parseDiff(text) {
     if (!hunk) {
       if (line.startsWith("--- a/")) file.oldPath = line.slice(6);
       else if (line.startsWith("+++ b/")) file.newPath = line.slice(6);
+      else if (line.startsWith("new file mode")) file.isNew = true;
+      else if (line.startsWith("deleted file mode")) file.isDeleted = true;
       else if (line.startsWith("Binary files") || line === "GIT binary patch") file.binary = true;
       file.header.push(line);
       continue;
@@ -185,8 +187,12 @@ function buildFileView(file) {
 
   const unified = makeTable(["44px", "44px", "16px", ""]);
   unified.className = "pt-table pt-unified";
-  const split = makeTable(["44px", "", "44px", ""]);
-  split.className = "pt-table pt-split";
+  // a fully added/deleted file has one real side — the split view would waste
+  // half the width, so it falls back to the unified table at full width
+  const full = file.isNew || file.isDeleted;
+  if (full) section.classList.add("pt-full");
+  const split = full ? null : makeTable(["44px", "", "44px", ""]);
+  if (split) split.className = "pt-table pt-split";
 
   const rowMeta = (tr, o, n) => {
     tr.dataset.path = file.newPath || file.oldPath || "";
@@ -241,36 +247,40 @@ function buildFileView(file) {
 
   for (const h of file.hunks) {
     hunkRow(unified, 4, h);
-    hunkRow(split, 4, h);
+    if (split) hunkRow(split, 4, h);
     for (const pair of alignHunk(h)) {
-      const str = split.insertRow();
-      str.className = "pt-srow";
-      rowMeta(str, pair.old, pair.new);
-      const oldTd = splitCell(str, pair.old, pair.ctx ? "pt-ctx" : "pt-del");
-      const newTd = splitCell(str, pair.new, pair.ctx ? "pt-ctx" : "pt-add");
+      let oldTd = null;
+      let newTd = null;
+      if (split) {
+        const str = split.insertRow();
+        str.className = "pt-srow";
+        rowMeta(str, pair.old, pair.new);
+        oldTd = splitCell(str, pair.old, pair.ctx ? "pt-ctx" : "pt-del");
+        newTd = splitCell(str, pair.new, pair.ctx ? "pt-ctx" : "pt-add");
+      }
 
       if (pair.ctx) {
         const utd = unifiedLine("pt-ctx", pair.old, pair.new, pair.new.text);
         const row = regNew(pair.new.text, utd);
-        cells.new[row].tds.push(newTd);
+        if (newTd) cells.new[row].tds.push(newTd);
         regOld(pair.old.text, oldTd);
       } else {
         if (pair.old) {
           const utd = unifiedLine("pt-del", pair.old, null, pair.old.text);
           const row = regOld(pair.old.text, utd);
-          cells.old[row].tds.push(oldTd);
+          if (oldTd) cells.old[row].tds.push(oldTd);
         }
         if (pair.new) {
           const utd = unifiedLine("pt-add", null, pair.new, pair.new.text);
           const row = regNew(pair.new.text, utd);
-          cells.new[row].tds.push(newTd);
+          if (newTd) cells.new[row].tds.push(newTd);
         }
       }
     }
   }
 
   section.appendChild(unified);
-  section.appendChild(split);
+  if (split) section.appendChild(split);
   view.cells = cells;
   view.texts = { old: oldParts.join("\n"), new: newParts.join("\n") };
   return view;
@@ -319,6 +329,7 @@ function buildTree(views) {
       const a = document.createElement("a");
       a.className = "pt-tree-file";
       a.href = "#";
+      a.dataset.path = v.path.toLowerCase();
       a.innerHTML =
         `<span class="pt-tree-name">${esc(v.path.split("/").pop())}</span>` +
         `<span class="pt-tree-stats"><span class="pt-adds">+${v.adds}</span> <span class="pt-dels">−${v.dels}</span></span>`;
@@ -331,23 +342,30 @@ function buildTree(views) {
     return frag;
   };
 
-  const side = document.createElement("nav");
-  side.id = "pt-tree";
-  side.appendChild(render(rootNode));
-  return side;
+  const frag = document.createDocumentFragment();
+  frag.appendChild(render(rootNode));
+  return frag;
 }
 
 function looksLikeDiff(text) {
   return /^(diff --git |From [0-9a-f]{40} |--- )/m.test(text.slice(0, 4096));
 }
 
+function applyTreeFilter(list, query) {
+  const q = query.trim().toLowerCase();
+  for (const a of list.querySelectorAll(".pt-tree-file"))
+    a.style.display = !q || a.dataset.path.includes(q) ? "" : "none";
+  for (const det of [...list.querySelectorAll("details")].reverse()) {
+    const visible = [...det.querySelectorAll(".pt-tree-file")].some((a) => a.style.display !== "none");
+    det.style.display = visible ? "" : "none";
+  }
+}
+
 async function main() {
   if (document.contentType !== "text/plain") return;
   const raw = document.body.innerText;
   if (!looksLikeDiff(raw)) return;
-
-  const parsed = parseDiff(raw);
-  if (parsed.files.length === 0) return;
+  if (parseDiff(raw).files.length === 0) return;
 
   const root = document.createElement("div");
   root.id = "pt-root";
@@ -356,49 +374,78 @@ async function main() {
   bar.id = "pt-bar";
   root.appendChild(bar);
 
+  const tree = document.createElement("nav");
+  tree.id = "pt-tree";
+  const filter = document.createElement("input");
+  filter.id = "pt-filter";
+  filter.type = "search";
+  filter.placeholder = "Filter files…";
+  const treeList = document.createElement("div");
+  treeList.id = "pt-tree-list";
+  tree.append(filter, treeList);
+  root.appendChild(tree);
+  filter.addEventListener("input", () => applyTreeFilter(treeList, filter.value));
+
   const main = document.createElement("div");
   main.id = "pt-main";
   root.appendChild(main);
 
-  if (parsed.preamble) {
-    const pre = document.createElement("pre");
-    pre.id = "pt-preamble";
-    pre.textContent = parsed.preamble;
-    main.appendChild(pre);
-  }
+  const rawPre = document.createElement("pre");
+  rawPre.id = "pt-raw";
+  rawPre.style.display = "none";
 
-  const views = parsed.files.map(buildFileView);
-  root.insertBefore(buildTree(views), main);
-  for (const v of views) main.appendChild(v.section);
+  let views = [];
+
+  function renderDiff(text) {
+    const parsed = parseDiff(text);
+    rawPre.textContent = text;
+    main.textContent = "";
+    treeList.textContent = "";
+
+    if (parsed.preamble) {
+      const pre = document.createElement("pre");
+      pre.id = "pt-preamble";
+      pre.textContent = parsed.preamble;
+      main.appendChild(pre);
+    }
+
+    views = parsed.files.map(buildFileView);
+    treeList.appendChild(buildTree(views));
+    applyTreeFilter(treeList, filter.value);
+    for (const v of views) main.appendChild(v.section);
+
+    for (const v of views) {
+      if (!v.cells || !v.lang) continue;
+      highlightSide(v.lang, v.texts.new, v.cells.new);
+      highlightSide(v.lang, v.texts.old, v.cells.old);
+    }
+  }
 
   const { view: savedView = "unified" } = await chrome.storage.sync.get("view");
   root.classList.add(savedView === "split" ? "pt-mode-split" : "pt-mode-unified");
 
   const viewBtn = document.createElement("button");
-  viewBtn.textContent = savedView === "split" ? "inline" : "side-by-side";
+  viewBtn.textContent = savedView === "split" ? "Inline" : "Side-by-side";
   viewBtn.addEventListener("click", () => {
     const toSplit = root.classList.contains("pt-mode-unified");
     root.classList.toggle("pt-mode-split", toSplit);
     root.classList.toggle("pt-mode-unified", !toSplit);
-    viewBtn.textContent = toSplit ? "inline" : "side-by-side";
+    viewBtn.textContent = toSplit ? "Inline" : "Side-by-side";
     chrome.storage.sync.set({ view: toSplit ? "split" : "unified" });
   });
   bar.appendChild(viewBtn);
 
   const rawBtn = document.createElement("button");
-  rawBtn.textContent = "raw";
+  rawBtn.textContent = "Raw";
   bar.appendChild(rawBtn);
 
   const optBtn = document.createElement("button");
-  optBtn.textContent = "⚙ settings";
+  optBtn.textContent = "⚙";
+  optBtn.title = "Extension options";
   optBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "openOptions" }));
   bar.appendChild(optBtn);
 
   const oldBody = document.body;
-  const rawPre = document.createElement("pre");
-  rawPre.id = "pt-raw";
-  rawPre.style.display = "none";
-  rawPre.textContent = raw;
   oldBody.textContent = "";
   oldBody.appendChild(rawPre);
   oldBody.appendChild(root);
@@ -409,17 +456,13 @@ async function main() {
     showingRaw = !showingRaw;
     rawPre.style.display = showingRaw ? "" : "none";
     main.style.display = showingRaw ? "none" : "";
-    document.getElementById("pt-tree").style.display = showingRaw ? "none" : "";
-    rawBtn.textContent = showingRaw ? "pretty" : "raw";
+    tree.style.display = showingRaw ? "none" : "";
+    rawBtn.textContent = showingRaw ? "Pretty" : "Raw";
   });
 
-  for (const v of views) {
-    if (!v.cells || !v.lang) continue;
-    highlightSide(v.lang, v.texts.new, v.cells.new);
-    highlightSide(v.lang, v.texts.old, v.cells.old);
-  }
+  renderDiff(raw);
 
-  window.ptView = { bar, root };
+  window.ptView = { bar, root, renderDiff, initialRaw: raw };
   window.dispatchEvent(new CustomEvent("pt-rendered"));
 }
 

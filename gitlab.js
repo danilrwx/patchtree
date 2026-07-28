@@ -139,9 +139,15 @@
     return wrap;
   }
 
+  let currentCommit = "";
+
   function onLineClick(e) {
     const td = e.target.closest(".pt-no");
     if (!td || !token) return;
+    if (currentCommit) {
+      status("line comments work only in All commits view", true);
+      return;
+    }
     const tr = td.closest("tr");
     if (!tr?.dataset.path || !diffRefs) return;
     if (tr.nextSibling?.classList?.contains("pt-inline-form")) return;
@@ -182,12 +188,116 @@
     insertAfter(tr, formRow);
   }
 
-  function addButton(bar, label, handler) {
-    const b = document.createElement("button");
-    b.textContent = label;
-    b.addEventListener("click", handler);
-    bar.insertBefore(b, bar.firstChild);
-    return b;
+  function buildCommitSelect(bar) {
+    const select = document.createElement("select");
+    select.id = "pt-commits";
+    select.append(new Option("All commits", ""));
+    bar.prepend(select);
+
+    apiPaged(`/projects/${project}/merge_requests/${iid}/commits?`)
+      .then((commits) => {
+        for (const c of commits)
+          select.append(new Option(`${c.short_id}  ${c.title}`.slice(0, 80), c.id));
+      })
+      .catch((e) => status(`commits unavailable: ${e.message}`, true));
+
+    select.addEventListener("change", async () => {
+      currentCommit = select.value;
+      select.disabled = true;
+      try {
+        let text = window.ptView.initialRaw;
+        if (currentCommit) {
+          const r = await fetch(
+            `${location.origin}/${projectPath}/-/commit/${currentCommit}.diff`
+          );
+          if (!r.ok) throw new Error(`${r.status}`);
+          text = await r.text();
+        }
+        window.ptView.renderDiff(text);
+        if (!currentCommit)
+          loadDiscussions().catch((e) => status(`discussions unavailable: ${e.message}`, true));
+      } catch (e) {
+        status(`commit diff failed: ${e.message}`, true);
+      } finally {
+        select.disabled = false;
+      }
+    });
+    return select;
+  }
+
+  function buildReviewDropdown(bar) {
+    const dd = document.createElement("details");
+    dd.id = "pt-review";
+    const sum = document.createElement("summary");
+    sum.textContent = "Submit review";
+    dd.appendChild(sum);
+
+    const panel = document.createElement("div");
+    panel.className = "pt-review-panel";
+
+    const ta = document.createElement("textarea");
+    ta.rows = 4;
+    ta.placeholder = "Summary comment (optional)";
+    panel.appendChild(ta);
+
+    const actions = [
+      ["comment", "Comment", "Submit general feedback without explicit approval."],
+      ["approve", "Approve", "Submit feedback and approve these changes."],
+      ["request", "Request changes", "Submit feedback that should be addressed before merging."],
+    ];
+    for (const [value, label, hint] of actions) {
+      const lab = document.createElement("label");
+      lab.className = "pt-radio";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "pt-review-action";
+      input.value = value;
+      if (value === "comment") input.checked = true;
+      lab.appendChild(input);
+      const txt = document.createElement("span");
+      txt.innerHTML = `<b>${label}</b><br><small>${hint}</small>`;
+      lab.appendChild(txt);
+      panel.appendChild(lab);
+    }
+
+    const submit = document.createElement("button");
+    submit.className = "pt-primary";
+    submit.textContent = "Submit review";
+    panel.appendChild(submit);
+    dd.appendChild(panel);
+
+    submit.addEventListener("click", async () => {
+      submit.disabled = true;
+      try {
+        const body = ta.value.trim();
+        if (body)
+          await api(`/projects/${project}/merge_requests/${iid}/notes`, {
+            method: "POST",
+            body: JSON.stringify({ body }),
+          });
+        const mode = panel.querySelector("input[name=pt-review-action]:checked").value;
+        if (mode === "approve")
+          await api(`/projects/${project}/merge_requests/${iid}/approve`, { method: "POST" });
+        else if (mode === "request")
+          await graphql(
+            `mutation($p: ID!, $iid: String!) {
+               mergeRequestRequestChanges(input: {projectPath: $p, iid: $iid}) { errors }
+             }`,
+            { p: projectPath, iid }
+          );
+        ta.value = "";
+        dd.open = false;
+        status(
+          mode === "approve" ? "approved" : mode === "request" ? "changes requested" : "comment posted"
+        );
+      } catch (err) {
+        status(`review failed: ${err.message}`, true);
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    bar.appendChild(dd);
   }
 
   async function setup() {
@@ -197,64 +307,17 @@
     const bar = window.ptView.bar;
     const st = document.createElement("span");
     st.id = "pt-status";
-    bar.insertBefore(st, bar.firstChild);
+
+    const select = buildCommitSelect(bar);
+    select.after(st);
 
     if (token) {
-      addButton(bar, "Request changes", async (e) => {
-        e.target.disabled = true;
-        try {
-          await graphql(
-            `mutation($p: ID!, $iid: String!) {
-               mergeRequestRequestChanges(input: {projectPath: $p, iid: $iid}) { errors }
-             }`,
-            { p: projectPath, iid }
-          );
-          status("changes requested");
-        } catch (err) {
-          status(`request changes failed: ${err.message}`, true);
-        } finally {
-          e.target.disabled = false;
-        }
-      });
-
-      addButton(bar, "Comment", () => {
-        const main = document.getElementById("pt-main");
-        if (main.querySelector(":scope > .pt-comment-form")) return;
-        const form = commentForm("Comment on the merge request…", async (body) => {
-          await api(`/projects/${project}/merge_requests/${iid}/notes`, {
-            method: "POST",
-            body: JSON.stringify({ body }),
-          });
-          status("comment posted");
-        });
-        main.prepend(form);
-      });
-
-      const approveBtn = addButton(bar, "Approve", async () => {
-        approveBtn.disabled = true;
-        try {
-          if (approveBtn.dataset.approved) {
-            await api(`/projects/${project}/merge_requests/${iid}/unapprove`, { method: "POST" });
-            delete approveBtn.dataset.approved;
-            approveBtn.textContent = "Approve";
-            status("approval revoked");
-          } else {
-            await api(`/projects/${project}/merge_requests/${iid}/approve`, { method: "POST" });
-            approveBtn.dataset.approved = "1";
-            approveBtn.textContent = "Unapprove";
-            status("approved");
-          }
-        } catch (err) {
-          status(`failed: ${err.message}`, true);
-        } finally {
-          approveBtn.disabled = false;
-        }
-      });
+      buildReviewDropdown(bar);
     } else {
       const hint = document.createElement("span");
       hint.id = "pt-hint";
-      hint.textContent = "no token for this GitLab — set one in extension options to comment/approve";
-      bar.insertBefore(hint, bar.firstChild);
+      hint.textContent = "no token for this GitLab — set one in ⚙ options to review";
+      st.after(hint);
     }
 
     try {
