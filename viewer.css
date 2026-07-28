@@ -557,6 +557,7 @@ html.pt-on {
 
 .pt-seg {
   display: flex;
+  align-self: stretch;
   border: 1px solid var(--pt-muted);
   border-radius: 4px;
   overflow: hidden;
@@ -565,10 +566,15 @@ html.pt-on {
 #pt-bar .pt-seg button {
   border: none;
   border-radius: 0;
-  padding: 5px 10px;
+  padding: 0 10px;
+  height: 100%;
   display: flex;
   align-items: center;
   color: var(--pt-muted);
+}
+
+#pt-bar .pt-seg button + button {
+  border-left: 1px solid var(--pt-border);
 }
 
 #pt-bar .pt-seg button.pt-active {
