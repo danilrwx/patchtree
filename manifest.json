@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "patchtree",
+  "version": "0.1.0",
+  "description": "Render raw .diff/.patch pages as a colored diff with tree-sitter syntax highlighting",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*.diff", "*://*/*.patch"],
+      "js": ["content.js"],
+      "css": ["viewer.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  }
+}
