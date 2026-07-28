@@ -695,7 +695,7 @@ html.pt-on {
 .pt-comments-row td,
 .pt-inline-form td {
   padding: 8px 12px 8px 60px;
-  background: var(--pt-header-bg);
+  background: var(--pt-bg);
   border-top: 1px solid var(--pt-border);
   border-bottom: 1px solid var(--pt-border);
 }
@@ -713,6 +713,11 @@ html.pt-on {
   font: calc(var(--pt-ui-size, 13px) - 1px)/1.5 var(--pt-ui);
   color: var(--pt-muted);
   margin-bottom: 6px;
+  max-width: 720px;
+}
+
+.pt-inline-form textarea {
+  background: var(--pt-bg);
 }
 
 .pt-note {
@@ -852,12 +857,22 @@ html.pt-on {
   margin-bottom: 4px;
 }
 
+.pt-inline-form .pt-comment-form,
+.pt-comments-row .pt-comment-form {
+  max-width: 720px;
+  border: 1px solid var(--pt-border);
+  border-radius: 8px;
+  background: var(--pt-header-bg);
+  padding: 10px;
+  box-sizing: border-box;
+}
+
 .pt-form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   max-width: 720px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .pt-comment-form textarea {
