@@ -268,6 +268,7 @@
             wrap.remove();
             bodyEl.style.display = "";
             await paint();
+            refreshThreads();
             status("comment updated");
           } catch (e) {
             status(`edit failed: ${e.message}`, true);
@@ -290,7 +291,7 @@
         }
         try {
           await P.deleteNote(note);
-          div.remove();
+          refreshThreads();
           status("comment deleted");
         } catch (e) {
           status(`delete failed: ${e.message}`, true);
@@ -316,7 +317,7 @@
         await P.deleteDraft(draft);
         drafts = drafts.filter((x) => x.id !== draft.id);
         updateReviewSummary();
-        div.remove();
+        refreshThreads();
         status("draft discarded");
       } catch (e) {
         status(`discard failed: ${e.message}`, true);
@@ -376,6 +377,7 @@
         async (body) => {
           const note = await P.reply(t, body);
           anchor().before(await renderNote(note, anchorTr, t));
+          refreshThreads();
           status("reply posted");
         },
         () => (btn.style.display = ""),
@@ -881,10 +883,8 @@
       commentForm(
         "Leave a comment (shift-click a line number to extend the range)…",
         async (body) => {
-          const notes = await P.postThread(buildPosDesc(f), body);
-          const { row, td: td2 } = threadRow(f.endTr, side, "pt-comments-row");
-          insertAfter(formRow, row);
-          Promise.all(notes.map((n) => renderNote(n, f.endTr))).then((els) => td2.append(...els));
+          await P.postThread(buildPosDesc(f), body);
+          refreshThreads();
           status("comment posted");
         },
         closeActiveForm,
