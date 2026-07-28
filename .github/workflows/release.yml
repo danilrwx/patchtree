@@ -29,16 +29,25 @@ jobs:
       - name: Fetch pinned binary assets
         run: make deps
 
-      - name: Build extension zip
-        run: make zip
+      - name: Build extension zips
+        run: make zip zip-firefox
 
       - name: Checksums
-        run: shasum -a 256 patchtree.zip | tee checksums.txt
+        run: shasum -a 256 patchtree.zip patchtree-firefox.zip | tee checksums.txt
 
       - uses: actions/upload-artifact@v4
         with:
           name: patchtree
-          path: patchtree.zip
+          path: |
+            patchtree.zip
+            patchtree-firefox.zip
+
+      - name: Sign for Firefox (AMO, unlisted)
+        if: startsWith(github.ref, 'refs/tags/v') && secrets.AMO_JWT_ISSUER != ''
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: npx web-ext sign --channel unlisted --source-dir build/firefox --artifacts-dir signed && cp signed/*.xpi patchtree-firefox.xpi
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -46,5 +55,7 @@ jobs:
         with:
           files: |
             patchtree.zip
+            patchtree-firefox.zip
+            patchtree-firefox.xpi
             checksums.txt
           generate_release_notes: true

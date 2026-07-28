@@ -45,6 +45,18 @@ Make sure the extension's **Site access** is set to “On all sites”, or
 grant your GitLab/GitHub hosts explicitly — without it the content script
 is not injected.
 
+## Firefox
+
+`make zip-firefox` builds `patchtree-firefox.zip` with an event-page
+background and the gecko id (fonts are injected at runtime, so both
+`chrome-extension://` and `moz-extension://` work). For development load
+it via `about:debugging` → This Firefox → Load Temporary Add-on (resets
+on restart). For permanent installs Firefox requires signing: CI signs an
+unlisted `.xpi` through AMO on tags when `AMO_JWT_ISSUER`/`AMO_JWT_SECRET`
+secrets are configured. Note that Firefox MV3 treats host permissions as
+opt-in — enable “Access your data for all websites” in the add-on's
+Permissions tab, otherwise nothing injects.
+
 ## Build / release
 
 - `make` (default) — fetch all pinned binary assets (`make vendor`,

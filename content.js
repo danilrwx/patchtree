@@ -315,6 +315,37 @@ function hunkRow(table, span, h) {
   td.textContent = `@@ -${h.oldStart} +${h.newStart} @@${h.context}`;
 }
 
+// @font-face lives here, not in the injected CSS: extension-resource URLs
+// need runtime.getURL to work on both chrome-extension:// and moz-extension://
+const FONT_FACES = [
+  ["JetBrains Mono", "400", "normal", "JetBrainsMono-Regular.woff2"],
+  ["JetBrains Mono", "400", "italic", "JetBrainsMono-Italic.woff2"],
+  ["JetBrains Mono", "700", "normal", "JetBrainsMono-Bold.woff2"],
+  ["Inter", "100 900", "normal", "InterVariable.woff2"],
+  ["Inter", "100 900", "italic", "InterVariable-Italic.woff2"],
+  ["JetBrainsMono Nerd Font Mono", "400", "normal", "JetBrainsMonoNerdFontMono-Regular.woff2"],
+  ["JetBrainsMono Nerd Font Mono", "700", "normal", "JetBrainsMonoNerdFontMono-Bold.woff2"],
+  ["FiraCode Nerd Font Mono", "400", "normal", "FiraCodeNerdFontMono-Regular.woff2"],
+  ["FiraCode Nerd Font Mono", "700", "normal", "FiraCodeNerdFontMono-Bold.woff2"],
+  ["Hack Nerd Font Mono", "400", "normal", "HackNerdFontMono-Regular.woff2"],
+  ["Hack Nerd Font Mono", "700", "normal", "HackNerdFontMono-Bold.woff2"],
+  ["MesloLGS Nerd Font Mono", "400", "normal", "MesloLGSNerdFontMono-Regular.woff2"],
+  ["MesloLGS Nerd Font Mono", "700", "normal", "MesloLGSNerdFontMono-Bold.woff2"],
+  ["Iosevka Nerd Font Mono", "400", "normal", "IosevkaNerdFontMono-Regular.woff2"],
+  ["Iosevka Nerd Font Mono", "700", "normal", "IosevkaNerdFontMono-Bold.woff2"],
+];
+
+function injectFonts() {
+  const css = FONT_FACES.map(
+    ([family, weight, style, file]) =>
+      `@font-face{font-family:"${family}";font-weight:${weight};font-style:${style};` +
+      `src:url("${chrome.runtime.getURL("fonts/" + file)}") format("woff2");}`
+  ).join("\n");
+  const el = document.createElement("style");
+  el.textContent = css;
+  document.documentElement.appendChild(el);
+}
+
 const GENERATED_RE =
   /(^|\/)(go\.sum|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|composer\.lock|Gemfile\.lock|poetry\.lock)$|\.pb\.go$|zz_generated|\.generated\.|\.min\.(js|css)$|\.map$|(^|\/)vendor\//;
 
@@ -796,6 +827,8 @@ async function main() {
   if (!looksLikeDiff(raw)) return;
   if (parseDiff(raw).files.length === 0) return;
 
+  injectFonts();
+
   const viewedKey = `viewed:${location.host}${location.pathname}`;
   const stored = await chrome.storage.local.get(viewedKey);
   viewedSet = new Set(stored[viewedKey] || []);
@@ -1197,6 +1230,18 @@ async function main() {
     gear.dd.open = false;
     chrome.runtime.sendMessage({ type: "openOptions" });
   });
+
+  const sep2 = document.createElement("div");
+  sep2.className = "pt-dd-sep";
+  gear.menu.appendChild(sep2);
+  const star = octicon(
+    "M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Zm0 2.445L6.615 5.5a.75.75 0 0 1-.564.41l-3.097.45 2.24 2.184a.75.75 0 0 1 .216.664l-.528 3.084 2.769-1.456a.75.75 0 0 1 .698 0l2.77 1.456-.53-3.084a.75.75 0 0 1 .216-.664l2.24-2.183-3.096-.45a.75.75 0 0 1-.564-.41L8 2.694Z",
+    13
+  );
+  menuItem(gear.menu, `${star}<span>Enjoying it? Star patchtree on GitHub</span>`, () => {
+    gear.dd.open = false;
+    window.open("https://github.com/danilrwx/patchtree", "_blank", "noopener");
+  }).classList.add("pt-star-item");
 
   document.addEventListener("click", (e) => {
     for (const d of document.querySelectorAll("details.pt-dd[open], details#pt-review[open]"))
