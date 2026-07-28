@@ -835,8 +835,9 @@ html.pt-on {
 }
 
 .pt-note-actions button {
-  font: 11px/1.4 var(--pt-ui);
-  padding: 1px 6px;
+  display: flex;
+  align-items: center;
+  padding: 3px 5px;
   border: none;
   border-radius: 4px;
   background: none;
@@ -847,6 +848,11 @@ html.pt-on {
 .pt-note-actions button:hover {
   background: var(--pt-header-bg);
   color: var(--pt-fg);
+}
+
+.pt-note-actions button.pt-armed {
+  color: #cf222e;
+  background: var(--pt-del-bg);
 }
 
 .pt-md {
