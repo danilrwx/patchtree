@@ -751,7 +751,7 @@ function applySettings(s) {
   st.setProperty("--pt-ui-size", (s.uiFontSize || 14) + "px");
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
 
-  const palette = BASE16[s.theme];
+  const palette = BASE16[s.theme] || window.ptCustomThemes?.[s.theme];
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;
   for (const k of Object.keys(THEME_VARS(BASE16["Default Dark"].split(" ")))) {
     if (vars) st.setProperty(`--pt-${k}`, vars[k]);
@@ -925,16 +925,124 @@ async function main() {
     gear.menu.appendChild(row);
   };
 
+  const { customThemes = {} } = await chrome.storage.sync.get("customThemes");
+  window.ptCustomThemes = customThemes;
+
   const themeSel = document.createElement("select");
-  for (const name of ["GitHub", ...Object.keys(BASE16)])
-    themeSel.append(new Option(name, name));
-  themeSel.value = BASE16[settings.theme] ? settings.theme : "GitHub";
+  const rebuildThemeOptions = () => {
+    themeSel.textContent = "";
+    for (const name of ["GitHub", ...Object.keys(BASE16), ...Object.keys(customThemes)])
+      themeSel.append(new Option(name, name));
+    themeSel.value =
+      BASE16[settings.theme] || customThemes[settings.theme] ? settings.theme : "GitHub";
+  };
+  rebuildThemeOptions();
   themeSel.addEventListener("change", () => {
     settings.theme = themeSel.value === "GitHub" ? "" : themeSel.value;
     applySettings(settings);
     saveSettings();
   });
   setRow("Theme", themeSel);
+
+  // tinted-theming base16 yaml: base00..base0F hex values + scheme/name field
+  const parseBase16Yaml = (text) => {
+    const colors = [];
+    for (let i = 0; i < 16; i++) {
+      const key = `base0${i.toString(16).toUpperCase()}`;
+      const m = new RegExp(`${key}:\\s*["']?#?([0-9a-fA-F]{6})`).exec(text);
+      if (!m) return null;
+      colors.push(m[1].toLowerCase());
+    }
+    const name =
+      /(?:scheme|name):\s*["']?([^"'\n]+)/.exec(text)?.[1]?.trim() || "custom scheme";
+    return { name, colors: colors.join(" ") };
+  };
+
+  const openThemesDialog = () => {
+    document.getElementById("pt-themes-dialog")?.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "pt-themes-dialog";
+    const panel = document.createElement("div");
+    panel.className = "pt-dialog";
+    panel.innerHTML =
+      `<h3>Custom base16 themes</h3>` +
+      `<p>Paste a <a href="https://github.com/tinted-theming/schemes" target="_blank" rel="noopener">tinted-theming</a> scheme yaml (base00…base0F):</p>`;
+    const ta = document.createElement("textarea");
+    ta.rows = 8;
+    ta.placeholder = 'scheme: "Atelier Seaside"\nbase00: "131513"\nbase01: "242924"\n…';
+    panel.appendChild(ta);
+    const err = document.createElement("p");
+    err.className = "pt-dialog-err";
+    panel.appendChild(err);
+
+    const list = document.createElement("div");
+    const renderList = () => {
+      list.textContent = "";
+      for (const name of Object.keys(customThemes)) {
+        const row = document.createElement("div");
+        row.className = "pt-dialog-row";
+        const sw = customThemes[name].split(" ");
+        row.innerHTML =
+          `<span class="pt-swatches">${[0, 8, 11, 13, 14]
+            .map((i) => `<i style="background:#${sw[i]}"></i>`)
+            .join("")}</span>` + `<span>${esc(name)}</span>`;
+        const del = document.createElement("button");
+        del.textContent = "✕";
+        del.addEventListener("click", async () => {
+          delete customThemes[name];
+          await chrome.storage.sync.set({ customThemes });
+          if (settings.theme === name) {
+            settings.theme = "";
+            applySettings(settings);
+            saveSettings();
+          }
+          rebuildThemeOptions();
+          renderList();
+        });
+        row.appendChild(del);
+        list.appendChild(row);
+      }
+    };
+    renderList();
+    panel.appendChild(list);
+
+    const actions = document.createElement("div");
+    actions.className = "pt-form-actions";
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "Close";
+    closeBtn.addEventListener("click", () => overlay.remove());
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "Add theme";
+    saveBtn.className = "pt-primary";
+    saveBtn.addEventListener("click", async () => {
+      const parsed = parseBase16Yaml(ta.value);
+      if (!parsed) {
+        err.textContent = "could not find all base00…base0F colors";
+        return;
+      }
+      err.textContent = "";
+      customThemes[parsed.name] = parsed.colors;
+      await chrome.storage.sync.set({ customThemes });
+      settings.theme = parsed.name;
+      applySettings(settings);
+      saveSettings();
+      rebuildThemeOptions();
+      renderList();
+      ta.value = "";
+    });
+    actions.append(closeBtn, saveBtn);
+    panel.appendChild(actions);
+    overlay.appendChild(panel);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+  };
+
+  menuItem(gear.menu, "Custom themes…", () => {
+    gear.dd.open = false;
+    openThemesDialog();
+  });
 
   const fontControl = (key, bundled) => {
     const wrap = document.createElement("span");

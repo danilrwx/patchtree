@@ -437,6 +437,72 @@ html.pt-on {
   width: 100%;
 }
 
+#pt-themes-dialog {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pt-dialog {
+  width: 460px;
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--pt-bg);
+  color: var(--pt-fg);
+  border: 1px solid var(--pt-border);
+  border-radius: 10px;
+  padding: 16px;
+  font: var(--pt-ui-size, 14px)/1.6 var(--pt-ui);
+}
+
+.pt-dialog h3 { margin: 0 0 6px; }
+.pt-dialog p { margin: 4px 0 8px; color: var(--pt-muted); }
+.pt-dialog a { color: #0969da; }
+
+.pt-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: 12px/1.5 var(--pt-mono);
+  color: var(--pt-fg);
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.pt-dialog-err { color: #cf222e !important; min-height: 1em; }
+
+.pt-dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.pt-dialog-row button {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-dialog-row button:hover { color: #cf222e; }
+
+.pt-swatches { display: flex; gap: 2px; }
+
+.pt-swatches i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
 .pt-dd-sep {
   border-top: 1px solid var(--pt-border);
   margin: 4px 0;
@@ -985,6 +1051,40 @@ html.pt-on {
   border-radius: 8px;
   background: var(--pt-header-bg);
   padding: 10px;
+  box-sizing: border-box;
+}
+
+.pt-form-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--pt-border);
+  max-width: 720px;
+}
+
+.pt-form-tabs button {
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
+  padding: 3px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-form-tabs button.pt-active {
+  color: var(--pt-fg);
+  border-bottom-color: #fd8c73;
+  font-weight: 600;
+}
+
+.pt-form-preview {
+  max-width: 720px;
+  min-height: 60px;
+  border: 1px dashed var(--pt-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: var(--pt-bg);
   box-sizing: border-box;
 }
 
