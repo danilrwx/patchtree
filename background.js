@@ -45,6 +45,8 @@ async function loadLang(name) {
 }
 
 function cssClass(captureName) {
+  // mapping keys / struct fields get their own color, not the generic variable
+  if (captureName.startsWith("variable.other.member")) return "property";
   return captureName.split(".")[0];
 }
 

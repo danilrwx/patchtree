@@ -144,8 +144,12 @@ function esc(s) {
 function renderLineHTML(text, ranges, bg) {
   const colors = [];
   if (ranges?.length) {
+    // identical spans: keep the last capture (higher tree-sitter precedence),
+    // e.g. a yaml key tagged both @string and @variable.other.member
+    const bySpan = new Map();
+    for (const r of ranges) bySpan.set(`${r.s}:${r.e}`, r);
     let pos = 0;
-    for (const r of ranges.slice().sort((a, b) => a.s - b.s || b.e - a.e)) {
+    for (const r of [...bySpan.values()].sort((a, b) => a.s - b.s || b.e - a.e)) {
       if (r.s < pos) continue;
       const s = Math.max(0, Math.min(r.s, text.length));
       const e = Math.max(s, Math.min(r.e, text.length));
