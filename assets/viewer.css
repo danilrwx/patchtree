@@ -313,7 +313,7 @@ html.pt-on {
 #pt-bar {
   grid-area: bar;
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
   justify-content: flex-start;
   padding: 8px 0 4px;
@@ -840,7 +840,7 @@ html.pt-on {
 #pt-tree-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 8px;
   position: sticky;
   top: 0;
@@ -1496,6 +1496,7 @@ html.pt-on {
   color: var(--pt-muted);
   text-decoration: none;
   white-space: nowrap;
+  padding: 0px 4px;
 }
 
 #pt-progress.pt-done { color: #1a7f37; }
