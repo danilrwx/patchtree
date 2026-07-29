@@ -8,7 +8,7 @@ review workflows for **GitLab** (any instance, including self-hosted) and
 Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 (or click the extension icon on any MR/PR page) and review right there.
 
-![overview](screenshots/overview.png)
+![overview](docs/screenshots/overview.png)
 
 ## Features
 
@@ -35,7 +35,7 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 - Resizable, filterable **file tree** (filter matches paths *and* diff
   content), folder icons, per-file `+N −M`, comment-count badge.
 
-  ![file tree](screenshots/tree.png)
+  ![file tree](docs/screenshots/tree.png)
 - **Viewed** checkboxes with an `N/M viewed` progress counter,
   fold/unfold, auto-collapsed `generated` files (lock files, `*.pb.go`,
   `vendor/`, minified assets).
@@ -43,13 +43,13 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   `x` fold, `/` focus filter.
 - **Commit filter** dropdown — view the diff of a single commit.
 
-  ![commit filter](screenshots/commits.png)
+  ![commit filter](docs/screenshots/commits.png)
 - Alt-click a line number → copy a **permalink** to that line's blob.
 - Copy-path and open-at-head buttons in every file header.
 
 ### Review
 
-![thread with a suggestion](screenshots/thread.png)
+![thread with a suggestion](docs/screenshots/thread.png)
 
 - **Threads on lines** (anchored to the old or new side, half-width in
   split view), replies, edit and delete of your comments.
@@ -60,36 +60,36 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   widget with **Apply suggestion** (GitLab).
 - **Multiline comments**: shift-click a line number to extend the range.
 
-![comment editor](screenshots/comment-form.png)
-![insert suggestion](screenshots/suggestion-editor.png)
-![multiline comment](screenshots/multiline.png)
+![comment editor](docs/screenshots/comment-form.png)
+![insert suggestion](docs/screenshots/suggestion-editor.png)
+![multiline comment](docs/screenshots/multiline.png)
 - **Resolve/unresolve** threads (GitLab) and an **unresolved dropdown**
   in the toolbar that jumps to each open thread.
 
-  ![unresolved threads](screenshots/unresolved.png)
+  ![unresolved threads](docs/screenshots/unresolved.png)
 - **Draft reviews** (GitLab): “Add to review” collects pending comments,
   published together by Submit review.
 - **Submit review** panel: summary comment + Comment / Approve (or
   Unapprove) / Request changes; approval state shown as a badge.
 
-  ![submit review](screenshots/submit-review.png)
+  ![submit review](docs/screenshots/submit-review.png)
 - General (non-diff) MR/PR discussion rendered above the first file.
 - Pipeline/checks status and merge-conflict indicator in the toolbar.
 
 ### Appearance
 
-![settings](screenshots/settings.png)
+![settings](docs/screenshots/settings.png)
 
-- **Theme gallery**: all 500+ base16/base24 schemes from
-  [tinted-theming](https://github.com/tinted-theming/schemes) (MIT) with
-  live code previews, search, light/dark filter — plus paste-your-own
-  scheme yaml.
+- **Theme gallery**: the base24 schemes from
+  [tinted-theming](https://github.com/tinted-theming/schemes) (MIT) with live
+  code previews — including how added/removed diff lines look — search and a
+  light/dark filter, plus paste-your-own scheme yaml.
 - Bundled fonts: JetBrains Mono, Inter and Nerd Font Mono builds of
   JetBrainsMono / FiraCode / Hack / MesloLGS / Iosevka; any local font by
   name; separate UI/code font sizes, tab width, italic comments and
   ligatures toggles.
 
-  ![theme gallery](screenshots/theme-gallery.png)
+  ![theme gallery](docs/screenshots/theme-gallery.png)
 
 ## Install
 
@@ -110,7 +110,7 @@ a GitHub token (classic `repo`, or fine-grained with Pull requests
 read & write); rendering works without tokens. Tokens are stored in
 `storage.local` and never synced.
 
-![access tokens](screenshots/tokens.png)
+![access tokens](docs/screenshots/tokens.png)
 
 Make sure the extension's **Site access** is “On all sites” (or grant
 your hosts explicitly) — without it the content script is not injected.
@@ -157,6 +157,12 @@ from the repository, so artifact contents are fully traceable:
 
 To release: `git tag v1.1.0 && git push --tags`. CI generates the
 release notes from conventional commits (`scripts/changelog.sh`).
+
+## Documentation
+
+- [docs/user-guide.md](docs/user-guide.md) — using the review UI.
+- [docs/architecture.md](docs/architecture.md) — how the extension is built.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup and conventions.
 
 ## Changelog
 
