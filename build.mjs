@@ -38,15 +38,12 @@ const HEADER = [
   "limitations under the License.",
 ].map((l) => `// ${l}`.trimEnd()).join("\n");
 
-// One output .js per entry. The service worker is an ES module (it imports
-// web-tree-sitter); the content/options scripts are classic scripts. Until the
-// rewrite merges them, content/providers/review stay separate window-bridged
-// files, so they are not bundled together — flip `bundle` when a Solid entry
-// starts importing its own modules.
+// One output .js per entry. content bundles the whole extension UI (providers
+// and the review controller are now imported, not separate window-bridged
+// scripts); options bundles its Solid page; the service worker stays an
+// unbundled ES module because it imports the vendored web-tree-sitter loader.
 const ENTRIES = [
   { name: "content", bundle: true },
-  { name: "providers", bundle: false },
-  { name: "review", bundle: true },
   { name: "options", bundle: true },
   { name: "background", bundle: false, format: "esm" },
 ];

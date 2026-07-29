@@ -12,16 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-"use strict";
+import { setReviewThreads, setComposing, composing, setReviewApi } from "./store";
+import type { Provider } from "./types";
 
-// The threads store lives in content.js's bundle (where <DiffFile> reads it);
-// this controller writes to it through window.ptStore.
-const { setReviewThreads, setComposing, composing } = window.ptStore;
+// The imperative surface content.ts builds and hands to the review controller.
+export interface PtView {
+  bar: HTMLElement;
+  root: HTMLElement;
+  renderDiff: (text: string) => void;
+  initialRaw: string;
+  makeDropdown: (labelHTML: string) => any;
+  menuItem: (menu: HTMLElement, html: string, fn: (item: HTMLElement) => void) => HTMLElement;
+  esc: (s: string) => string;
+  addSettingRow: (label: string, control: HTMLElement) => void;
+  addMenuItem: (html: string, fn: (item: HTMLElement) => void) => HTMLElement;
+  markCommented: (counts: Map<string, number>) => void;
+}
 
-(() => {
-  const P = window.ptProvider!;
-  if (!P) return;
-
+// Review controller: loads threads into the store, wires the action bridge
+// (setReviewApi) the thread components read, and handles line-comment clicks.
+// content.ts calls this — deferred — once the diff has painted.
+export function initReview(P: Provider, view: PtView) {
   // ponytail: provider threads/drafts are normalized to the store shape; typed
   // any here to avoid fighting the provider-Thread vs ReviewThread mismatch
   let me: { id: any; name: string } | null = null;
@@ -99,7 +110,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
         ? `${t.pos.path.split("/").pop()}:${t.pos.newLine || t.pos.oldLine}`
         : "discussion";
       const snippet = (note?.body || "").replace(/\s+/g, " ").slice(0, 60);
-      window.ptView.menuItem(
+      view.menuItem(
         unresolvedEl.menu,
         `<span class="pt-sha">${esc(loc)}</span><span>${esc(snippet)}</span>`,
         () => {
@@ -145,7 +156,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     const counts = new Map<string, number>();
     for (const t of realThreads)
       if (t.pos) counts.set(t.pos.path, (counts.get(t.pos.path) || 0) + 1);
-    window.ptView.markCommented?.(counts);
+    view.markCommented?.(counts);
   }
 
   async function loadDrafts() {
@@ -167,7 +178,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
   // Action bridge for the Solid thread components (src/components/Thread.tsx).
   // Each call hits the provider then updates the store surgically, so only the
   // touched thread re-renders — no page-wide refresh.
-  window.ptReview = {
+  setReviewApi({
     get me() {
       return me;
     },
@@ -271,7 +282,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
         throw e;
       }
     },
-  };
+  });
 
   function setApproved(v: boolean) {
     approvedByMe = v;
@@ -351,7 +362,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
   // thin adapter: mount the Solid <CommentForm> into a host the callers append
 
   function buildCommitSelect(bar: HTMLElement) {
-    const { dd, sum, menu } = window.ptView.makeDropdown(
+    const { dd, sum, menu } = view.makeDropdown(
       `${window.ptIcons?.commit || ""}<span class="pt-dd-label">All commits</span>`
     );
     dd.id = "pt-commits";
@@ -366,9 +377,9 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
         label.length > 44 ? `${label.slice(0, 43)}…` : label;
       for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
-        let text = window.ptView.initialRaw;
+        let text = view.initialRaw;
         if (sha) text = await P.commitDiff(sha);
-        window.ptView.renderDiff(text);
+        view.renderDiff(text);
         if (!sha) refreshThreads();
       } catch (e: any) {
         status(`commit diff failed: ${e.message}`, true);
@@ -376,7 +387,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     };
 
     const addItem = (sha: string, html: string, label: string) => {
-      const item = window.ptView.menuItem(menu, html, (it: any) => choose(sha, label, it));
+      const item = view.menuItem(menu, html, (it: any) => choose(sha, label, it));
       items.push(item);
       return item;
     };
@@ -564,7 +575,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
   async function setup() {
     await P.init();
 
-    const bar = window.ptView.bar;
+    const bar = view.bar;
     const st = document.createElement("span");
     st.id = "pt-status";
 
@@ -577,7 +588,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     badge.hidden = true;
     select.after(badge);
 
-    unresolvedEl = window.ptView.makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
+    unresolvedEl = view.makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
     unresolvedEl.dd.id = "pt-unresolved";
     unresolvedEl.dd.style.display = "none";
     select.after(unresolvedEl.dd);
@@ -585,11 +596,11 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     if (P.can.whitespace) {
       const wsCb = document.createElement("input");
       wsCb.type = "checkbox";
-      window.ptView.addSettingRow?.("Ignore whitespace", wsCb);
+      view.addSettingRow?.("Ignore whitespace", wsCb);
       wsCb.addEventListener("change", async () => {
         try {
-          const text = wsCb.checked ? await P.whitespaceDiff!() : window.ptView.initialRaw;
-          window.ptView.renderDiff(text);
+          const text = wsCb.checked ? await P.whitespaceDiff!() : view.initialRaw;
+          view.renderDiff(text);
           refreshThreads();
         } catch (e: any) {
           status(`whitespace toggle failed: ${e.message}`, true);
@@ -648,13 +659,11 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
       }
     };
     decorateHeaders();
-    const origRender = window.ptView.renderDiff;
-    window.ptView.renderDiff = (t: string) => {
+    const origRender = view.renderDiff;
+    view.renderDiff = (t: string) => {
       origRender(t);
       decorateHeaders();
     };
-
-    window.ptView.fetchFile = P.fetchFile;
 
     try {
       me = await P.me();
@@ -666,12 +675,8 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     loadThreads().catch((e) => status(`discussions unavailable: ${e.message}`, true));
     loadDrafts();
 
-    window.ptView.root.addEventListener("click", onLineClick);
+    view.root.addEventListener("click", onLineClick);
   }
 
-  // Defer to a macrotask so the browser paints the diff before any network
-  // request (threads, PR info, drafts) starts — the diff must show first.
-  const start = () => setTimeout(setup, 0);
-  if (window.ptView) start();
-  else window.addEventListener("pt-rendered", start, { once: true });
-})();
+  setup();
+}

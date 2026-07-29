@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Reactive review threads. review.js loads threads into the store and exposes
-// action callbacks on window.ptReview; <DiffFile> anchors <CommentsRow> after
-// the matching diff row. Replaces the imperative rowsFor/threadRow/renderNote
-// machinery and its refreshThreads() full rebuild.
+// Reactive review threads. review.ts loads threads into the store and exposes
+// action callbacks via the store's reviewApi; <DiffFile> anchors <CommentsRow>
+// after the matching diff row. Replaces the imperative rowsFor/threadRow/
+// renderNote machinery and its refreshThreads() full rebuild.
 import { For, Show, createSignal, createMemo, createEffect, type JSX } from "solid-js";
 import { esc } from "../diff";
 import {
@@ -23,40 +23,20 @@ import {
   setComposing,
   threadIndex,
   reviewThreads,
+  reviewApi,
   fileLines,
   anchorKey,
   type ReviewThread,
   type ReviewNote,
   type Composing,
+  type SugPart,
+  type ReviewApi,
 } from "../store";
 import { CommentForm } from "./CommentForm";
 
-interface SugPart {
-  sug?: string;
-  md?: string;
-  minus: number;
-  plus: number;
-}
-
-interface ReviewBridge {
-  me: { id: unknown; name: string } | null;
-  token: boolean;
-  can: { resolve?: boolean; applySuggestion?: boolean; drafts?: boolean };
-  renderMarkdown: (t: string) => Promise<string>;
-  status: (m: string, isError?: boolean) => void;
-  reply: (t: ReviewThread, body: string) => Promise<void>;
-  draftReply: (t: ReviewThread, body: string) => Promise<void>;
-  resolve: (t: ReviewThread, value: boolean) => Promise<void>;
-  editNote: (t: ReviewThread, n: ReviewNote, body: string) => Promise<void>;
-  deleteNote: (t: ReviewThread, n: ReviewNote) => Promise<void>;
-  discardDraft: (t: ReviewThread) => Promise<void>;
-  submitComment: (pos: Composing, body: string) => Promise<void>;
-  draftComment: (pos: Composing, body: string) => Promise<void>;
-  applySuggestion: (t: ReviewThread, part: SugPart, line: number, meta: unknown) => Promise<void>;
-  dismissSuggestion: (t: ReviewThread) => Promise<void>;
-}
-
-const rv = () => (window as unknown as { ptReview: ReviewBridge }).ptReview;
+// the review actions live in the store (set by review.ts); non-null because the
+// thread components only ever render once review has populated it
+const rv = (): ReviewApi => reviewApi()!;
 const icons = (): Record<string, string> => (window as any).ptIcons ?? {};
 
 const EDIT_SVG =

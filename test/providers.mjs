@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 const root = new URL("..", import.meta.url);
 const { code } = transformSync(readFileSync(new URL("src/providers.ts", root), "utf8"), {
   loader: "ts",
+  format: "cjs",
 });
 
 let passed = 0;
@@ -54,8 +55,10 @@ function resp(body, { status = 200, headers = {}, text } = {}) {
 async function harness({ location, tokenHost, token = "SEKRET", sendMessage } = {}) {
   const calls = [];
   let reply = () => resp(null);
+  const mod = { exports: {} };
   const sandbox = {
-    window: {},
+    module: mod,
+    exports: mod.exports,
     location,
     fetch: async (url, opts = {}) => {
       calls.push({ url, opts, method: opts.method || "GET", body: opts.body, headers: opts.headers });
@@ -78,7 +81,7 @@ async function harness({ location, tokenHost, token = "SEKRET", sendMessage } = 
   };
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox);
-  const P = sandbox.window.ptProvider;
+  const P = mod.exports.makeProvider();
   await P.init();
   return {
     P,

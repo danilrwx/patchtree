@@ -45,22 +45,21 @@ import {
   setGapErr,
   ctxKey,
   resetDiffState,
-  setReviewThreads,
-  setComposing,
-  composing,
   setFileLines,
 } from "./store";
-
-// review.js is a separate bundle with its own module state, so the threads
-// store lives here (where <DiffFile> reads it) and review.js writes through
-// this window bridge — same pattern as window.ptView / window.ptProvider.
-window.ptStore = { setReviewThreads, setComposing, composing };
+import { makeProvider } from "./providers";
+import { initReview, type PtView } from "./review";
+import type { Provider } from "./types";
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
 
 let viewedSet = new Set<string>();
 let saveViewed = () => {};
+// resolved provider (null for a local/non-provider page) and the progress
+// updater — module-scoped because top-level helpers reference them
+let provider: Provider | null = null;
+let updateProgress: () => void = () => {};
 
 // Fetch the hidden lines a gap hides and publish them (plus their highlight)
 // to the store; <DiffFile> renders the context rows and hides the now-redundant
@@ -69,8 +68,8 @@ async function expandGap(view: any, gap: any) {
   if (gap.busy || gap.newTo == null) return;
   gap.busy = true;
   try {
-    if (!window.ptView?.fetchFile) throw new Error("file contents unavailable here");
-    const lines = await window.ptView.fetchFile(view.path);
+    if (!provider?.fetchFile) throw new Error("file contents unavailable here");
+    const lines = await provider.fetchFile(view.path);
     const to = Math.min(gap.newTo, lines.length);
     const arr: { o: number; n: number; text: string }[] = [];
     for (let n = gap.newFrom; n <= to; n++) {
@@ -182,7 +181,7 @@ function buildFileView(file: any) {
           saveViewed();
           setFolded(checked);
           setViewed(path, checked);
-          window.ptUpdateProgress?.();
+          updateProgress();
         },
         onExpand: (gap) => expandGap(view, gap),
       }),
@@ -362,6 +361,8 @@ async function main() {
   if (!looksLikeDiff(raw)) return;
   if (parseDiff(raw).files.length === 0) return;
 
+  provider = makeProvider();
+
   injectFonts();
 
   const viewedKey = `viewed:${location.host}${location.pathname}`;
@@ -482,7 +483,7 @@ async function main() {
     );
     for (const v of views) setViewed(v.path, viewedSet.has(v.path));
     for (const v of views) main.appendChild(v.section);
-    window.ptUpdateProgress?.();
+    updateProgress();
 
     for (const v of views) {
       if (!v.lang) continue;
@@ -493,7 +494,7 @@ async function main() {
 
   const { view: savedView = "unified" } = await chrome.storage.sync.get("view");
 
-  window.ptUpdateProgress = () => {
+  updateProgress = () => {
     setViewedDone(views.filter((v) => viewedSet.has(v.path)).length);
     setViewedTotal(views.length);
   };
@@ -531,7 +532,7 @@ async function main() {
   oldBody.appendChild(rawPre);
   oldBody.appendChild(root);
   document.documentElement.classList.add("pt-on");
-  setCanExpand(!!window.ptProvider);
+  setCanExpand(!!provider);
   renderDiff(raw);
 
   const gear = makeDropdown(SVG_GEAR);
@@ -656,7 +657,7 @@ async function main() {
       (cb as HTMLInputElement).checked = false;
       cb.dispatchEvent(new Event("change"));
     }
-    window.ptUpdateProgress?.();
+    updateProgress();
   });
   const openTokensDialog = () => {
     document.getElementById("pt-tokens-host")?.remove();
@@ -743,7 +744,7 @@ async function main() {
     }
   });
 
-  window.ptView = {
+  const view: PtView = {
     bar,
     root,
     renderDiff,
@@ -762,7 +763,10 @@ async function main() {
       for (const v of views) setCounts(v.path, counts.get(v.path) || 0);
     },
   };
-  window.dispatchEvent(new CustomEvent("pt-rendered"));
+
+  // start the review layer after the diff has painted (a macrotask), so no
+  // network request blocks the first paint; skipped without a provider
+  if (provider) setTimeout(() => initReview(provider!, view), 0);
 }
 
 main();

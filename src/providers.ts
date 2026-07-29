@@ -21,14 +21,9 @@ import type {
   Side,
 } from "./types";
 
-declare global {
-  interface Window {
-    ptProvider: Provider | null;
-  }
-}
-
-// Review providers: one normalized interface, two implementations.
-window.ptProvider = (() => {
+// Review providers: one normalized interface, two implementations. Returns the
+// provider matching the current page, or null (e.g. a local file:// patch).
+export function makeProvider(): Provider | null {
   // tokens live in storage.local (never synced to the browser vendor's cloud);
   // migrate any previously sync-stored tokens on first read
   async function readTokens(): Promise<Record<string, { token?: string }>> {
@@ -695,4 +690,4 @@ window.ptProvider = (() => {
     if (m) return github(m[1], m[2], m[3]);
   }
   return null;
-})();
+}

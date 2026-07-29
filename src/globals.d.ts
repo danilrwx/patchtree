@@ -12,26 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The content and review scripts are separate bundles that talk over window
-// globals (a bundle boundary the merge phase will remove). Type them so the
-// .ts sources compile; the loosely-typed bridges become direct imports later.
-import type { Provider } from "./types";
-import type { ReviewThread, Composing } from "./store";
-
+// A couple of static, content-owned globals the Solid components read directly
+// (icons) or content reads back (custom themes). Everything else is now passed
+// or shared through the store, not window.
 declare global {
   interface Window {
-    ptProvider: Provider | null;
-    ptStore: {
-      setReviewThreads: (t: ReviewThread[]) => void;
-      setComposing: (c: Composing | null) => void;
-      composing: () => Composing | null;
-    };
-    // built by content.js, consumed by review.js — shape is internal
-    ptView: any;
-    // review action bridge for the Solid thread components
-    ptReview: any;
     ptIcons: Record<string, string>;
     ptCustomThemes: Record<string, string>;
-    ptUpdateProgress?: () => void;
   }
 }
+
+export {};
