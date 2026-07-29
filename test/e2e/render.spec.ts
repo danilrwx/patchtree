@@ -59,6 +59,17 @@ test("file header renders controls and the viewed checkbox folds the file", asyn
   await expect(first).toHaveClass(/pt-folded/);
 });
 
+test("expander loads hidden context lines", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const exp = page.locator(".pt-unified .pt-expander").first();
+  await exp.scrollIntoViewIfNeeded();
+  await exp.click();
+  await expect(page.locator(".pt-unified tr.pt-exp").first()).toBeVisible({ timeout: 10000 });
+});
+
 test("shows word-diff marks and toggles to side-by-side", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

@@ -93,6 +93,11 @@ export async function mockGithub(context: BrowserContext): Promise<void> {
       const body = (route.request().postDataJSON?.() ?? {}) as { text?: string };
       return route.fulfill({ contentType: "text/html", body: `<p>${body.text ?? ""}</p>` });
     }
+    if (p.includes("/contents/")) {
+      // raw file for expanders (fetchFile) — 80 lines of filler
+      const lines = Array.from({ length: 80 }, (_, i) => `\tline ${i + 1} of the source file`);
+      return route.fulfill({ contentType: "text/plain", body: lines.join("\n") });
+    }
     // issue comments, commits, reviews → empty
     return json([]);
   });

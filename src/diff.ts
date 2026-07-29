@@ -184,6 +184,146 @@ export function alignHunk(h: Hunk): AlignPair[] {
   return pairs;
 }
 
+// data-* attributes review.js reads off each row to anchor comments
+export interface RowMeta {
+  path: string;
+  oldPath: string;
+  old?: number;
+  new?: number;
+  ctx: boolean;
+  codeOld: string | number;
+  codeNew: string | number;
+}
+
+export interface PairModel {
+  ctx: boolean;
+  old: AlignSide | null;
+  new: AlignSide | null;
+  // index into the side's reconstructed text, for highlight lookup
+  oldRow: number | null;
+  newRow: number | null;
+  // word-diff background ranges for the changed tokens
+  wdA: Range[] | null;
+  wdB: Range[] | null;
+}
+
+export interface Gap {
+  id: string;
+  oldFrom: number;
+  newFrom: number;
+  newTo: number;
+}
+
+export interface Segment {
+  gap: Gap | null;
+  header: { oldStart: number; newStart: number; context: string };
+  pairs: PairModel[];
+}
+
+export interface FileModel {
+  path: string;
+  oldPath: string;
+  segments: Segment[];
+  trailingGap: Gap | null;
+  oldText: string;
+  newText: string;
+  full: boolean;
+}
+
+export function rowMeta(m: FileModel, o: AlignSide | null, n: AlignSide | null, ctx: boolean): RowMeta {
+  return {
+    path: m.path,
+    oldPath: m.oldPath,
+    old: o ? o.no : undefined,
+    new: n ? n.no : undefined,
+    ctx,
+    codeOld: o ? o.no : (n?.other ?? ""),
+    codeNew: n ? n.no : (o?.other ?? ""),
+  };
+}
+
+// Build the render model for one file: hunk segments with per-line row indices
+// and word-diff ranges, inter-hunk gaps (for expanders) and the reconstructed
+// old/new side texts. Pure — the component renders it, the tests assert it.
+export function buildFileModel(file: DiffFile): FileModel {
+  const path = file.newPath || file.oldPath || "(unknown)";
+  const full = !!(file.isNew || file.isDeleted);
+  const segments: Segment[] = [];
+  const oldParts: string[] = [];
+  const newParts: string[] = [];
+  let oldRow = 0;
+  let newRow = 0;
+  let nextOld = 1;
+  let nextNew = 1;
+
+  file.hunks.forEach((h, hi) => {
+    const gap =
+      !full && h.newStart > nextNew
+        ? { id: `${path}#${hi}`, oldFrom: nextOld, newFrom: nextNew, newTo: h.newStart - 1 }
+        : null;
+    let cntOld = 0;
+    let cntNew = 0;
+    for (const l of h.lines) {
+      if (l.t !== "+" && l.t !== "\\") cntOld++;
+      if (l.t !== "-" && l.t !== "\\") cntNew++;
+    }
+    nextOld = h.oldStart + cntOld;
+    nextNew = h.newStart + cntNew;
+
+    const pairs: PairModel[] = [];
+    for (const pair of alignHunk(h)) {
+      const p: PairModel = {
+        ctx: !!pair.ctx,
+        old: pair.old,
+        new: pair.new,
+        oldRow: null,
+        newRow: null,
+        wdA: null,
+        wdB: null,
+      };
+      if (pair.ctx) {
+        p.oldRow = oldRow++;
+        p.newRow = newRow++;
+        oldParts.push(pair.old!.text);
+        newParts.push(pair.new!.text);
+      } else {
+        const wd = pair.old && pair.new ? wordDiff(pair.old.text, pair.new.text) : null;
+        if (pair.old) {
+          p.oldRow = oldRow++;
+          oldParts.push(pair.old.text);
+          if (wd?.a.length) p.wdA = wd.a;
+        }
+        if (pair.new) {
+          p.newRow = newRow++;
+          newParts.push(pair.new.text);
+          if (wd?.b.length) p.wdB = wd.b;
+        }
+      }
+      pairs.push(p);
+    }
+    segments.push({
+      gap,
+      header: { oldStart: h.oldStart, newStart: h.newStart, context: h.context },
+      pairs,
+    });
+  });
+
+  const trailingGap =
+    !full && file.hunks.length
+      ? { id: `${path}#tail`, oldFrom: nextOld, newFrom: nextNew, newTo: Infinity }
+      : null;
+
+  return {
+    path,
+    oldPath: file.oldPath || "",
+    segments,
+    trailingGap,
+    oldText: oldParts.join("\n"),
+    newText: newParts.join("\n"),
+    full,
+  };
+}
+
 export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

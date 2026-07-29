@@ -21,7 +21,8 @@ function loadTs(rel) {
   return module.exports;
 }
 
-const { parseDiff, alignHunk, wordDiff, resolveLang, langFor, renderLineHTML } = loadTs("src/diff.ts");
+const { parseDiff, alignHunk, wordDiff, resolveLang, langFor, renderLineHTML, buildFileModel, rowMeta } =
+  loadTs("src/diff.ts");
 
 let passed = 0;
 const t = (name, fn) => {
@@ -95,6 +96,26 @@ t("renderLineHTML: identical span keeps the last capture", () => {
   );
   assert.ok(html.includes("pt-property"), html);
   assert.ok(!html.includes("pt-string"), html);
+});
+
+t("buildFileModel: rows, texts, word-diff and meta", () => {
+  const { files } = parseDiff(DIFF);
+  const m = buildFileModel(files[0]);
+  assert.equal(m.path, "main.go");
+  assert.equal(m.segments.length, 1);
+  const pairs = m.segments[0].pairs;
+  // ctx line then the -/+ replacement
+  assert.equal(pairs[0].ctx, true);
+  assert.deepEqual([pairs[0].oldRow, pairs[0].newRow], [0, 0]);
+  const repl = pairs.find((p) => !p.ctx);
+  assert.deepEqual([repl.oldRow, repl.newRow], [1, 1]);
+  assert.ok(repl.wdB && repl.wdB.length, "word-diff on the new side");
+  assert.ok(m.newText.startsWith("package main\nconst x = 2"), m.newText);
+  // the add row's meta carries new + both line codes
+  const meta = rowMeta(m, null, repl.new, false);
+  assert.equal(meta.new, repl.new.no);
+  assert.equal(meta.codeNew, repl.new.no);
+  assert.equal(String(meta.codeOld), String(repl.new.other));
 });
 
 // changelog.sh groups conventional commits by type. Use root..HEAD so the

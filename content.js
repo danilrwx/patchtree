@@ -1,10 +1,24 @@
 // Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 "use strict";
-import { langFor, resolveLang, parseDiff, alignHunk, esc, renderLineHTML, wordDiff } from "./src/diff";
+import { resolveLang, parseDiff, esc, buildFileModel } from "./src/diff";
 import { render } from "solid-js/web";
 import { FileTree } from "./src/components/FileTree";
-import { DiffFileHeader } from "./src/components/DiffFileHeader";
-import { setTreeFiles, setFilter, setViewed, setCounts, viewed } from "./src/store";
+import { DiffFile } from "./src/components/DiffFile";
+import {
+  setTreeFiles,
+  setFilter,
+  setViewed,
+  setCounts,
+  viewed,
+  setHighlights,
+  hlKey,
+  setCtxLines,
+  setCtxHl,
+  setGapFull,
+  setGapErr,
+  ctxKey,
+  resetDiffState,
+} from "./src/store";
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
@@ -12,105 +26,35 @@ const MAX_HIGHLIGHT_CHARS = 300 * 1024;
 let viewedSet = new Set();
 let saveViewed = () => {};
 
-function makeTable(widths) {
-  const table = document.createElement("table");
-  const colgroup = document.createElement("colgroup");
-  for (const w of widths) {
-    const col = document.createElement("col");
-    if (w) col.style.width = w;
-    colgroup.appendChild(col);
-  }
-  table.appendChild(colgroup);
-  return table;
-}
-
-function setCtxMeta(tr, meta, o, n) {
-  tr.dataset.path = meta.path;
-  tr.dataset.oldPath = meta.oldPath;
-  tr.dataset.old = o;
-  tr.dataset.new = n;
-  tr.dataset.ctx = "1";
-  tr.dataset.codeOld = o;
-  tr.dataset.codeNew = n;
-}
-
-function ctxRowU(meta, o, n, text) {
-  const tr = document.createElement("tr");
-  tr.className = "pt-ctx pt-exp";
-  const t1 = tr.insertCell();
-  t1.className = "pt-no";
-  t1.textContent = o;
-  const t2 = tr.insertCell();
-  t2.className = "pt-no";
-  t2.textContent = n;
-  tr.insertCell().className = "pt-mark";
-  const t4 = tr.insertCell();
-  t4.className = "pt-code";
-  t4.textContent = text;
-  setCtxMeta(tr, meta, o, n);
-  return tr;
-}
-
-function ctxRowS(meta, o, n, text) {
-  const tr = document.createElement("tr");
-  tr.className = "pt-srow pt-exp";
-  const mk = (no, txt) => {
-    const tn = tr.insertCell();
-    tn.className = "pt-no pt-ctx-no";
-    tn.textContent = no;
-    const tc = tr.insertCell();
-    tc.className = "pt-code pt-ctx-code";
-    tc.textContent = txt;
-  };
-  mk(o, text);
-  mk(n, text);
-  setCtxMeta(tr, meta, o, n);
-  return tr;
-}
-
-async function expandGap(view, ex) {
-  if (ex.busy || ex.done) return;
-  ex.busy = true;
+// Fetch the hidden lines a gap hides and publish them (plus their highlight)
+// to the store; <DiffFile> renders the context rows and hides the now-redundant
+// following hunk header when the gap is fully filled.
+async function expandGap(view, gap) {
+  if (gap.busy || gap.newTo == null) return;
+  gap.busy = true;
   try {
     if (!window.ptView?.fetchFile) throw new Error("file contents unavailable here");
     const lines = await window.ptView.fetchFile(view.path);
-    const to = Math.min(ex.newTo, lines.length);
-    const cellsArr = [];
-    for (let n = ex.newFrom; n <= to; n++) {
-      const o = ex.oldFrom + (n - ex.newFrom);
-      const text = lines[n - 1] ?? "";
-      const u = ctxRowU(view.meta, o, n, text);
-      ex.u.before(u);
-      const tds = [u.cells[3]];
-      if (ex.s) {
-        const s = ctxRowS(view.meta, o, n, text);
-        ex.s.before(s);
-        tds.push(s.cells[1], s.cells[3]);
-      }
-      cellsArr.push({ tds, text });
+    const to = Math.min(gap.newTo, lines.length);
+    const arr = [];
+    for (let n = gap.newFrom; n <= to; n++) {
+      const o = gap.oldFrom + (n - gap.newFrom);
+      arr.push({ o, n, text: lines[n - 1] ?? "" });
     }
-    // a fully expanded gap makes the following @@ header redundant noise
-    if (to === ex.newTo) {
-      for (const t of [ex.u.nextElementSibling, ex.s?.nextElementSibling])
-        if (t?.classList.contains("pt-hunk")) t.remove();
+    setCtxLines(gap.id, arr);
+    // a fully expanded inter-hunk gap makes the following @@ header redundant
+    if (to === gap.newTo) setGapFull(gap.id, true);
+    if (view.lang && arr.length) {
+      const resp = await chrome.runtime
+        .sendMessage({ type: "highlight", lang: view.lang, text: arr.map((c) => c.text).join("\n") })
+        .catch(() => null);
+      if (resp?.rows)
+        for (const [row, ranges] of Object.entries(resp.rows)) setCtxHl(ctxKey(gap.id, +row), ranges);
     }
-    ex.u.remove();
-    ex.s?.remove();
-    ex.done = true;
-    if (view.lang && cellsArr.length)
-      highlightSide(view.lang, cellsArr.map((c) => c.text).join("\n"), cellsArr);
   } catch (e) {
-    ex.busy = false;
-    ex.u.cells[0].textContent = `⚠ ${e.message}`;
+    gap.busy = false;
+    setGapErr(gap.id, e.message);
   }
-}
-
-function hunkRow(table, span, h) {
-  const tr = table.insertRow();
-  tr.className = "pt-hunk";
-  const td = tr.insertCell();
-  td.colSpan = span;
-  td.textContent = `@@ -${h.oldStart} +${h.newStart} @@${h.context}`;
 }
 
 // @font-face lives here, not in the injected CSS: extension-resource URLs
@@ -162,20 +106,30 @@ function buildFileView(file) {
     }
 
   const generated = GENERATED_RE.test(path);
-  const view = { section, path, adds, dels, cells: null, texts: null, lang: langFor(path) };
+  const model = buildFileModel(file);
+  if (model.full) section.classList.add("pt-full");
 
-  const setFolded = (f) => {
-    section.classList.toggle("pt-folded", f);
+  const view = {
+    section,
+    path,
+    adds,
+    dels,
+    texts: { old: model.oldText, new: model.newText },
+    lang: resolveLang(path, model.newText + "\n" + model.oldText),
   };
+
+  const setFolded = (f) => section.classList.toggle("pt-folded", f);
+  const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter(Boolean);
 
   const initiallyViewed = viewedSet.has(path);
   render(
     () =>
-      DiffFileHeader({
-        path,
+      DiffFile({
+        model,
         adds,
         dels,
         generated,
+        binary: !!file.binary,
         oldPath: file.oldPath,
         newPath: file.newPath,
         viewed: () => !!viewed[path],
@@ -184,7 +138,7 @@ function buildFileView(file) {
         onToggleFull: (checked) => {
           section.classList.toggle("pt-exp-hide", !checked);
           section.classList.toggle("pt-hunks-hidden", checked);
-          if (checked) for (const ex of view.expanders) expandGap(view, ex);
+          if (checked) for (const g of gaps) expandGap(view, g);
         },
         onToggleViewed: (checked) => {
           if (checked) viewedSet.add(path);
@@ -194,175 +148,15 @@ function buildFileView(file) {
           setViewed(path, checked);
           window.ptUpdateProgress?.();
         },
+        onExpand: (gap) => expandGap(view, gap),
       }),
     section
   );
   if (initiallyViewed || generated) setFolded(true);
-  if (file.binary) {
-    const p = document.createElement("div");
-    p.className = "pt-binary";
-    p.textContent = "binary file";
-    section.appendChild(p);
-    return view;
-  }
-
-  // cells[side][row] -> {tds: [], text}; row indexes the reconstructed
-  // old/new side texts sent to tree-sitter, tds live in both tables
-  const cells = { old: [], new: [] };
-  const oldParts = [];
-  const newParts = [];
-
-  const unified = makeTable(["44px", "44px", "16px", ""]);
-  unified.className = "pt-table pt-unified";
-  // a fully added/deleted file has one real side — the split view would waste
-  // half the width, so it falls back to the unified table at full width
-  const full = file.isNew || file.isDeleted;
-  if (full) section.classList.add("pt-full");
-  const split = full ? null : makeTable(["44px", "", "44px", ""]);
-  if (split) split.className = "pt-table pt-split";
-
-  const rowMeta = (tr, o, n, ctx) => {
-    tr.dataset.path = file.newPath || file.oldPath || "";
-    tr.dataset.oldPath = file.oldPath || "";
-    if (o) tr.dataset.old = o.no;
-    if (n) tr.dataset.new = n.no;
-    if (ctx) tr.dataset.ctx = "1";
-    // both-side counters as used by GitLab line codes (sha_old_new)
-    tr.dataset.codeOld = o ? o.no : (n?.other ?? "");
-    tr.dataset.codeNew = n ? n.no : (o?.other ?? "");
-  };
-
-  const regOld = (text, td) => {
-    const row = cells.old.length;
-    cells.old.push({ tds: td ? [td] : [], text });
-    oldParts.push(text);
-    return row;
-  };
-  const regNew = (text, td) => {
-    const row = cells.new.length;
-    cells.new.push({ tds: td ? [td] : [], text });
-    newParts.push(text);
-    return row;
-  };
-
-  const unifiedLine = (cls, o, n, text) => {
-    const tr = unified.insertRow();
-    tr.className = cls;
-    const tdOld = tr.insertCell();
-    tdOld.className = "pt-no";
-    tdOld.textContent = o ? o.no : "";
-    const tdNew = tr.insertCell();
-    tdNew.className = "pt-no";
-    tdNew.textContent = n ? n.no : "";
-    const tdMark = tr.insertCell();
-    tdMark.className = "pt-mark";
-    tdMark.textContent = cls === "pt-add" ? "+" : cls === "pt-del" ? "-" : "";
-    const td = tr.insertCell();
-    td.className = "pt-code";
-    td.textContent = text;
-    rowMeta(tr, o, n, cls === "pt-ctx");
-    return td;
-  };
-
-  const splitCell = (tr, entry, cls) => {
-    const tdNo = tr.insertCell();
-    tdNo.className = "pt-no" + (entry ? ` ${cls}-no` : " pt-void");
-    const td = tr.insertCell();
-    td.className = "pt-code" + (entry ? ` ${cls}-code` : " pt-void");
-    if (entry) {
-      tdNo.textContent = entry.no;
-      td.textContent = entry.text;
-    }
-    return td;
-  };
-
-  view.meta = { path, oldPath: file.oldPath || "" };
-  view.expanders = [];
-  const canExpand = !full && !file.binary;
-  const addExpander = (oldFrom, newFrom, newTo) => {
-    const make = (table) => {
-      const tr = table.insertRow();
-      tr.className = "pt-expander";
-      const td = tr.insertCell();
-      td.colSpan = 4;
-      td.innerHTML = `${window.ptIcons.unfold} <span>expand hidden lines</span>`;
-      return tr;
-    };
-    const ex = { u: make(unified), s: split ? make(split) : null, oldFrom, newFrom, newTo };
-    const onClick = () => expandGap(view, ex);
-    ex.u.addEventListener("click", onClick);
-    ex.s?.addEventListener("click", onClick);
-    view.expanders.push(ex);
-  };
-
-  let nextOld = 1;
-  let nextNew = 1;
-  for (const h of file.hunks) {
-    if (canExpand && h.newStart > nextNew)
-      addExpander(nextOld, nextNew, h.newStart - 1);
-    hunkRow(unified, 4, h);
-    if (split) hunkRow(split, 4, h);
-    let cntOld = 0;
-    let cntNew = 0;
-    for (const l of h.lines) {
-      if (l.t !== "+" && l.t !== "\\") cntOld++;
-      if (l.t !== "-" && l.t !== "\\") cntNew++;
-    }
-    nextOld = h.oldStart + cntOld;
-    nextNew = h.newStart + cntNew;
-    for (const pair of alignHunk(h)) {
-      let oldTd = null;
-      let newTd = null;
-      if (split) {
-        const str = split.insertRow();
-        str.className = "pt-srow";
-        rowMeta(str, pair.old, pair.new, pair.ctx);
-        oldTd = splitCell(str, pair.old, pair.ctx ? "pt-ctx" : "pt-del");
-        newTd = splitCell(str, pair.new, pair.ctx ? "pt-ctx" : "pt-add");
-      }
-
-      if (pair.ctx) {
-        const utd = unifiedLine("pt-ctx", pair.old, pair.new, pair.new.text);
-        const row = regNew(pair.new.text, utd);
-        if (newTd) cells.new[row].tds.push(newTd);
-        regOld(pair.old.text, oldTd);
-      } else {
-        const wd = pair.old && pair.new ? wordDiff(pair.old.text, pair.new.text) : null;
-        if (pair.old) {
-          const utd = unifiedLine("pt-del", pair.old, null, pair.old.text);
-          const row = regOld(pair.old.text, utd);
-          if (oldTd) cells.old[row].tds.push(oldTd);
-          if (wd?.a.length) {
-            cells.old[row].bg = wd.a;
-            for (const td of cells.old[row].tds)
-              td.innerHTML = renderLineHTML(pair.old.text, null, wd.a);
-          }
-        }
-        if (pair.new) {
-          const utd = unifiedLine("pt-add", null, pair.new, pair.new.text);
-          const row = regNew(pair.new.text, utd);
-          if (newTd) cells.new[row].tds.push(newTd);
-          if (wd?.b.length) {
-            cells.new[row].bg = wd.b;
-            for (const td of cells.new[row].tds)
-              td.innerHTML = renderLineHTML(pair.new.text, null, wd.b);
-          }
-        }
-      }
-    }
-  }
-
-  if (canExpand) addExpander(nextOld, nextNew, Infinity);
-
-  section.appendChild(unified);
-  if (split) section.appendChild(split);
-  view.cells = cells;
-  view.texts = { old: oldParts.join("\n"), new: newParts.join("\n") };
-  view.lang = resolveLang(path, view.texts.new + "\n" + view.texts.old);
   return view;
 }
 
-async function highlightSide(lang, text, sideCells) {
+async function highlightSide(lang, text, path, side) {
   if (!lang || !text || text.length > MAX_HIGHLIGHT_CHARS) return;
   let resp;
   try {
@@ -371,11 +165,7 @@ async function highlightSide(lang, text, sideCells) {
     return;
   }
   if (!resp || !resp.rows) return;
-  for (const [row, ranges] of Object.entries(resp.rows)) {
-    const cell = sideCells[+row];
-    if (!cell) continue;
-    for (const td of cell.tds) td.innerHTML = renderLineHTML(cell.text, ranges, cell.bg);
-  }
+  for (const [row, ranges] of Object.entries(resp.rows)) setHighlights(hlKey(path, side, +row), ranges);
 }
 
 function looksLikeDiff(text) {
@@ -688,6 +478,7 @@ async function main() {
     const parsed = parseDiff(text);
     rawPre.textContent = text;
     main.textContent = "";
+    resetDiffState();
 
     if (parsed.preamble) {
       const pre = document.createElement("pre");
@@ -719,9 +510,9 @@ async function main() {
     window.ptUpdateProgress?.();
 
     for (const v of views) {
-      if (!v.cells || !v.lang) continue;
-      highlightSide(v.lang, v.texts.new, v.cells.new);
-      highlightSide(v.lang, v.texts.old, v.cells.old);
+      if (!v.lang) continue;
+      highlightSide(v.lang, v.texts.new, v.path, "new");
+      highlightSide(v.lang, v.texts.old, v.path, "old");
     }
   }
 
