@@ -163,7 +163,7 @@ a tag will carry with `scripts/changelog.sh v1.1.0`.
 
 ## License
 
-MIT (see [LICENSE](LICENSE)) — copies must retain the copyright notice.
-Bundled third-party assets keep their own licenses: web-tree-sitter and
+Apache License 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)) — copies must
+retain the copyright and license notices. Bundled third-party assets keep their own licenses: web-tree-sitter and
 the grammars (MIT), JetBrains Mono / Inter (OFL), Nerd Fonts patched
 fonts (MIT + upstream font licenses), tinted-theming schemes (MIT).
