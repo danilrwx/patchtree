@@ -205,6 +205,18 @@ export function parseDiff(text: string): ParsedDiff {
       file.header.push(line);
     }
   }
+  // Plain unified diffs (no "new file mode" / "/dev/null") only reveal a wholly
+  // added or removed file through its hunks — no old-side lines means it is new,
+  // no new-side lines means it is deleted. This drives full-width rendering and
+  // the tree's add/delete status.
+  for (const f of files) {
+    if (f.binary || f.hunks.length === 0 || f.isNew || f.isDeleted) continue;
+    const hasOld = f.hunks.some((h) => h.lines.some((l) => l.t === "-" || l.t === " "));
+    const hasNew = f.hunks.some((h) => h.lines.some((l) => l.t === "+" || l.t === " "));
+    if (!hasOld) f.isNew = true;
+    else if (!hasNew) f.isDeleted = true;
+  }
+
   return { preamble: preamble.join("\n").trim(), files };
 }
 

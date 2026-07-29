@@ -550,6 +550,29 @@ async function main() {
   setCanExpand(!!provider);
   renderDiff(raw);
 
+  // Return to the file the user was on before a reload. The browser's own
+  // scroll restoration lands on the wrong file: we rebuild the body and lazy
+  // placeholders mis-estimate heights, so the remembered scrollY points at
+  // different content. Drive it ourselves off the last active file instead.
+  const scrollKey = `pt-scroll:${location.pathname}`;
+  let lastActive = "";
+  history.scrollRestoration = "manual";
+  {
+    const saved = sessionStorage.getItem(scrollKey);
+    const idx = saved ? views.findIndex((v) => v.path === saved) : -1;
+    if (idx > 0) {
+      // give every file above the target its real height so the offset is exact
+      for (let i = 0; i <= idx; i++) {
+        mountSetters.get(views[i].section)?.();
+        mountObserver.unobserve(views[i].section);
+      }
+      requestAnimationFrame(() => {
+        const top = views[idx].section.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: Math.max(0, top - 56) });
+      });
+    }
+  }
+
   const gear = makeDropdown(SVG_GEAR);
   gear.dd.classList.add("pt-dd-right");
   gear.dd.id = "pt-settings";
@@ -724,7 +747,14 @@ async function main() {
       if (v.section.getBoundingClientRect().top <= 70) cur = v.path;
       else break;
     }
-    setActiveFile(cur || views[0]?.path || "");
+    const active = cur || views[0]?.path || "";
+    setActiveFile(active);
+    if (active && active !== lastActive) {
+      lastActive = active;
+      try {
+        sessionStorage.setItem(scrollKey, active);
+      } catch {}
+    }
   };
   document.addEventListener(
     "scroll",

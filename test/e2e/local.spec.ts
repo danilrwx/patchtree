@@ -67,3 +67,24 @@ test("a tool diff with differing --- / +++ paths is not treated as a rename", as
   await expect(page.locator(".pt-namediff")).toHaveCount(0);
   await expect(page.locator(".pt-tree-file.pt-st-modified")).toHaveCount(2);
 });
+
+// a plain diff reveals a wholly-new file only through its `@@ -0,0 +… @@` hunk
+// (no `new file mode` / `/dev/null`): it must render full width, not as a
+// right-hand split column, and count as an addition
+test("a plain-diff new file renders full width and counts as added", async ({
+  context,
+  page,
+}) => {
+  const body = readFileSync(path.join(__dirname, "../fixtures/plainnew.diff"), "utf8");
+  const url = "https://example.com/plainnew.diff";
+  await context.route(url, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body })
+  );
+  await page.goto(url);
+
+  await expect(page.locator(".pt-file-header")).toHaveCount(2);
+  // the new file is added + full width, the other is a normal modification
+  await expect(page.locator(".pt-tree-file.pt-st-added")).toHaveCount(1);
+  const added = page.locator("section.pt-file", { hasText: "upload_test.go" });
+  await expect(added).toHaveClass(/pt-full/);
+});
