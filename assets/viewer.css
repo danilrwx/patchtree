@@ -194,7 +194,7 @@ html.pt-on {
 /* per-status file icon + colour: grey modified, green add, orange rename, red delete */
 .pt-tree-file.pt-st-added::before {
   mask-image: var(--pt-icon-file-added);
-  background: #3fb950;
+  background: #1a7f37;
 }
 .pt-tree-file.pt-st-renamed::before {
   mask-image: var(--pt-icon-file-renamed);
@@ -202,10 +202,12 @@ html.pt-on {
 }
 .pt-tree-file.pt-st-deleted::before {
   mask-image: var(--pt-icon-file-removed);
-  background: #f85149;
+  background: #cf222e;
 }
+/* file names share the +/− stat colours: green add, red delete */
+.pt-tree-file.pt-st-added .pt-tree-name { color: #1a7f37; }
 .pt-tree-file.pt-st-renamed .pt-tree-name { color: #d29922; }
-.pt-tree-file.pt-st-deleted .pt-tree-name { color: #f85149; }
+.pt-tree-file.pt-st-deleted .pt-tree-name { color: #cf222e; }
 
 .pt-tree-file.pt-active {
   background: var(--pt-hunk-bg);
@@ -1357,6 +1359,12 @@ html.pt-on {
   font-size: var(--pt-size, 14px);
   line-height: 1.5;
   tab-size: var(--pt-tab, 4);
+}
+
+/* reset the inherited .pt-comments-row td padding (8px…60px) that otherwise
+   inflates every suggestion row */
+.pt-sug-table td {
+  padding: 0;
 }
 
 .pt-sug-table .pt-mark {
