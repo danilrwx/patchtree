@@ -127,6 +127,60 @@ export async function mockGithubStateful(context: BrowserContext): Promise<void>
   });
 }
 
+// Stateful thread mock for reply/resolve: one seeded resolvable thread whose
+// comments and resolved flag mutate, reflected through the GraphQL query.
+export async function mockGithubThreads(context: BrowserContext): Promise<void> {
+  const thread = {
+    resolved: false,
+    comments: [{ databaseId: 1001, body: COMMENT_BODY, author: { login: "me", databaseId: 42 } }],
+  };
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const req = route.request();
+    const p = new URL(req.url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+
+    if (p === "/graphql") {
+      const q = req.postData() || "";
+      if (q.includes("resolveReviewThread") && !q.includes("unresolve")) thread.resolved = true;
+      else if (q.includes("unresolveReviewThread")) thread.resolved = false;
+      const node = {
+        id: "T1",
+        isResolved: thread.resolved,
+        path: "pkg/virt-controller/watch/dra/dra.go",
+        line: 62,
+        diffSide: "RIGHT",
+        comments: {
+          nodes: thread.comments.map((c) => ({
+            databaseId: c.databaseId,
+            body: c.body,
+            createdAt: "2026-01-01T00:00:00Z",
+            author: c.author,
+          })),
+        },
+      };
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
+    }
+    if (/\/comments\/\d+\/replies$/.test(p) && req.method() === "POST") {
+      const b = (req.postDataJSON?.() ?? {}) as { body: string };
+      const c = { databaseId: 2000 + thread.comments.length, body: b.body, author: { login: "me", databaseId: 42 } };
+      thread.comments.push(c);
+      return json({ id: c.databaseId, user: { login: "me", id: 42 }, created_at: "t", body: b.body });
+    }
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === "/user") return json({ id: 42, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p === "/markdown") {
+      const b = (req.postDataJSON?.() ?? {}) as { text?: string };
+      return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
+    }
+    return json([]);
+  });
+}
+
 export async function mockGithub(context: BrowserContext): Promise<void> {
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
