@@ -155,3 +155,27 @@ test("Cancel closes the inline form without posting", async ({ context, page }) 
   await form.locator("button", { hasText: "Cancel" }).click();
   await expect(page.locator(".pt-comment-form")).toHaveCount(0);
 });
+
+test("a failed comment post surfaces an error and keeps the form open", async ({
+  context,
+  page,
+}) => {
+  const form = await openForm(context, page);
+  // make the create request fail
+  await page.route(
+    `https://api.github.com/repos/${OWNER}/${REPO}/pulls/${NUM}/comments`,
+    (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({ status: 500, contentType: "application/json", body: '{"message":"boom"}' })
+        : route.fallback()
+  );
+
+  await form.locator("textarea").fill("this will fail");
+  await form.locator("button.pt-primary").click();
+
+  const status = page.locator("#pt-status");
+  await expect(status).toContainText(/comment failed/i);
+  await expect(status).toHaveClass(/pt-error/);
+  // the form stays open so the user doesn't lose their text
+  await expect(form).toBeVisible();
+});

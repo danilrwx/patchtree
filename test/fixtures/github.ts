@@ -312,6 +312,27 @@ export async function mockGithubImage(context: BrowserContext): Promise<void> {
   });
 }
 
+const imageAddDiff = readFileSync(path.join(__dirname, "imageadd.diff"), "utf8");
+
+// an added binary image: only the new side has content (no old revision)
+export async function mockGithubAddedImage(context: BrowserContext): Promise<void> {
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: imageAddDiff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === `/repos/${OWNER}/${REPO}/contents/added.png`) return json({ content: PNG_B64 });
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    return json([]);
+  });
+}
+
 const renameDiff = readFileSync(path.join(__dirname, "rename.diff"), "utf8");
 
 // a diff of pure renames (no line changes); no line threads exist for these

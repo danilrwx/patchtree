@@ -14,7 +14,7 @@
 
 // A binary image change renders old/new previews instead of "binary file".
 import { test, expect, seedToken } from "./fixtures";
-import { mockGithubImage, DIFF_URL } from "../fixtures/github";
+import { mockGithubImage, mockGithubAddedImage, DIFF_URL } from "../fixtures/github";
 
 test("a binary image file shows old and new previews", async ({ context, page }) => {
   await mockGithubImage(context);
@@ -27,4 +27,14 @@ test("a binary image file shows old and new previews", async ({ context, page })
   await expect(imgs).toHaveCount(2);
   await expect(imgs.first()).toHaveAttribute("src", /^data:image\/png;base64,/);
   await expect(page.locator(".pt-binary")).toHaveCount(0);
+});
+
+test("an added binary image shows only the new preview", async ({ context, page }) => {
+  await mockGithubAddedImage(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+
+  const preview = page.locator(".pt-img-diff");
+  await expect(preview).toBeAttached({ timeout: 20000 });
+  await expect(preview.locator(".pt-img-new img")).toHaveCount(1);
+  await expect(preview.locator(".pt-img-old")).toHaveCount(0);
 });
