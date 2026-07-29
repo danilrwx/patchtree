@@ -131,6 +131,9 @@ websites” in the add-on's Permissions tab.
 - `make check` — syntax-check the sources.
 - `make typecheck` — `tsc --noEmit` over the TypeScript sources.
 - `make test` — run the pure-logic checks in `test/run.mjs`.
+- `make e2e` — Playwright end-to-end: loads the built extension against a PR
+  `.diff` fixture with the adapter mocked (needs `npx playwright install
+  chromium`; runs headed, use `xvfb-run` on Linux).
 - `make zip` / `make zip-firefox` — bundle and archive `dist/`.
 - `make clean` — remove fetched assets, `dist/`, and archives.
 

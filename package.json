@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
     "@types/chrome": "0.0.287",
     "@types/node": "22.20.1",
     "esbuild": "0.25.12",

@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-.PHONY: all deps vendor queries fonts themes build node_modules typecheck zip zip-firefox check test changelog clean
+.PHONY: all deps vendor queries fonts themes build node_modules typecheck zip zip-firefox check test e2e changelog clean
 
 all: build
 
@@ -38,6 +38,12 @@ check:
 
 test: check typecheck
 	node test/run.mjs
+
+# Playwright end-to-end: loads the built extension against the PR .diff fixture
+# with the adapter mocked. MV3 extensions need headed Chromium (xvfb on CI).
+# First run needs: npx playwright install chromium
+e2e: build
+	npx playwright test
 
 zip: build
 	rm -f patchtree.zip

@@ -44,6 +44,12 @@ jobs:
       - name: Build extension zips
         run: make zip zip-firefox
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: xvfb-run make e2e
+
       - name: Checksums
         run: shasum -a 256 patchtree.zip patchtree-firefox.zip | tee checksums.txt
 

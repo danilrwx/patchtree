@@ -8,3 +8,7 @@ themes.json
 build/
 patchtree*.zip
 .bg.mjs
+
+test-results/
+playwright-report/
+blob-report/
