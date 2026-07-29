@@ -266,6 +266,7 @@ export function DiffFile(props: DiffFileProps) {
         onToggleFull={props.onToggleFull}
         onToggleViewed={props.onToggleViewed}
       />
+      <div class="pt-file-body">
       <Show when={renamed}>
         <table class="pt-table pt-namediff">
           <colgroup>
@@ -345,6 +346,7 @@ export function DiffFile(props: DiffFileProps) {
           </table>
         </Show>
       </Show>
+      </div>
     </>
   );
 }

@@ -928,12 +928,22 @@ html.pt-on {
 }
 
 .pt-file {
-  border: 1px solid var(--pt-border);
-  /* the top edge is drawn by the sticky header itself (border-top), so it
-     stays visible when the header scrolls up flush under the bar */
-  border-top: none;
-  border-radius: 6px;
   margin: 16px 0;
+  /* render only sections near the viewport — resize/reflow cost stops
+     scaling with the whole diff */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
+/* header and body are two self-contained bordered blocks (rounded top / rounded
+   bottom), not one bordered section. So the sticky header keeps its own border
+   and rounded top corners when it scrolls up under the bar — the corners travel
+   with the header instead of belonging to a section top that scrolls away. */
+.pt-file-body {
+  border: 1px solid var(--pt-border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
 }
 
 /* the first file aligns to the top of the column (like the tree's filter),
@@ -941,13 +951,6 @@ html.pt-on {
 #pt-main > .pt-file:first-of-type,
 #pt-preamble {
   margin-top: 0;
-  /* render only sections near the viewport — resize/reflow cost stops
-     scaling with the whole diff */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
-  /* clip, not hidden: an overflow:hidden box becomes the sticky header's
-     scrollport and permanently offsets it inside the section */
-  overflow: clip;
 }
 
 .pt-file-header {
@@ -959,8 +962,8 @@ html.pt-on {
   gap: 10px;
   align-items: center;
   background: var(--pt-header-bg);
-  border-top: 1px solid var(--pt-border);
-  border-bottom: 1px solid var(--pt-border);
+  border: 1px solid var(--pt-border);
+  border-radius: 6px 6px 0 0;
   padding: 8px 12px;
   font-weight: 600;
 }
@@ -1014,9 +1017,13 @@ html.pt-on {
   white-space: nowrap;
 }
 
-.pt-folded .pt-table,
-.pt-folded .pt-binary {
-  display: none !important;
+.pt-folded .pt-file-body {
+  display: none;
+}
+
+/* folded = header only, so round all four corners into a complete pill */
+.pt-folded .pt-file-header {
+  border-radius: 6px;
 }
 
 .pt-viewed-file {
