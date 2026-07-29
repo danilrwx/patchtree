@@ -20,7 +20,7 @@ const ENTRIES = [
   { name: "content", bundle: false },
   { name: "providers", bundle: false },
   { name: "review", bundle: false },
-  { name: "options", bundle: false },
+  { name: "options", bundle: true },
   { name: "background", bundle: false, format: "esm" },
 ];
 

@@ -13,18 +13,7 @@
   </style>
 </head>
 <body>
-  <h3>GitLab instances</h3>
-  <p>Host → personal access token with the <code>api</code> scope. Enables comments, approve and request-changes on <code>.diff</code> pages of that host.</p>
-  <table id="list">
-    <tr><th>Host</th><th>Token</th><th></th></tr>
-  </table>
-  <button id="add">Add host</button>
-
-  <h3>GitHub</h3>
-  <p>Classic personal access token with the <code>repo</code> scope. Used on <code>github.com</code> and <code>patch-diff.githubusercontent.com</code> pull request diffs.</p>
-  <table>
-    <tr><td style="width:30%">Token</td><td><input id="gh-token" type="password" placeholder="ghp_… or github_pat_…"></td></tr>
-  </table>
+  <div id="root"></div>
   <script src="options.js"></script>
 </body>
 </html>
