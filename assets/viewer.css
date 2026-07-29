@@ -1220,7 +1220,8 @@ html.pt-on {
 .pt-comments-row td,
 .pt-inline-form td {
   padding: 8px 12px 8px 60px;
-  background: var(--pt-bg);
+  /* no full-width fill; only the contained comment card carries a background */
+  background: transparent;
 }
 
 .pt-split .pt-comments-row td,
