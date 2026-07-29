@@ -54,9 +54,11 @@ test("file header renders controls and the viewed checkbox folds the file", asyn
   await expect(first.locator(".pt-file-header .pt-hbtn")).toBeVisible();
   await expect(first.locator(".pt-file-header .pt-stats")).toContainText("+");
 
+  await expect(page.locator("#pt-progress")).toContainText("0/2 viewed");
   const viewedCb = first.locator("label.pt-viewed:not(.pt-fullfile) input[type=checkbox]");
   await viewedCb.check();
   await expect(first).toHaveClass(/pt-folded/);
+  await expect(page.locator("#pt-progress")).toContainText("1/2 viewed");
 });
 
 test("expander loads hidden context lines", async ({ context, page }) => {

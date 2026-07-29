@@ -19,6 +19,9 @@ export interface TreeFile {
 
 export const [treeFiles, setTreeFiles] = createSignal<TreeFile[]>([]);
 export const [filter, setFilter] = createSignal("");
+export const [viewMode, setViewMode] = createSignal<"unified" | "split">("unified");
+export const [viewedDone, setViewedDone] = createSignal(0);
+export const [viewedTotal, setViewedTotal] = createSignal(0);
 export const [viewed, setViewed] = createStore<Record<string, boolean>>({});
 export const [counts, setCounts] = createStore<Record<string, number>>({});
 
