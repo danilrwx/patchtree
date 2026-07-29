@@ -143,19 +143,18 @@ export function DiffFile(props: DiffFileProps) {
     codeNew: n,
   });
 
+  const ExpandButton = (p: { gap: Gap }) => (
+    <tr class="pt-expander">
+      <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
+        <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
+          <span innerHTML={icons.unfold} /> <span>expand hidden lines</span>
+        </Show>
+      </td>
+    </tr>
+  );
+
   const ExpanderU = (p: { gap: Gap }) => (
-    <Show
-      when={ctxLines[p.gap.id]}
-      fallback={
-        <tr class="pt-expander">
-          <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
-            <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
-              <span innerHTML={icons.unfold} /> <span>expand hidden lines</span>
-            </Show>
-          </td>
-        </tr>
-      }
-    >
+    <Show when={ctxLines[p.gap.id]} fallback={<ExpandButton gap={p.gap} />}>
       <For each={ctxLines[p.gap.id]}>
         {(cl, i) => (
           <tr class="pt-ctx pt-exp" {...metaAttrs(ctxMeta(cl.o, cl.n))}>
@@ -170,18 +169,7 @@ export function DiffFile(props: DiffFileProps) {
   );
 
   const ExpanderS = (p: { gap: Gap }) => (
-    <Show
-      when={ctxLines[p.gap.id]}
-      fallback={
-        <tr class="pt-expander">
-          <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
-            <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
-              <span innerHTML={icons.unfold} /> <span>expand hidden lines</span>
-            </Show>
-          </td>
-        </tr>
-      }
-    >
+    <Show when={ctxLines[p.gap.id]} fallback={<ExpandButton gap={p.gap} />}>
       <For each={ctxLines[p.gap.id]}>
         {(cl, i) => {
           const html = () => renderLineHTML(cl.text, ctxHl[ctxKey(p.gap.id, i())], null);
