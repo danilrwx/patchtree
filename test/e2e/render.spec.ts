@@ -2,7 +2,7 @@
 // Regression net for the diff-rendering + review path. Runs against the built
 // extension with the GitHub adapter mocked; must stay green through the Solid
 // rewrite of content.js/review.js.
-import { test, expect } from "./fixtures";
+import { test, expect, seedToken } from "./fixtures";
 import { mockGithub, DIFF_URL, COMMENT_BODY } from "../fixtures/github";
 
 test("renders the PR diff with tree, highlighting and a mocked thread", async ({
@@ -10,7 +10,7 @@ test("renders the PR diff with tree, highlighting and a mocked thread", async ({
   page,
 }) => {
   await mockGithub(context);
-  await page.goto(DIFF_URL);
+  await seedToken(context, page, DIFF_URL, "github.com");
 
   // file tree lists both files of the patch
   await expect(page.locator(".pt-tree-file")).toHaveCount(2);
@@ -25,11 +25,14 @@ test("renders the PR diff with tree, highlighting and a mocked thread", async ({
   await expect(comment).toBeAttached({ timeout: 20000 });
   await comment.scrollIntoViewIfNeeded();
   await expect(comment).toBeVisible();
+
+  // with a token seeded the "add a token" hint must be gone
+  await expect(page.getByText(/no GitHub token/i)).toHaveCount(0);
 });
 
 test("shows word-diff marks and toggles to side-by-side", async ({ context, page }) => {
   await mockGithub(context);
-  await page.goto(DIFF_URL);
+  await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
   // intra-line word diff on the modified line pairs

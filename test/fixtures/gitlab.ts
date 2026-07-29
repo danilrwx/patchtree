@@ -9,6 +9,7 @@ import path from "node:path";
 export const PROJECT = "group/proj";
 export const IID = 104;
 export const HOST = "https://gitlab.example.com";
+export const TOKEN_HOST = "gitlab.example.com";
 export const DIFF_URL = `${HOST}/${PROJECT}/-/merge_requests/${IID}.diff`;
 
 const HEAD = "1111111111111111111111111111111111111111";

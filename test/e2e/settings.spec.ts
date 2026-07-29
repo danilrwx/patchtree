@@ -2,12 +2,12 @@
 // Settings controls in the gear menu must map to the CSS variables the diff
 // renders with. Asserting the vars on <html> pins the control → apply path
 // through the Solid rewrite regardless of internal wiring.
-import { test, expect } from "./fixtures";
+import { test, expect, seedToken } from "./fixtures";
 import { mockGithub, DIFF_URL } from "../fixtures/github";
 
 test("gear settings apply to the rendered CSS variables", async ({ context, page }) => {
   await mockGithub(context);
-  await page.goto(DIFF_URL);
+  await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
   const html = page.locator("html");
@@ -51,7 +51,7 @@ test("gear settings apply to the rendered CSS variables", async ({ context, page
 
 test("picking a theme applies its color variables", async ({ context, page }) => {
   await mockGithub(context);
-  await page.goto(DIFF_URL);
+  await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
   const html = page.locator("html");
