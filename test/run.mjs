@@ -18,7 +18,6 @@ import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { transformSync } from "esbuild";
-import vm from "node:vm";
 import assert from "node:assert/strict";
 
 const root = new URL("..", import.meta.url);
@@ -107,6 +106,40 @@ t("parseDiff names pure renames and binary files (no ---/+++)", () => {
   assert.equal(bin.binary, true);
 });
 
+t("parseDiff flags rename only on rename headers, not differing ---/+++", () => {
+  // git rename → isRenamed
+  const renamed = parseDiff(
+    "diff --git a/old.go b/new.go\nsimilarity index 90%\nrename from old.go\nrename to new.go\n" +
+      "--- a/old.go\n+++ b/new.go\n@@ -1 +1 @@\n-x\n+y\n"
+  ).files[0];
+  assert.equal(renamed.isRenamed, true);
+
+  // a `diff -up dir1/f dir2/f` tool diff has different ---/+++ paths for the
+  // SAME file — not a rename, and not new/deleted (it has context)
+  const tool = parseDiff(
+    "--- ../old/config.h\t2020\n+++ ./config.h\t2020\n@@ -1,3 +1,3 @@\n ctx\n-a\n+b\n more\n"
+  ).files[0];
+  assert.ok(!tool.isRenamed);
+  assert.ok(!tool.isNew && !tool.isDeleted);
+});
+
+t("parseDiff derives add/delete from hunks in a plain diff", () => {
+  const added = parseDiff("--- a/n.go\n+++ b/n.go\n@@ -0,0 +1,2 @@\n+one\n+two\n").files[0];
+  assert.equal(added.isNew, true);
+  const removed = parseDiff("--- a/g.go\n+++ b/g.go\n@@ -1,2 +0,0 @@\n-one\n-two\n").files[0];
+  assert.equal(removed.isDeleted, true);
+});
+
+t("parseDiff keeps a No-newline marker and copy paths", () => {
+  const nonl = parseDiff("--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-a\n\\ No newline at end of file\n+b\n").files[0];
+  assert.ok(nonl.hunks[0].lines.some((l) => l.t === "\\"));
+
+  const copied = parseDiff("diff --git a/x b/y\ncopy from x\ncopy to y\n").files[0];
+  assert.equal(copied.oldPath, "x");
+  assert.equal(copied.newPath, "y");
+  assert.ok(!copied.isRenamed); // a copy is not a rename
+});
+
 t("alignHunk pairs a replacement", () => {
   const { files } = parseDiff(DIFF);
   const pairs = alignHunk(files[0].hunks[0]);
@@ -191,47 +224,7 @@ t("changelog.sh groups commits by type", () => {
   assert.ok(/^- (\*\*[\w.-]+:\*\* )?.+ \(`[0-9a-f]+`\)$/m.test(out), out);
 });
 
-// providers.ts is TypeScript; transpile it (types stripped) and run its
-// URL-routing in a vm with stubbed globals. Construction is network-free, so
-// this checks the module loads and routes each host to the right provider.
-function loadProvider(loc) {
-  const src = readFileSync(new URL("src/providers.ts", root), "utf8");
-  const { code } = transformSync(src, { loader: "ts" });
-  const win = {};
-  const sb = {
-    window: win,
-    location: loc,
-    chrome: {
-      storage: { local: { get: async () => ({}) }, sync: { get: async () => ({}), remove() {} } },
-      runtime: { sendMessage: async () => ({}) },
-    },
-  };
-  vm.createContext(sb);
-  vm.runInContext(code, sb);
-  return win.ptProvider;
-}
-
-t("providers route a GitLab MR", () => {
-  const p = loadProvider({
-    host: "gitlab.example.com",
-    origin: "https://gitlab.example.com",
-    pathname: "/group/sub/proj/-/merge_requests/104.diff",
-    href: "https://gitlab.example.com/group/sub/proj/-/merge_requests/104.diff",
-  });
-  assert.equal(p.kind, "gitlab");
-  assert.equal(p.can.drafts, true);
-  assert.equal(typeof p.postThread, "function");
-});
-
-t("providers route a GitHub PR", () => {
-  const p = loadProvider({ host: "github.com", pathname: "/owner/repo/pull/7.diff" });
-  assert.equal(p.kind, "github");
-  assert.equal(p.can.drafts, false);
-  assert.equal(p.drafts, undefined);
-});
-
-t("providers are null on an unrelated page", () => {
-  assert.equal(loadProvider({ host: "example.com", pathname: "/whatever.diff" }), null);
-});
+// Provider URL routing lives in test/providers.mjs (it needs the CJS transform
+// and a fetch harness); this runner covers the pure diff logic + changelog.
 
 console.log(`\n${passed} checks passed`);
