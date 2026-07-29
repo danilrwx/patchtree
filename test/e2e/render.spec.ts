@@ -30,6 +30,19 @@ test("renders the PR diff with tree, highlighting and a mocked thread", async ({
   await expect(page.getByText(/no GitHub token/i)).toHaveCount(0);
 });
 
+test("file tree filters by name", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-tree-file")).toHaveCount(2);
+
+  await page.locator("#pt-filter").fill("dra_test");
+  await expect(page.locator(".pt-tree-file:visible")).toHaveCount(1);
+  await expect(page.locator(".pt-tree-file:visible")).toContainText("dra_test.go");
+
+  await page.locator("#pt-filter").fill("");
+  await expect(page.locator(".pt-tree-file:visible")).toHaveCount(2);
+});
+
 test("shows word-diff marks and toggles to side-by-side", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 "use strict";
 import { langFor, resolveLang, parseDiff, alignHunk, esc, renderLineHTML, wordDiff } from "./src/diff";
+import { render } from "solid-js/web";
+import { FileTree } from "./src/components/FileTree";
+import { setTreeFiles, setFilter, setViewed, setCounts } from "./src/store";
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
@@ -206,7 +209,7 @@ function buildFileView(file) {
     else viewedSet.delete(path);
     saveViewed();
     setFolded(viewedCb.checked);
-    view.treeLink?.classList.toggle("pt-viewed-file", viewedCb.checked);
+    setViewed(path, viewedCb.checked);
     window.ptUpdateProgress?.();
   });
 
@@ -394,70 +397,6 @@ async function highlightSide(lang, text, sideCells) {
     if (!cell) continue;
     for (const td of cell.tds) td.innerHTML = renderLineHTML(cell.text, ranges, cell.bg);
   }
-}
-
-function buildTree(views) {
-  const rootNode = { dirs: new Map(), files: [] };
-  for (const v of views) {
-    const parts = v.path.split("/");
-    let node = rootNode;
-    for (const part of parts.slice(0, -1)) {
-      if (!node.dirs.has(part)) node.dirs.set(part, { dirs: new Map(), files: [] });
-      node = node.dirs.get(part);
-    }
-    node.files.push(v);
-  }
-
-  const render = (node) => {
-    const frag = document.createDocumentFragment();
-    for (let [name, child] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
-      while (child.dirs.size === 1 && child.files.length === 0) {
-        const [subName, subChild] = child.dirs.entries().next().value;
-        name += "/" + subName;
-        child = subChild;
-      }
-      const det = document.createElement("details");
-      det.open = true;
-      const sum = document.createElement("summary");
-      sum.textContent = name;
-      det.appendChild(sum);
-      det.appendChild(render(child));
-      frag.appendChild(det);
-    }
-    for (const v of node.files.sort((a, b) => a.path.localeCompare(b.path))) {
-      const a = document.createElement("a");
-      a.className = "pt-tree-file";
-      a.href = "#";
-      a.dataset.path = v.path.toLowerCase();
-      a.innerHTML =
-        `<span class="pt-tree-name">${esc(v.path.split("/").pop())}</span>` +
-        `<span class="pt-tree-cmt"></span>` +
-        `<span class="pt-tree-stats"><span class="pt-adds">+${v.adds}</span> <span class="pt-dels">−${v.dels}</span></span>`;
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        if (e.target.closest(".pt-tree-cmt")) {
-          const row = [...v.section.querySelectorAll(".pt-comments-row")].find(
-            (r) => r.offsetParent
-          );
-          if (row) {
-            row.scrollIntoView({ block: "center" });
-            row.classList.add("pt-flash");
-            setTimeout(() => row.classList.remove("pt-flash"), 1200);
-            return;
-          }
-        }
-        v.section.scrollIntoView();
-      });
-      v.treeLink = a;
-      if (viewedSet.has(v.path)) a.classList.add("pt-viewed-file");
-      frag.appendChild(a);
-    }
-    return frag;
-  };
-
-  const frag = document.createDocumentFragment();
-  frag.appendChild(render(rootNode));
-  return frag;
 }
 
 function looksLikeDiff(text) {
@@ -694,22 +633,6 @@ function applySettings(s) {
   }
 }
 
-function applyTreeFilter(list, query, views) {
-  const q = query.trim().toLowerCase();
-  const contentMatch = new Set();
-  if (q.length >= 3 && views)
-    for (const v of views)
-      if (v.texts?.new.toLowerCase().includes(q) || v.texts?.old.toLowerCase().includes(q))
-        contentMatch.add(v.path.toLowerCase());
-  for (const a of list.querySelectorAll(".pt-tree-file"))
-    a.style.display =
-      !q || a.dataset.path.includes(q) || contentMatch.has(a.dataset.path) ? "" : "none";
-  for (const det of [...list.querySelectorAll("details")].reverse()) {
-    const visible = [...det.querySelectorAll(".pt-tree-file")].some((a) => a.style.display !== "none");
-    det.style.display = visible ? "" : "none";
-  }
-}
-
 async function main() {
   if (document.contentType !== "text/plain") return;
   const raw = document.body.innerText;
@@ -740,7 +663,8 @@ async function main() {
   treeList.id = "pt-tree-list";
   tree.append(filter, treeList);
   root.appendChild(tree);
-  filter.addEventListener("input", () => applyTreeFilter(treeList, filter.value, views));
+  filter.addEventListener("input", () => setFilter(filter.value));
+  render(FileTree, treeList);
 
   const splitter = document.createElement("div");
   splitter.id = "pt-splitter";
@@ -785,7 +709,6 @@ async function main() {
     const parsed = parseDiff(text);
     rawPre.textContent = text;
     main.textContent = "";
-    treeList.textContent = "";
 
     if (parsed.preamble) {
       const pre = document.createElement("pre");
@@ -795,8 +718,24 @@ async function main() {
     }
 
     views = parsed.files.map(buildFileView);
-    treeList.appendChild(buildTree(views));
-    applyTreeFilter(treeList, filter.value, views);
+    setTreeFiles(
+      views.map((v) => ({
+        path: v.path,
+        adds: v.adds,
+        dels: v.dels,
+        select: () => v.section.scrollIntoView(),
+        selectComment: () => {
+          const row = [...v.section.querySelectorAll(".pt-comments-row")].find((r) => r.offsetParent);
+          if (row) {
+            row.scrollIntoView({ block: "center" });
+            row.classList.add("pt-flash");
+            setTimeout(() => row.classList.remove("pt-flash"), 1200);
+          } else v.section.scrollIntoView();
+        },
+        textLower: () => ((v.texts?.new || "") + "\n" + (v.texts?.old || "")).toLowerCase(),
+      }))
+    );
+    for (const v of views) setViewed(v.path, viewedSet.has(v.path));
     for (const v of views) main.appendChild(v.section);
     window.ptUpdateProgress?.();
 
@@ -1364,12 +1303,7 @@ async function main() {
     },
     addMenuItem: (html, fn) => menuItem(gear.menu, html, fn),
     markCommented: (counts) => {
-      for (const v of views) {
-        const el = v.treeLink?.querySelector(".pt-tree-cmt");
-        if (!el) continue;
-        const n = counts.get(v.path) || 0;
-        el.innerHTML = n ? `${window.ptIcons.comment}${n}` : "";
-      }
+      for (const v of views) setCounts(v.path, counts.get(v.path) || 0);
     },
   };
   window.dispatchEvent(new CustomEvent("pt-rendered"));
