@@ -129,6 +129,55 @@ export async function mockGitlabStateful(
   });
 }
 
+// distinct single-file diffs so a commit pick / whitespace toggle is observable
+const commitDiff = `diff --git a/commit_only.go b/commit_only.go
+index 1111111..2222222 100644
+--- a/commit_only.go
++++ b/commit_only.go
+@@ -1,2 +1,2 @@
+ package main
+-var x = 1
++var x = 2
+`;
+const wsDiff = `diff --git a/whitespace_clean.go b/whitespace_clean.go
+index 3333333..4444444 100644
+--- a/whitespace_clean.go
++++ b/whitespace_clean.go
+@@ -1,2 +1,2 @@
+ package main
+-var y = 1
++var y = 2
+`;
+
+// GitLab-only extras: the commit selector (commitDiff is a direct page fetch)
+// and the ignore-whitespace toggle (?w=1 re-fetch). Both re-render the diff.
+export async function mockGitlabExtras(context: BrowserContext): Promise<void> {
+  const commits = [{ id: "c0ffee0", short_id: "c0ffee0", title: "isolated commit change" }];
+
+  await context.route(`${DIFF_URL}*`, (route) => {
+    const body = route.request().url().includes("w=1") ? wsDiff : diff;
+    return route.fulfill({ contentType: "text/plain; charset=utf-8", body });
+  });
+  await context.route(`${HOST}/${PROJECT}/-/commit/*`, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: commitDiff })
+  );
+  await context.route(`${HOST}/api/**`, (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    const base = `/merge_requests/${IID}`;
+    if (p.includes(`${base}/discussions`)) return json([]);
+    if (p.includes(`${base}/draft_notes`)) return json([]);
+    if (p.includes(`${base}/approvals`)) return json({ approved_by: [] });
+    if (p.includes(`${base}/commits`)) return json(commits);
+    if (p.endsWith(base)) return json(mr);
+    if (p.endsWith("/api/v4/user")) return json({ id: 9, name: "Me" });
+    if (p.endsWith("/api/v4/markdown")) return json({ html: "<p></p>" });
+    if (p.endsWith("/api/graphql")) return json({ data: {} });
+    return json([]);
+  });
+}
+
 export async function mockGitlab(context: BrowserContext): Promise<void> {
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
