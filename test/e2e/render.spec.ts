@@ -43,6 +43,22 @@ test("file tree filters by name", async ({ context, page }) => {
   await expect(page.locator(".pt-tree-file:visible")).toHaveCount(2);
 });
 
+test("file header renders controls and the viewed checkbox folds the file", async ({
+  context,
+  page,
+}) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  const first = page.locator("section.pt-file").first();
+
+  await expect(first.locator(".pt-file-header .pt-hbtn")).toBeVisible();
+  await expect(first.locator(".pt-file-header .pt-stats")).toContainText("+");
+
+  const viewedCb = first.locator("label.pt-viewed:not(.pt-fullfile) input[type=checkbox]");
+  await viewedCb.check();
+  await expect(first).toHaveClass(/pt-folded/);
+});
+
 test("shows word-diff marks and toggles to side-by-side", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

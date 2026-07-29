@@ -3,7 +3,8 @@
 import { langFor, resolveLang, parseDiff, alignHunk, esc, renderLineHTML, wordDiff } from "./src/diff";
 import { render } from "solid-js/web";
 import { FileTree } from "./src/components/FileTree";
-import { setTreeFiles, setFilter, setViewed, setCounts } from "./src/store";
+import { DiffFileHeader } from "./src/components/DiffFileHeader";
+import { setTreeFiles, setFilter, setViewed, setCounts, viewed } from "./src/store";
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
@@ -160,65 +161,43 @@ function buildFileView(file) {
       else if (l.t === "-") dels++;
     }
 
-  const header = document.createElement("div");
-  header.className = "pt-file-header";
   const generated = GENERATED_RE.test(path);
-  header.innerHTML =
-    `<span class="pt-fold">${window.ptIcons.chevron}</span>` +
-    `<span class="pt-path">${esc(path)}</span>` +
-    `<button class="pt-hbtn" title="Copy path">${window.ptIcons.copy}</button>` +
-    (file.oldPath && file.newPath && file.oldPath !== file.newPath
-      ? `<span class="pt-rename">← ${esc(file.oldPath)}</span>`
-      : "") +
-    (generated ? `<span class="pt-gen-badge">generated</span>` : "") +
-    `<span class="pt-stats"><span class="pt-adds">+${adds}</span> <span class="pt-dels">−${dels}</span></span>`;
-  section.appendChild(header);
-  header.querySelector(".pt-hbtn").addEventListener("click", () => {
-    navigator.clipboard.writeText(path);
-  });
-
   const view = { section, path, adds, dels, cells: null, texts: null, lang: langFor(path) };
 
   const setFolded = (f) => {
     section.classList.toggle("pt-folded", f);
   };
 
-  const fullLab = document.createElement("label");
-  fullLab.className = "pt-viewed pt-fullfile";
-  const fullCb = document.createElement("input");
-  fullCb.type = "checkbox";
-  fullLab.append(fullCb, "Full file");
-  header.appendChild(fullLab);
-  fullCb.addEventListener("change", () => {
-    section.classList.toggle("pt-exp-hide", !fullCb.checked);
-    section.classList.toggle("pt-hunks-hidden", fullCb.checked);
-    if (fullCb.checked) for (const ex of view.expanders) expandGap(view, ex);
-  });
-
-  const viewedLab = document.createElement("label");
-  viewedLab.className = "pt-viewed";
-  const viewedCb = document.createElement("input");
-  viewedCb.type = "checkbox";
-  viewedCb.checked = viewedSet.has(path);
-  viewedLab.append(viewedCb, "Viewed");
-  header.appendChild(viewedLab);
-  if (viewedCb.checked) setFolded(true);
-
-  viewedCb.addEventListener("change", () => {
-    if (viewedCb.checked) viewedSet.add(path);
-    else viewedSet.delete(path);
-    saveViewed();
-    setFolded(viewedCb.checked);
-    setViewed(path, viewedCb.checked);
-    window.ptUpdateProgress?.();
-  });
-
-  header.addEventListener("click", (e) => {
-    if (e.target.closest(".pt-viewed, .pt-fullfile, .pt-hbtn, a")) return;
-    setFolded(!section.classList.contains("pt-folded"));
-  });
-
-  if (generated && !viewedCb.checked) setFolded(true);
+  const initiallyViewed = viewedSet.has(path);
+  render(
+    () =>
+      DiffFileHeader({
+        path,
+        adds,
+        dels,
+        generated,
+        oldPath: file.oldPath,
+        newPath: file.newPath,
+        viewed: () => !!viewed[path],
+        onCopy: () => navigator.clipboard.writeText(path),
+        onToggleFold: () => setFolded(!section.classList.contains("pt-folded")),
+        onToggleFull: (checked) => {
+          section.classList.toggle("pt-exp-hide", !checked);
+          section.classList.toggle("pt-hunks-hidden", checked);
+          if (checked) for (const ex of view.expanders) expandGap(view, ex);
+        },
+        onToggleViewed: (checked) => {
+          if (checked) viewedSet.add(path);
+          else viewedSet.delete(path);
+          saveViewed();
+          setFolded(checked);
+          setViewed(path, checked);
+          window.ptUpdateProgress?.();
+        },
+      }),
+    section
+  );
+  if (initiallyViewed || generated) setFolded(true);
   if (file.binary) {
     const p = document.createElement("div");
     p.className = "pt-binary";
