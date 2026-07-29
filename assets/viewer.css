@@ -290,13 +290,22 @@ html.pt-on {
 #pt-root.pt-tree-hidden #pt-tree,
 #pt-root.pt-tree-hidden #pt-splitter { display: none; }
 
+/* pin the tree toggle to the far left; everything else forms one right group */
 #pt-collapse {
   order: -1;
+  margin-right: auto;
   padding: 4px 10px;
 }
 #pt-collapse svg {
   display: block;
   margin: 4px 0;
+}
+
+/* empty text slots must not claim a flex gap, or spacing looks uneven */
+#pt-progress:empty,
+#pt-status:empty,
+#pt-hint:empty {
+  display: none;
 }
 
 .pt-mode-unified .pt-split { display: none; }
@@ -306,7 +315,7 @@ html.pt-on {
 #pt-bar {
   grid-area: bar;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   justify-content: flex-end;
   padding: 8px 0 10px;
@@ -836,7 +845,7 @@ html.pt-on {
 #pt-tree-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 8px;
   position: sticky;
   top: 0;
@@ -1119,7 +1128,6 @@ html.pt-on {
 .pt-split .pt-code { border-left: 1px solid var(--pt-border); }
 
 #pt-status {
-  margin-right: auto;
   align-self: center;
   color: var(--pt-muted);
 }
