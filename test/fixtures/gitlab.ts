@@ -64,6 +64,71 @@ const mr = {
   has_conflicts: false,
 };
 
+const DRAFT_BODY = "patchtree-e2e-gitlab: draft note pending review";
+export { DRAFT_BODY };
+
+// Stateful GitLab mock for the draft-review flow (a GitLab-only capability):
+// draft notes can be created, discarded, and published. With `seedDraft` a
+// pending draft is present on load so discard/publish have something to act on.
+export async function mockGitlabStateful(
+  context: BrowserContext,
+  opts: { seedDraft?: boolean } = {}
+): Promise<void> {
+  const draftPos = {
+    position_type: "text",
+    new_path: "pkg/virt-controller/watch/dra/dra.go",
+    old_path: "pkg/virt-controller/watch/dra/dra.go",
+    new_line: 62,
+    old_line: null,
+  };
+  const drafts: any[] = opts.seedDraft
+    ? [{ id: 900, note: DRAFT_BODY, position: draftPos }]
+    : [];
+  let nextId = 901;
+
+  await context.route(`${DIFF_URL}*`, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
+  );
+  await context.route(`${HOST}/api/**`, (route) => {
+    const req = route.request();
+    const p = new URL(req.url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    const base = `/merge_requests/${IID}`;
+
+    if (p.includes(`${base}/draft_notes/bulk_publish`)) {
+      drafts.length = 0;
+      return json({});
+    }
+    const delM = /\/draft_notes\/(\d+)$/.exec(p);
+    if (delM && req.method() === "DELETE") {
+      const i = drafts.findIndex((d) => String(d.id) === delM[1]);
+      if (i >= 0) drafts.splice(i, 1);
+      return route.fulfill({ status: 204, body: "" });
+    }
+    if (p.includes(`${base}/draft_notes`)) {
+      if (req.method() === "POST") {
+        const b = (req.postDataJSON?.() ?? {}) as { note: string };
+        const d = { id: nextId++, note: b.note, position: draftPos };
+        drafts.push(d);
+        return json(d);
+      }
+      return json(drafts);
+    }
+    if (p.includes(`${base}/discussions`)) return json([]);
+    if (p.includes(`${base}/approvals`)) return json({ approved_by: [] });
+    if (p.includes(`${base}/commits`)) return json([]);
+    if (p.endsWith(base)) return json(mr);
+    if (p.endsWith("/api/v4/user")) return json({ id: 9, name: "Me" });
+    if (p.endsWith("/api/v4/markdown")) {
+      const body = (req.postDataJSON?.() ?? {}) as { text?: string };
+      return json({ html: `<p>${body.text ?? ""}</p>` });
+    }
+    if (p.endsWith("/api/graphql")) return json({ data: {} });
+    return json([]);
+  });
+}
+
 export async function mockGitlab(context: BrowserContext): Promise<void> {
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
