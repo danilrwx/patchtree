@@ -42,6 +42,38 @@ test("replying to a thread renders the reply", async ({ context, page }) => {
   });
 });
 
+test("split: the comment card fills its pane, the other side keeps a diff background", async ({
+  context,
+  page,
+}) => {
+  await mockGithubThreads(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  // wide enough that a 720px-capped card would leave a big white gutter
+  await page.setViewportSize({ width: 2400, height: 700 });
+  await page.locator('button[title="Side-by-side"]').click();
+
+  const thread = page.locator(".pt-split .pt-comments-row", { hasText: COMMENT_BODY }).first();
+  await expect(thread).toBeAttached({ timeout: 20000 });
+  await thread.scrollIntoViewIfNeeded();
+
+  // the card fills its pane — no wide white gutter to its right
+  const dims = await thread.evaluate((row) => {
+    const note = row.querySelector(".pt-note") as HTMLElement;
+    const cell = note.closest("td") as HTMLElement;
+    const voidTd = row.querySelector("td.pt-void") as HTMLElement;
+    return {
+      cardW: note.getBoundingClientRect().width,
+      cellW: cell.getBoundingClientRect().width,
+      voidBg: getComputedStyle(voidTd).backgroundColor,
+    };
+  });
+  // card spans ~all of its pane cell (allow for padding), not capped small
+  expect(dims.cardW).toBeGreaterThan(dims.cellW - 90);
+  // the opposite pane isn't a transparent/white band — it keeps a diff background
+  expect(dims.voidBg).not.toBe("rgba(0, 0, 0, 0)");
+});
+
 test("an open reply form doesn't stretch the Resolve button beside it", async ({
   context,
   page,

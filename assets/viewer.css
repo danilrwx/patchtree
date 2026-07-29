@@ -1224,6 +1224,18 @@ html.pt-on {
   background: transparent;
 }
 
+/* split: the comment lives in one pane and fills it (no wide white gutter to
+   its right), while the opposite pane keeps the void diff background so the
+   diff visually continues around the card instead of a white band */
+.pt-split .pt-comments-row td :where(.pt-note, .pt-note-body, .pt-comment-lines, .pt-comment-form, .pt-thread-actions, .pt-md),
+.pt-split .pt-inline-form td :where(.pt-note, .pt-note-body, .pt-comment-lines, .pt-comment-form, .pt-thread-actions, .pt-md) {
+  max-width: none;
+}
+.pt-comments-row td.pt-void,
+.pt-inline-form td.pt-void {
+  background: var(--pt-header-bg);
+}
+
 .pt-split .pt-comments-row td,
 .pt-split .pt-inline-form td {
   padding: 8px 12px;
