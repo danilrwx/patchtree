@@ -73,6 +73,60 @@ const pull = {
   mergeable: true,
 };
 
+// Stateful variant for the write path: starts with no threads, records posted
+// review comments and reflects them back through the GraphQL threads query, so
+// a freshly posted comment shows up after refreshThreads().
+export async function mockGithubStateful(context: BrowserContext): Promise<void> {
+  const posted: { path: string; line: number; side: string; body: string }[] = [];
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const req = route.request();
+    const p = new URL(req.url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+
+    if (p === "/graphql") {
+      const nodes = posted.map((c, i) => ({
+        id: `T${i}`,
+        isResolved: false,
+        path: c.path,
+        line: c.line,
+        diffSide: c.side === "LEFT" ? "LEFT" : "RIGHT",
+        comments: {
+          nodes: [
+            {
+              databaseId: 1000 + i,
+              body: c.body,
+              createdAt: "2026-01-01T00:00:00Z",
+              author: { login: "me", databaseId: 9 },
+            },
+          ],
+        },
+      }));
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes } } } } });
+    }
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}/comments` && req.method() === "POST") {
+      const b = (req.postDataJSON?.() ?? {}) as { path: string; line: number; side: string; body: string };
+      posted.push({ path: b.path, line: b.line, side: b.side, body: b.body });
+      return json({ id: posted.length, user: { login: "me", id: 9 }, created_at: "t", body: b.body });
+    }
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p === "/markdown") {
+      const b = (req.postDataJSON?.() ?? {}) as { text?: string };
+      return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
+    }
+    if (p.includes("/contents/")) {
+      const lines = Array.from({ length: 80 }, (_, i) => `\tline ${i + 1}`);
+      return route.fulfill({ contentType: "text/plain", body: lines.join("\n") });
+    }
+    return json([]);
+  });
+}
+
 export async function mockGithub(context: BrowserContext): Promise<void> {
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
