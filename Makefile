@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-.PHONY: all deps vendor queries fonts themes zip zip-firefox check test changelog clean
+.PHONY: all deps vendor queries fonts themes build node_modules typecheck zip zip-firefox check test changelog clean
 
-all: deps
+all: build
 
 # everything the extension needs beyond the sources in git
 deps: vendor queries fonts themes
@@ -18,6 +18,18 @@ queries:
 fonts:
 	./scripts/fetch-fonts.sh
 
+# exact versions are pinned in package.json (this sandbox's npm produces no
+# lockfile); npm install is reproducible enough given the pins.
+node_modules:
+	npm install
+
+# bundle sources + copy pinned assets into dist/ (the loadable/zippable root)
+build: deps node_modules
+	node build.mjs
+
+typecheck: node_modules
+	npm run --silent typecheck
+
 check:
 	node --check content.js
 	node --check providers.js
@@ -29,18 +41,15 @@ check:
 test: check
 	node test/run.mjs
 
-zip: check
+zip: build
 	rm -f patchtree.zip
-	zip -qr patchtree.zip \
-		manifest.json background.js content.js providers.js review.js \
-		options.html options.js viewer.css icons fonts vendor queries themes.json
+	cd dist && zip -qr ../patchtree.zip .
 	@ls -la patchtree.zip
 
-zip-firefox: check
+zip-firefox: build
 	rm -rf build/firefox patchtree-firefox.zip
-	mkdir -p build/firefox
-	cp -R manifest.json background.js content.js providers.js review.js \
-		options.html options.js viewer.css icons fonts vendor queries themes.json build/firefox/
+	mkdir -p build
+	cp -R dist build/firefox
 	node scripts/firefox-manifest.mjs build/firefox/manifest.json
 	cd build/firefox && zip -qr ../../patchtree-firefox.zip .
 	@ls -la patchtree-firefox.zip
@@ -50,4 +59,4 @@ changelog:
 	@./scripts/changelog.sh $(RANGE)
 
 clean:
-	rm -rf vendor fonts queries themes.json build patchtree.zip patchtree-firefox.zip
+	rm -rf vendor fonts queries themes.json build dist patchtree.zip patchtree-firefox.zip

@@ -93,16 +93,16 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 
 Binary assets (wasm grammars, fonts, highlight queries, theme data) are
 not stored in git — the default make target fetches them from pinned
-upstream releases:
+upstream releases, then bundles the sources into `dist/`:
 
 ```sh
 git clone https://github.com/danilrwx/patchtree
 cd patchtree
-make          # needs node+npm and curl; re-runs are no-ops (FORCE=1 to refetch)
+make          # fetch pinned assets + npm install + bundle into dist/
 ```
 
-Then `chrome://extensions` → Developer mode → Load unpacked → this
-directory. To enable review actions, open the ⚙ menu → **Access
+Then `chrome://extensions` → Developer mode → Load unpacked → the
+**`dist/`** directory. To enable review actions, open the ⚙ menu → **Access
 tokens** on any diff page and add a GitLab host (PAT scope `api`) and/or
 a GitHub token (classic `repo`, or fine-grained with Pull requests
 read & write); rendering works without tokens. Tokens are stored in
@@ -125,12 +125,14 @@ websites” in the add-on's Permissions tab.
 
 ## Build / release
 
-- `make` — fetch all pinned assets (`vendor`, `queries`, `fonts`,
-  `themes`); each target skips work when files are already present.
+- `make` — fetch pinned assets (`vendor`, `queries`, `fonts`, `themes`),
+  `npm install`, and bundle the sources into `dist/` with esbuild; asset
+  fetches skip when files are already present.
 - `make check` — syntax-check the sources.
+- `make typecheck` — `tsc --noEmit` over the TypeScript sources.
 - `make test` — run the pure-logic checks in `test/run.mjs`.
-- `make zip` / `make zip-firefox` — build distribution archives.
-- `make clean` — remove fetched assets and archives.
+- `make zip` / `make zip-firefox` — bundle and archive `dist/`.
+- `make clean` — remove fetched assets, `dist/`, and archives.
 
 CI (`.github/workflows/release.yml`) rebuilds every asset from the pinned
 upstream versions on each push and attaches the archives plus sha256
