@@ -929,7 +929,7 @@ html.pt-on {
 }
 
 .pt-file {
-  margin: 16px 0;
+  margin: 8px 0;
   /* render only sections near the viewport — resize/reflow cost stops
      scaling with the whole diff */
   content-visibility: auto;
