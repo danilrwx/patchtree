@@ -71,3 +71,28 @@ test("renamed files carry the renamed status class", async ({ context, page }) =
   await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-tree-file.pt-st-renamed").first()).toBeVisible();
 });
+
+test("the funnel can hide viewed files from the tree", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-tree-file:visible")).toHaveCount(2);
+
+  // mark the first file viewed
+  await page
+    .locator("section.pt-file")
+    .first()
+    .locator("label.pt-viewed:not(.pt-fullfile) input[type=checkbox]")
+    .check();
+
+  await page.locator(".pt-filter-dd > summary").click();
+  // the row sits at the bottom of a right-aligned menu that overlaps the diff
+  // pane, so toggle the control directly and let its onChange drive the filter
+  await page
+    .locator(".pt-filter-row", { hasText: "Viewed files" })
+    .locator("input")
+    .evaluate((el: HTMLInputElement) => {
+      el.checked = false;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  await expect(page.locator(".pt-tree-file:visible")).toHaveCount(1);
+});
