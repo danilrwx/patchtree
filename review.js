@@ -14,8 +14,9 @@
 
 "use strict";
 
-import { render } from "solid-js/web";
-import { CommentForm } from "./src/components/CommentForm";
+// The threads store lives in content.js's bundle (where <DiffFile> reads it);
+// this controller writes to it through window.ptStore.
+const { setReviewThreads, setComposing } = window.ptStore;
 
 (() => {
   const P = window.ptProvider;
@@ -27,7 +28,6 @@ import { CommentForm } from "./src/components/CommentForm";
   let approvedByMe = false;
   let approveEls = null;
   let drafts = [];
-  let lastThreads = [];
   let unresolvedEl = null;
   let reviewSum = null;
 
@@ -48,9 +48,46 @@ import { CommentForm } from "./src/components/CommentForm";
       reviewSum.textContent = drafts.length ? `Submit review (${drafts.length})` : "Submit review";
   }
 
+  // real (loaded) threads incl. general discussion; drafts are pending
+  // pseudo-threads. Both feed one reactive store the diff renders from, so
+  // there is no imperative row insertion or refreshThreads() full rebuild.
+  let realThreads = [];
+
+  function draftToThread(d) {
+    return {
+      id: `draft:${d.id}`,
+      _draft: d,
+      general: false,
+      resolvable: false,
+      resolved: false,
+      pending: true,
+      pos: d.pos,
+      notes: [
+        {
+          id: d.id,
+          kind: "draft",
+          author: me?.name || "You",
+          authorId: me?.id,
+          createdAt: "",
+          body: d.body,
+          resolved: false,
+        },
+      ],
+    };
+  }
+
+  function publishThreads() {
+    setReviewThreads([...realThreads, ...drafts.filter((d) => d.pos).map(draftToThread)]);
+  }
+
+  function replaceThread(id, fn) {
+    realThreads = realThreads.flatMap((t) => (t.id === id ? fn(t) : [t]));
+    publishThreads();
+  }
+
   function updateUnresolved() {
     if (!unresolvedEl) return;
-    const open = lastThreads.filter((t) => t.resolvable && !t.resolved);
+    const open = realThreads.filter((t) => t.resolvable && !t.resolved);
     unresolvedEl.dd.style.display = open.length ? "" : "none";
     unresolvedEl.sum.querySelector(".pt-dd-label").textContent = `${open.length} unresolved`;
     unresolvedEl.menu.textContent = "";
@@ -65,51 +102,23 @@ import { CommentForm } from "./src/components/CommentForm";
         `<span class="pt-sha">${esc(loc)}</span><span>${esc(snippet)}</span>`,
         () => {
           unresolvedEl.dd.open = false;
-          const target = t._target?.isConnected ? t._target : null;
-          target?.scrollIntoView({ block: "center" });
-          target?.classList.add("pt-flash");
-          setTimeout(() => target?.classList.remove("pt-flash"), 1200);
+          scrollToThread(t);
         }
       );
     }
   }
 
-  function rowsFor(path, oldLine, newLine) {
-    const sel = newLine
-      ? `tr[data-path="${CSS.escape(path)}"][data-new="${newLine}"]`
-      : `tr[data-path="${CSS.escape(path)}"][data-old="${oldLine}"]`;
-    return document.querySelectorAll(sel);
-  }
-
-  // In the split view a thread occupies only its side's half, GitHub-style;
-  // the unified view keeps the full-width row.
-  function threadRow(tr, side, cls) {
-    const row = document.createElement("tr");
-    row.className = cls;
-    let td;
-    if (tr.closest("table").classList.contains("pt-split")) {
-      if (side === "old") {
-        td = row.insertCell();
-        td.colSpan = 2;
-        const pad = row.insertCell();
-        pad.colSpan = 2;
-        pad.className = "pt-void";
-      } else {
-        const pad = row.insertCell();
-        pad.colSpan = 2;
-        pad.className = "pt-void";
-        td = row.insertCell();
-        td.colSpan = 2;
-      }
-    } else {
-      td = row.insertCell();
-      td.colSpan = 4;
-    }
-    return { row, td };
-  }
-
-  function insertAfter(tr, el) {
-    tr.parentNode.insertBefore(el, tr.nextSibling);
+  function scrollToThread(t) {
+    if (!t.pos) return;
+    const sel = t.pos.newLine
+      ? `tr[data-path="${CSS.escape(t.pos.path)}"][data-new="${t.pos.newLine}"]`
+      : `tr[data-path="${CSS.escape(t.pos.path)}"][data-old="${t.pos.oldLine}"]`;
+    const row = document.querySelector(sel);
+    const target =
+      row?.nextElementSibling?.classList.contains("pt-comments-row") ? row.nextElementSibling : row;
+    target?.scrollIntoView({ block: "center" });
+    target?.classList.add("pt-flash");
+    setTimeout(() => target?.classList.remove("pt-flash"), 1200);
   }
 
   const mdCache = new Map();
@@ -122,404 +131,145 @@ import { CommentForm } from "./src/components/CommentForm";
     } catch {
       html = `<p>${esc(text).replace(/\n/g, "<br>")}</p>`;
     }
-    // GitLab's markdown API emits whitespace-only <p> for blank source lines,
-    // which CSS :empty can't target — drop them and trailing breaks
-    html = html
-      .replace(/<p>\s*<\/p>/g, "")
-      .replace(/(<br\s*\/?>\s*)+<\/(p|li)>/g, "</$2>");
+    html = html.replace(/<p>\s*<\/p>/g, "").replace(/(<br\s*\/?>\s*)+<\/(p|li)>/g, "</$2>");
     mdCache.set(text, html);
     return html;
   }
 
-  function splitSuggestions(body) {
-    const parts = [];
-    const re = /```suggestion(?::-(\d+)\+(\d+))?\n([\s\S]*?)```/g;
-    let last = 0;
-    let m;
-    while ((m = re.exec(body))) {
-      if (m.index > last) parts.push({ md: body.slice(last, m.index) });
-      parts.push({ sug: m[3].replace(/\n$/, ""), minus: +(m[1] || 0), plus: +(m[2] || 0) });
-      last = m.index + m[0].length;
-    }
-    if (last < body.length) parts.push({ md: body.slice(last) });
-    return parts;
-  }
-
-  function suggestionWidget(part, anchorTr, sugMeta, thread) {
-    const box = document.createElement("div");
-    box.className = "pt-sug";
-    const head = document.createElement("div");
-    head.className = "pt-sug-head";
-    head.textContent = "Suggested change";
-    if (thread?.resolvable && !thread.resolved && P.can.resolve && P.token) {
-      const dismiss = document.createElement("button");
-      dismiss.className = "pt-apply";
-      dismiss.textContent = "Dismiss";
-      dismiss.title = "Resolve the thread without applying";
-      dismiss.addEventListener("click", async () => {
-        dismiss.disabled = true;
-        try {
-          await P.resolveThread(thread, true);
-          thread.resolved = true;
-          updateUnresolved();
-          dismiss.textContent = "Dismissed";
-          status("suggestion dismissed");
-        } catch (e) {
-          status(`dismiss failed: ${e.message}`, true);
-          dismiss.disabled = false;
-        }
-      });
-      head.appendChild(dismiss);
-    }
-    // Apply needs a target line: GitLab carries a suggestion id, GitHub
-    // reconstructs the line range from the anchored new-side row.
-    const line = +(anchorTr?.dataset.new || 0);
-    if (P.can.applySuggestion && P.token && (sugMeta || line)) {
-      const btn = document.createElement("button");
-      btn.className = "pt-apply";
-      btn.textContent = sugMeta?.applied ? "Applied" : "Apply suggestion";
-      btn.disabled = !!sugMeta?.applied || sugMeta?.appliable === false;
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        try {
-          await P.applySuggestion({
-            id: sugMeta?.id,
-            path: anchorTr?.dataset.path,
-            startLine: line - part.minus,
-            endLine: line + part.plus,
-            text: part.sug,
-          });
-          btn.textContent = "Applied";
-          status("suggestion applied");
-        } catch (e) {
-          status(`apply failed: ${e.message}`, true);
-          btn.disabled = false;
-        }
-      });
-      head.appendChild(btn);
-    }
-    box.appendChild(head);
-    const table = document.createElement("table");
-    table.className = "pt-sug-table";
-    const addRow = (cls, mark, text) => {
-      const tr = table.insertRow();
-      tr.className = cls;
-      const tm = tr.insertCell();
-      tm.className = "pt-mark";
-      tm.textContent = mark;
-      const tc = tr.insertCell();
-      tc.className = "pt-code";
-      tc.textContent = text;
-    };
-    const L = +(anchorTr?.dataset.new || 0);
-    if (L) {
-      const tbl = anchorTr.closest("table");
-      for (let n = L - part.minus; n <= L + part.plus; n++) {
-        const row = tbl.querySelector(
-          `tr[data-path="${CSS.escape(anchorTr.dataset.path)}"][data-new="${n}"]`
-        );
-        addRow("pt-del", "−", row ? [...row.querySelectorAll(".pt-code")].pop().textContent : "");
-      }
-    }
-    for (const line of part.sug.split("\n")) addRow("pt-add", "+", line);
-    box.appendChild(table);
-    return box;
-  }
-
-  async function renderNote(note, anchorTr, thread) {
-    const div = document.createElement("div");
-    div.className = `pt-note${note.resolved ? " pt-resolved" : ""}`;
-    const head = document.createElement("div");
-    head.className = "pt-note-head";
-    head.innerHTML =
-      `<span class="pt-note-author">${esc(note.author)}</span>` +
-      `<span class="pt-note-date">${esc(new Date(note.createdAt).toLocaleString())}</span>`;
-    div.appendChild(head);
-    const bodyEl = document.createElement("div");
-    bodyEl.className = "pt-note-body";
-    div.appendChild(bodyEl);
-
-    const paint = async () => {
-      bodyEl.textContent = "";
-      let sugIdx = 0;
-      for (const p of splitSuggestions(note.body || "")) {
-        if (p.sug !== undefined)
-          bodyEl.appendChild(suggestionWidget(p, anchorTr, note.suggestions?.[sugIdx++], thread));
-        else {
-          const md = document.createElement("div");
-          md.className = "pt-md";
-          md.innerHTML = await renderMarkdown(p.md);
-          bodyEl.appendChild(md);
-        }
-      }
-    };
-    await paint();
-
-    if (P.token && me && note.authorId === me.id) {
-      const actions = document.createElement("span");
-      actions.className = "pt-note-actions";
-      const editBtn = document.createElement("button");
-      editBtn.innerHTML =
-        '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"/></svg>';
-      editBtn.title = "Edit";
-      const delBtn = document.createElement("button");
-      delBtn.innerHTML =
-        '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"/></svg>';
-      delBtn.title = "Delete";
-      actions.append(editBtn, delBtn);
-      head.appendChild(actions);
-
-      editBtn.addEventListener("click", () => {
-        if (div.querySelector("textarea")) return;
-        const ta = document.createElement("textarea");
-        ta.rows = 5;
-        ta.value = note.body;
-        const save = document.createElement("button");
-        save.textContent = "Save";
-        save.className = "pt-primary";
-        const cancel = document.createElement("button");
-        cancel.textContent = "Cancel";
-        const act = document.createElement("div");
-        act.className = "pt-form-actions";
-        act.append(cancel, save);
-        const wrap = document.createElement("div");
-        wrap.className = "pt-comment-form";
-        wrap.append(mdToolbar(ta), ta, act);
-        bodyEl.style.display = "none";
-        div.appendChild(wrap);
-        cancel.addEventListener("click", () => {
-          wrap.remove();
-          bodyEl.style.display = "";
-        });
-        save.addEventListener("click", async () => {
-          save.disabled = true;
-          try {
-            note.body = await P.editNote(note, ta.value);
-            wrap.remove();
-            bodyEl.style.display = "";
-            await paint();
-            refreshThreads();
-            status("comment updated");
-          } catch (e) {
-            status(`edit failed: ${e.message}`, true);
-            save.disabled = false;
-          }
-        });
-      });
-
-      delBtn.addEventListener("click", async () => {
-        if (delBtn.dataset.arm !== "1") {
-          delBtn.dataset.arm = "1";
-          delBtn.classList.add("pt-armed");
-          delBtn.title = "Click again to delete";
-          setTimeout(() => {
-            delBtn.dataset.arm = "";
-            delBtn.classList.remove("pt-armed");
-            delBtn.title = "Delete";
-          }, 3000);
-          return;
-        }
-        try {
-          await P.deleteNote(note);
-          refreshThreads();
-          status("comment deleted");
-        } catch (e) {
-          status(`delete failed: ${e.message}`, true);
-        }
-      });
-    }
-    return div;
-  }
-
-  function renderDraft(draft, anchorTr) {
-    const div = document.createElement("div");
-    div.className = "pt-note pt-pending";
-    const head = document.createElement("div");
-    head.className = "pt-note-head";
-    head.innerHTML =
-      `<span class="pt-note-author">${esc(me?.name || "You")}</span>` +
-      `<span class="pt-badge-pending">Pending</span>`;
-    const delBtn = document.createElement("button");
-    delBtn.className = "pt-draft-del";
-    delBtn.textContent = "discard";
-    delBtn.addEventListener("click", async () => {
-      try {
-        await P.deleteDraft(draft);
-        drafts = drafts.filter((x) => x.id !== draft.id);
-        updateReviewSummary();
-        refreshThreads();
-        status("draft discarded");
-      } catch (e) {
-        status(`discard failed: ${e.message}`, true);
-      }
-    });
-    head.appendChild(delBtn);
-    div.appendChild(head);
-    const bodyEl = document.createElement("div");
-    bodyEl.className = "pt-note-body";
-    div.appendChild(bodyEl);
-    (async () => {
-      for (const p of splitSuggestions(draft.body || "")) {
-        if (p.sug !== undefined) bodyEl.appendChild(suggestionWidget(p, anchorTr));
-        else {
-          const md = document.createElement("div");
-          md.className = "pt-md";
-          md.innerHTML = await renderMarkdown(p.md);
-          bodyEl.appendChild(md);
-        }
-      }
-    })();
-    return div;
-  }
-
-  function addDraftRow(draft, tr, side) {
-    const { row, td } = threadRow(tr, side, "pt-comments-row");
-    insertAfter(tr, row);
-    td.appendChild(renderDraft(draft, tr));
+  async function loadThreads() {
+    realThreads = (await P.threads()).filter((t) => t.general || t.pos);
+    publishThreads();
+    updateUnresolved();
+    const counts = new Map();
+    for (const t of realThreads)
+      if (t.pos) counts.set(t.pos.path, (counts.get(t.pos.path) || 0) + 1);
+    window.ptView.markCommented?.(counts);
   }
 
   async function loadDrafts() {
     if (!P.can.drafts || !P.token) return;
     try {
-      const list = await P.drafts();
-      drafts = list;
+      drafts = await P.drafts();
       updateReviewSummary();
-      for (const d of list) {
-        if (!d.pos) continue;
-        for (const tr of rowsFor(d.pos.path, d.pos.oldLine, d.pos.newLine))
-          addDraftRow(d, tr, d.pos.side);
-      }
+      publishThreads();
     } catch {
       // draft notes API may be absent — review still works
     }
   }
 
-  function replyButton(t, anchorTr, td) {
-    const btn = document.createElement("button");
-    btn.className = "pt-reply-btn";
-    btn.innerHTML = `${window.ptIcons?.reply || ""}<span>Reply…</span>`;
-    btn.addEventListener("click", () => {
-      if (td.querySelector(".pt-comment-form")) return;
-      btn.style.display = "none";
-      const anchor = () => btn.closest(".pt-thread-actions") || btn;
-      const form = commentForm(
-        "Reply…",
-        async (body) => {
-          const note = await P.reply(t, body);
-          anchor().before(await renderNote(note, anchorTr, t));
-          refreshThreads();
-          status("reply posted");
-        },
-        () => (btn.style.display = ""),
-        anchorTr?.dataset.new
-          ? [...anchorTr.querySelectorAll(".pt-code")].pop().textContent
-          : null,
-        P.can.drafts
-          ? async (body) => {
-              const draft = await P.postDraft(null, body, t.id);
-              drafts.push(draft);
-              updateReviewSummary();
-              anchor().before(renderDraft(draft, anchorTr));
-              status("added to review");
-            }
-          : null
-      );
-      anchor().before(form);
-    });
-    return btn;
-  }
-
-  function threadActions(t, container, anchorTr) {
-    const wrap = document.createElement("div");
-    wrap.className = "pt-thread-actions";
-    wrap.appendChild(replyButton(t, anchorTr, container));
-    if (P.can.resolve && t.resolvable) {
-      const btn = document.createElement("button");
-      btn.className = "pt-reply-btn";
-      const setLbl = () =>
-        (btn.innerHTML = `${window.ptIcons?.check || ""}<span>${t.resolved ? "Unresolve" : "Resolve"}</span>`);
-      setLbl();
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        try {
-          const v = !t.resolved;
-          await P.resolveThread(t, v);
-          t.resolved = v;
-          setLbl();
-          for (const el of container.querySelectorAll(".pt-note"))
-            el.classList.toggle("pt-resolved", v);
-          updateUnresolved();
-          status(v ? "thread resolved" : "thread unresolved");
-        } catch (e) {
-          status(`resolve failed: ${e.message}`, true);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-      wrap.appendChild(btn);
-    }
-    return wrap;
-  }
-
-  function renderGeneralThreads(general) {
-    const box = document.createElement("details");
-    box.id = "pt-mr-threads";
-    box.open = true;
-    const sum = document.createElement("summary");
-    sum.textContent = `Discussion (${general.length})`;
-    box.appendChild(sum);
-    for (const t of general) {
-      const el = document.createElement("div");
-      el.className = "pt-thread";
-      box.appendChild(el);
-      t._target = el;
-      Promise.all(t.notes.map((n) => renderNote(n, null))).then((els) => {
-        el.append(...els);
-        if (P.token) el.appendChild(threadActions(t, el, null));
-      });
-    }
-    document.getElementById("pt-main").prepend(box);
-  }
-
-  async function loadThreads() {
-    document.getElementById("pt-mr-threads")?.remove();
-    const threads = await P.threads();
-    lastThreads = threads;
-    let shown = 0;
-    const general = [];
-    for (const t of threads) {
-      if (t.general) {
-        general.push(t);
-        continue;
-      }
-      const trs = rowsFor(t.pos.path, t.pos.oldLine, t.pos.newLine);
-      if (!trs.length) continue;
-      for (const tr of trs) {
-        const { row, td } = threadRow(tr, t.pos.side, "pt-comments-row");
-        insertAfter(tr, row);
-        if (!t._target?.isConnected) t._target = row;
-        Promise.all(t.notes.map((n) => renderNote(n, tr, t))).then((els) => {
-          td.append(...els);
-          if (P.token) td.appendChild(threadActions(t, td, tr));
-        });
-      }
-      shown++;
-    }
-    if (general.length) renderGeneralThreads(general);
-    updateUnresolved();
-    const counts = new Map();
-    for (const t of threads)
-      if (t.pos) counts.set(t.pos.path, (counts.get(t.pos.path) || 0) + 1);
-    window.ptView.markCommented?.(counts);
-    if (shown) status(`${shown} thread(s) loaded`);
-  }
-
   function refreshThreads() {
-    document.getElementById("pt-mr-threads")?.remove();
-    for (const r of document.querySelectorAll(".pt-comments-row")) r.remove();
     loadThreads().catch((e) => status(`discussions unavailable: ${e.message}`, true));
     loadDrafts();
   }
+
+  // Action bridge for the Solid thread components (src/components/Thread.tsx).
+  // Each call hits the provider then updates the store surgically, so only the
+  // touched thread re-renders — no page-wide refresh.
+  window.ptReview = {
+    get me() {
+      return me;
+    },
+    get token() {
+      return !!P.token;
+    },
+    can: P.can,
+    renderMarkdown,
+    status,
+    reply: async (t, body) => {
+      const note = await P.reply(t, body);
+      replaceThread(t.id, (x) => [{ ...x, notes: [...x.notes, note] }]);
+      status("reply posted");
+    },
+    draftReply: async (t, body) => {
+      const d = await P.postDraft(null, body, t.id);
+      drafts.push({ ...d, pos: d.pos || t.pos });
+      updateReviewSummary();
+      publishThreads();
+      status("added to review");
+    },
+    resolve: async (t, value) => {
+      try {
+        await P.resolveThread(t, value);
+        replaceThread(t.id, (x) => [
+          { ...x, resolved: value, notes: x.notes.map((n) => ({ ...n, resolved: value })) },
+        ]);
+        updateUnresolved();
+        status(value ? "thread resolved" : "thread unresolved");
+      } catch (e) {
+        status(`resolve failed: ${e.message}`, true);
+      }
+    },
+    editNote: async (t, note, body) => {
+      const nb = await P.editNote(note, body);
+      replaceThread(t.id, (x) => [
+        { ...x, notes: x.notes.map((n) => (n.id === note.id ? { ...n, body: nb } : n)) },
+      ]);
+      status("comment updated");
+    },
+    deleteNote: async (t, note) => {
+      try {
+        await P.deleteNote(note);
+        replaceThread(t.id, (x) => {
+          const notes = x.notes.filter((n) => n.id !== note.id);
+          return notes.length ? [{ ...x, notes }] : [];
+        });
+        status("comment deleted");
+      } catch (e) {
+        status(`delete failed: ${e.message}`, true);
+      }
+    },
+    discardDraft: async (t) => {
+      try {
+        await P.deleteDraft(t._draft);
+        drafts = drafts.filter((x) => x.id !== t._draft.id);
+        updateReviewSummary();
+        publishThreads();
+        status("draft discarded");
+      } catch (e) {
+        status(`discard failed: ${e.message}`, true);
+      }
+    },
+    submitComment: async (pos, body) => {
+      await P.postThread(pos.desc, body);
+      setComposing(null);
+      await loadThreads();
+      status("comment posted");
+    },
+    draftComment: async (pos, body) => {
+      const d = await P.postDraft(pos.desc, body);
+      drafts.push(d);
+      updateReviewSummary();
+      setComposing(null);
+      publishThreads();
+      status("added to review");
+    },
+    applySuggestion: async (t, part, line, meta) => {
+      try {
+        await P.applySuggestion({
+          id: meta?.id,
+          path: t.pos?.path,
+          startLine: line - part.minus,
+          endLine: line + part.plus,
+          text: part.sug,
+        });
+        status("suggestion applied");
+      } catch (e) {
+        status(`apply failed: ${e.message}`, true);
+        throw e;
+      }
+    },
+    dismissSuggestion: async (t) => {
+      try {
+        await P.resolveThread(t, true);
+        replaceThread(t.id, (x) => [{ ...x, resolved: true }]);
+        updateUnresolved();
+        status("suggestion dismissed");
+      } catch (e) {
+        status(`dismiss failed: ${e.message}`, true);
+        throw e;
+      }
+    },
+  };
 
   function setApproved(v) {
     approvedByMe = v;
@@ -597,28 +347,6 @@ import { CommentForm } from "./src/components/CommentForm";
   }
 
   // thin adapter: mount the Solid <CommentForm> into a host the callers append
-  function commentForm(placeholder, onSubmit, onClose, suggestionText, onDraft) {
-    const wrap = document.createElement("div");
-    let dispose;
-    dispose = render(
-      () =>
-        CommentForm({
-          placeholder,
-          onSubmit,
-          onDraft,
-          suggestionText,
-          renderMarkdown,
-          onError: (m) => status(m, true),
-          onClose: () => {
-            dispose();
-            wrap.remove();
-            onClose?.();
-          },
-        }),
-      wrap
-    );
-    return wrap;
-  }
 
   function buildCommitSelect(bar) {
     const { dd, sum, menu } = window.ptView.makeDropdown(
@@ -746,8 +474,6 @@ import { CommentForm } from "./src/components/CommentForm";
     bar.appendChild(dd);
   }
 
-  let activeForm = null;
-
   function lineNo(tr, side) {
     return +(side === "old" ? tr.dataset.old : tr.dataset.new) || 0;
   }
@@ -756,29 +482,6 @@ import { CommentForm } from "./src/components/CommentForm";
     if (tr.closest("table").classList.contains("pt-split"))
       return td.cellIndex === 0 ? "old" : "new";
     return tr.classList.contains("pt-del") ? "old" : "new";
-  }
-
-  function closeActiveForm() {
-    if (!activeForm) return;
-    activeForm.formRow.remove();
-    for (const r of activeForm.marked) r.classList.remove("pt-range");
-    activeForm = null;
-  }
-
-  function markRange(f) {
-    for (const r of f.marked) r.classList.remove("pt-range");
-    f.marked = [];
-    for (let r = f.startTr; r; r = r.nextElementSibling) {
-      if (lineNo(r, f.side)) {
-        r.classList.add("pt-range");
-        f.marked.push(r);
-      }
-      if (r === f.endTr) break;
-    }
-    f.label.textContent =
-      f.startTr === f.endTr
-        ? `Comment on line ${lineNo(f.endTr, f.side)}`
-        : `Comment on lines ${lineNo(f.startTr, f.side)}–${lineNo(f.endTr, f.side)}`;
   }
 
   function buildPosDesc(f) {
@@ -826,65 +529,19 @@ import { CommentForm } from "./src/components/CommentForm";
     }
     if (!refs) return;
     const side = clickSide(td, tr);
-    if (!lineNo(tr, side)) return;
+    const line = lineNo(tr, side);
+    if (!line) return;
 
-    if (
-      e.shiftKey &&
-      activeForm &&
-      activeForm.path === tr.dataset.path &&
-      activeForm.side === side &&
-      activeForm.table === tr.closest("table")
-    ) {
-      const f = activeForm;
-      if (lineNo(tr, side) < lineNo(f.startTr, side)) f.startTr = tr;
-      else f.endTr = tr;
-      insertAfter(f.endTr, f.formRow);
-      markRange(f);
-      return;
-    }
-
-    closeActiveForm();
-
-    const f = {
+    // <DiffFile> renders the form row reactively at this anchor; the descriptor
+    // carries the row's data-* so the provider can build the API position.
+    setComposing({
       path: tr.dataset.path,
+      oldPath: tr.dataset.oldPath || tr.dataset.path,
       side,
-      table: tr.closest("table"),
-      startTr: tr,
-      endTr: tr,
-      marked: [],
-      label: document.createElement("div"),
-    };
-    f.label.className = "pt-comment-lines";
-
-    const { row: formRow, td: cell } = threadRow(tr, side, "pt-inline-form");
-    f.formRow = formRow;
-    cell.appendChild(f.label);
-    cell.appendChild(
-      commentForm(
-        "Leave a comment (shift-click a line number to extend the range)…",
-        async (body) => {
-          await P.postThread(buildPosDesc(f), body);
-          refreshThreads();
-          status("comment posted");
-        },
-        closeActiveForm,
-        side === "new" && tr.dataset.new
-          ? [...tr.querySelectorAll(".pt-code")].pop().textContent
-          : null,
-        P.can.drafts
-          ? async (body) => {
-              const draft = await P.postDraft(buildPosDesc(f), body);
-              drafts.push(draft);
-              updateReviewSummary();
-              addDraftRow(draft, f.endTr, side);
-              status("added to review");
-            }
-          : null
-      )
-    );
-    insertAfter(tr, formRow);
-    activeForm = f;
-    markRange(f);
+      oldLine: side === "old" ? line : null,
+      newLine: side === "new" ? line : null,
+      desc: buildPosDesc({ side, startTr: tr, endTr: tr }),
+    });
   }
 
   async function setup() {

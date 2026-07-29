@@ -26,6 +26,7 @@ import {
   canExpand,
 } from "../store";
 import { DiffFileHeader } from "./DiffFileHeader";
+import { AnchorRows } from "./Thread";
 
 export interface DiffFileProps {
   model: FileModel;
@@ -135,12 +136,16 @@ export function DiffFile(props: DiffFileProps) {
     const pair = p.pair;
     if (pair.ctx)
       return (
-        <tr class="pt-ctx" {...metaAttrs(rowMeta(m, pair.old, pair.new, true))}>
-          <td class="pt-no">{pair.old!.no}</td>
-          <td class="pt-no">{pair.new!.no}</td>
-          <td class="pt-mark" />
-          <td class="pt-code" innerHTML={code(pair.new!.text, "new", pair.newRow, null)} />
-        </tr>
+        <>
+          <tr class="pt-ctx" {...metaAttrs(rowMeta(m, pair.old, pair.new, true))}>
+            <td class="pt-no">{pair.old!.no}</td>
+            <td class="pt-no">{pair.new!.no}</td>
+            <td class="pt-mark" />
+            <td class="pt-code" innerHTML={code(pair.new!.text, "new", pair.newRow, null)} />
+          </tr>
+          <AnchorRows path={path} side="new" line={pair.new!.no} split={false} />
+          <AnchorRows path={path} side="old" line={pair.old!.no} split={false} />
+        </>
       );
     return (
       <>
@@ -151,6 +156,7 @@ export function DiffFile(props: DiffFileProps) {
             <td class="pt-mark">-</td>
             <td class="pt-code" innerHTML={code(pair.old!.text, "old", pair.oldRow, pair.wdA)} />
           </tr>
+          <AnchorRows path={path} side="old" line={pair.old!.no} split={false} />
         </Show>
         <Show when={pair.new}>
           <tr class="pt-add" {...metaAttrs(rowMeta(m, null, pair.new, false))}>
@@ -159,6 +165,7 @@ export function DiffFile(props: DiffFileProps) {
             <td class="pt-mark">+</td>
             <td class="pt-code" innerHTML={code(pair.new!.text, "new", pair.newRow, pair.wdB)} />
           </tr>
+          <AnchorRows path={path} side="new" line={pair.new!.no} split={false} />
         </Show>
       </>
     );
@@ -180,16 +187,20 @@ export function DiffFile(props: DiffFileProps) {
     const pair = p.pair;
     const cls = pair.ctx ? "pt-ctx" : "pt-del";
     return (
-      <tr class="pt-srow" {...metaAttrs(rowMeta(m, pair.old, pair.new, pair.ctx))}>
-        <SplitCell entry={pair.old} side="old" row={pair.oldRow} cls={cls} bg={pair.wdA} />
-        <SplitCell
-          entry={pair.new}
-          side="new"
-          row={pair.newRow}
-          cls={pair.ctx ? "pt-ctx" : "pt-add"}
-          bg={pair.wdB}
-        />
-      </tr>
+      <>
+        <tr class="pt-srow" {...metaAttrs(rowMeta(m, pair.old, pair.new, pair.ctx))}>
+          <SplitCell entry={pair.old} side="old" row={pair.oldRow} cls={cls} bg={pair.wdA} />
+          <SplitCell
+            entry={pair.new}
+            side="new"
+            row={pair.newRow}
+            cls={pair.ctx ? "pt-ctx" : "pt-add"}
+            bg={pair.wdB}
+          />
+        </tr>
+        <AnchorRows path={path} side="new" line={pair.new?.no ?? null} split={true} />
+        <AnchorRows path={path} side="old" line={pair.old?.no ?? null} split={true} />
+      </>
     );
   };
 

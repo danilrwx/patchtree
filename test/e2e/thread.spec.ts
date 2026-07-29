@@ -56,10 +56,13 @@ test("editing a note updates its body", async ({ context, page }) => {
   const edited = "e2e: edited note body";
 
   await thread.locator('.pt-note-actions button[title="Edit"]').first().click();
-  const ta = thread.locator(".pt-comment-form textarea").first();
+  // entering edit mode swaps the note body for the form, so the body text (and
+  // thus the COMMENT_BODY-filtered `thread` locator) is gone — target the note's
+  // own edit form directly
+  const ta = page.locator(".pt-note .pt-comment-form textarea").first();
   await expect(ta).toBeVisible();
   await ta.fill(edited);
-  await thread.locator(".pt-comment-form button.pt-primary").first().click();
+  await page.locator(".pt-note .pt-comment-form button.pt-primary").first().click();
 
   await expect(page.locator(".pt-comments-row", { hasText: edited }).first()).toBeVisible({
     timeout: 10000,

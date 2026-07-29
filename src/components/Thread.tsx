@@ -1,0 +1,373 @@
+// Copyright 2026 Daniil Antoshin
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Reactive review threads. review.js loads threads into the store and exposes
+// action callbacks on window.ptReview; <DiffFile> anchors <CommentsRow> after
+// the matching diff row. Replaces the imperative rowsFor/threadRow/renderNote
+// machinery and its refreshThreads() full rebuild.
+import { For, Show, createSignal, createMemo, createEffect, type JSX } from "solid-js";
+import { esc } from "../diff";
+import {
+  composing,
+  setComposing,
+  threadIndex,
+  reviewThreads,
+  anchorKey,
+  type ReviewThread,
+  type ReviewNote,
+  type ReviewThreadPos,
+} from "../store";
+import { CommentForm } from "./CommentForm";
+
+interface SugPart {
+  sug?: string;
+  md?: string;
+  minus: number;
+  plus: number;
+}
+
+interface ReviewBridge {
+  me: { id: unknown; name: string } | null;
+  token: boolean;
+  can: { resolve?: boolean; applySuggestion?: boolean; drafts?: boolean };
+  renderMarkdown: (t: string) => Promise<string>;
+  status: (m: string, isError?: boolean) => void;
+  reply: (t: ReviewThread, body: string) => Promise<void>;
+  draftReply: (t: ReviewThread, body: string) => Promise<void>;
+  resolve: (t: ReviewThread, value: boolean) => Promise<void>;
+  editNote: (t: ReviewThread, n: ReviewNote, body: string) => Promise<void>;
+  deleteNote: (t: ReviewThread, n: ReviewNote) => Promise<void>;
+  discardDraft: (t: ReviewThread) => Promise<void>;
+  submitComment: (pos: ReviewThreadPos, body: string) => Promise<void>;
+  draftComment: (pos: ReviewThreadPos, body: string) => Promise<void>;
+  applySuggestion: (t: ReviewThread, part: SugPart, line: number, meta: unknown) => Promise<void>;
+  dismissSuggestion: (t: ReviewThread) => Promise<void>;
+}
+
+const rv = () => (window as unknown as { ptReview: ReviewBridge }).ptReview;
+const icons = (): Record<string, string> => (window as any).ptIcons ?? {};
+
+const EDIT_SVG =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"/></svg>';
+const DEL_SVG =
+  '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"/></svg>';
+
+// split a note body into markdown runs and ```suggestion``` blocks
+export function splitSuggestions(body: string): SugPart[] {
+  const parts: SugPart[] = [];
+  const re = /```suggestion(?::-(\d+)\+(\d+))?\n([\s\S]*?)```/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    if (m.index > last) parts.push({ md: body.slice(last, m.index), minus: 0, plus: 0 });
+    parts.push({ sug: m[3].replace(/\n$/, ""), minus: +(m[1] || 0), plus: +(m[2] || 0) });
+    last = m.index + m[0].length;
+  }
+  if (last < body.length) parts.push({ md: body.slice(last), minus: 0, plus: 0 });
+  return parts;
+}
+
+function Markdown(props: { body: string }) {
+  const [html, setHtml] = createSignal("");
+  createEffect(() => {
+    const b = props.body;
+    rv()
+      .renderMarkdown(b)
+      .then(setHtml)
+      .catch(() => setHtml(`<p>${esc(b)}</p>`));
+  });
+  return <div class="pt-md" innerHTML={html()} />;
+}
+
+function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown }) {
+  const [applied, setApplied] = createSignal(!!(props.meta as any)?.applied);
+  const [dismissed, setDismissed] = createSignal(false);
+  const [busy, setBusy] = createSignal(false);
+  const line = () => props.thread.pos?.newLine ?? 0;
+  const canDismiss = () =>
+    props.thread.resolvable && !props.thread.resolved && rv().can.resolve && rv().token;
+  const canApply = () =>
+    rv().can.applySuggestion && rv().token && ((props.meta as any)?.id || line());
+
+  return (
+    <div class="pt-sug">
+      <div class="pt-sug-head">
+        Suggested change
+        <Show when={canDismiss() && !dismissed()}>
+          <button
+            type="button"
+            class="pt-apply"
+            title="Resolve the thread without applying"
+            disabled={busy()}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await rv().dismissSuggestion(props.thread);
+                setDismissed(true);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Dismiss
+          </button>
+        </Show>
+        <Show when={canApply()}>
+          <button
+            type="button"
+            class="pt-apply"
+            disabled={applied() || (props.meta as any)?.appliable === false || busy()}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await rv().applySuggestion(props.thread, props.part, line(), props.meta);
+                setApplied(true);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {applied() ? "Applied" : "Apply suggestion"}
+          </button>
+        </Show>
+      </div>
+      <table class="pt-sug-table">
+        <tbody>
+          <For each={props.part.sug!.split("\n")}>
+            {(l) => (
+              <tr class="pt-add">
+                <td class="pt-mark">+</td>
+                <td class="pt-code">{l}</td>
+              </tr>
+            )}
+          </For>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function NoteBody(props: { note: ReviewNote; thread: ReviewThread }) {
+  const parts = createMemo(() => {
+    let i = 0;
+    const sugs = props.note.suggestions ?? [];
+    return splitSuggestions(props.note.body || "").map((p) =>
+      p.sug !== undefined ? { part: p, meta: sugs[i++] } : { part: p, meta: undefined }
+    );
+  });
+  return (
+    <div class="pt-note-body">
+      <For each={parts()}>
+        {(p) => (
+          <Show when={p.part.sug !== undefined} fallback={<Markdown body={p.part.md!} />}>
+            <Suggestion part={p.part} thread={props.thread} meta={p.meta} />
+          </Show>
+        )}
+      </For>
+    </div>
+  );
+}
+
+function Note(props: { note: ReviewNote; thread: ReviewThread }) {
+  const [editing, setEditing] = createSignal(false);
+  const [armed, setArmed] = createSignal(false);
+  const mine = () =>
+    rv().token && rv().me != null && props.note.authorId === rv().me!.id && !props.thread.pending;
+
+  return (
+    <div class="pt-note" classList={{ "pt-resolved": props.note.resolved, "pt-pending": props.thread.pending }}>
+      <div class="pt-note-head">
+        <span class="pt-note-author">{props.thread.pending ? rv().me?.name || "You" : props.note.author}</span>
+        <Show
+          when={props.thread.pending}
+          fallback={<span class="pt-note-date">{new Date(props.note.createdAt).toLocaleString()}</span>}
+        >
+          <span class="pt-badge-pending">Pending</span>
+        </Show>
+        <Show when={props.thread.pending}>
+          <button type="button" class="pt-draft-del" onClick={() => rv().discardDraft(props.thread)}>
+            discard
+          </button>
+        </Show>
+        <Show when={mine()}>
+          <span class="pt-note-actions">
+            <button type="button" title="Edit" innerHTML={EDIT_SVG} onClick={() => setEditing(true)} />
+            <button
+              type="button"
+              title={armed() ? "Click again to delete" : "Delete"}
+              classList={{ "pt-armed": armed() }}
+              innerHTML={DEL_SVG}
+              onClick={() => {
+                if (!armed()) {
+                  setArmed(true);
+                  setTimeout(() => setArmed(false), 3000);
+                } else rv().deleteNote(props.thread, props.note);
+              }}
+            />
+          </span>
+        </Show>
+      </div>
+      <Show when={editing()} fallback={<NoteBody note={props.note} thread={props.thread} />}>
+        <CommentForm
+          placeholder="Edit comment…"
+          initial={props.note.body}
+          renderMarkdown={rv().renderMarkdown}
+          onError={(m) => rv().status(m, true)}
+          onSubmit={(body) => rv().editNote(props.thread, props.note, body)}
+          onClose={() => setEditing(false)}
+        />
+      </Show>
+    </div>
+  );
+}
+
+function ThreadActions(props: { thread: ReviewThread }) {
+  const [replying, setReplying] = createSignal(false);
+  return (
+    <div class="pt-thread-actions">
+      <Show
+        when={replying()}
+        fallback={
+          <button
+            type="button"
+            class="pt-reply-btn"
+            innerHTML={`${icons().reply || ""}<span>Reply…</span>`}
+            onClick={() => setReplying(true)}
+          />
+        }
+      >
+        <CommentForm
+          placeholder="Reply…"
+          renderMarkdown={rv().renderMarkdown}
+          onError={(m) => rv().status(m, true)}
+          onSubmit={(body) => rv().reply(props.thread, body)}
+          onDraft={rv().can.drafts ? (body) => rv().draftReply(props.thread, body) : null}
+          onClose={() => setReplying(false)}
+        />
+      </Show>
+      <Show when={rv().can.resolve && props.thread.resolvable}>
+        <button
+          type="button"
+          class="pt-reply-btn"
+          innerHTML={`${icons().check || ""}<span>${props.thread.resolved ? "Unresolve" : "Resolve"}</span>`}
+          onClick={() => rv().resolve(props.thread, !props.thread.resolved)}
+        />
+      </Show>
+    </div>
+  );
+}
+
+function Thread(props: { thread: ReviewThread }) {
+  return (
+    <>
+      <For each={props.thread.notes}>{(n) => <Note note={n} thread={props.thread} />}</For>
+      <Show when={rv().token && !props.thread.pending}>
+        <ThreadActions thread={props.thread} />
+      </Show>
+    </>
+  );
+}
+
+// the comment cell(s): full width in unified, the thread's half in split
+function CommentCell(props: { split: boolean; side: string; children: JSX.Element }) {
+  return (
+    <Show when={props.split} fallback={<td colspan={4}>{props.children}</td>}>
+      <Show
+        when={props.side === "old"}
+        fallback={
+          <>
+            <td colspan={2} class="pt-void" />
+            <td colspan={2}>{props.children}</td>
+          </>
+        }
+      >
+        <td colspan={2}>{props.children}</td>
+        <td colspan={2} class="pt-void" />
+      </Show>
+    </Show>
+  );
+}
+
+function InlineForm(props: { pos: ReviewThreadPos; split: boolean; side: string }) {
+  return (
+    <tr class="pt-inline-form">
+      <CommentCell split={props.split} side={props.side}>
+        <CommentForm
+          placeholder="Leave a comment…"
+          renderMarkdown={rv().renderMarkdown}
+          onError={(m) => rv().status(m, true)}
+          onSubmit={(body) => rv().submitComment(props.pos, body)}
+          onDraft={rv().can.drafts ? (body) => rv().draftComment(props.pos, body) : null}
+          onClose={() => setComposing(null)}
+        />
+      </CommentCell>
+    </tr>
+  );
+}
+
+// General (non-line) discussion, prepended to the diff area by review.js.
+export function GeneralThreads() {
+  const general = () => reviewThreads().filter((t) => t.general);
+  return (
+    <Show when={general().length}>
+      <details id="pt-mr-threads" open>
+        <summary>{`Discussion (${general().length})`}</summary>
+        <For each={general()}>
+          {(t) => (
+            <div class="pt-thread">
+              <Thread thread={t} />
+            </div>
+          )}
+        </For>
+      </details>
+    </Show>
+  );
+}
+
+// Rendered by <DiffFile> after a diff row: every thread anchored to (path, side,
+// line) plus the open comment form, if any, for that anchor.
+export function AnchorRows(props: {
+  path: string;
+  side: string;
+  line: number | null;
+  split: boolean;
+}) {
+  const list = () =>
+    props.line == null ? [] : threadIndex().get(anchorKey(props.path, props.side, props.line)) ?? [];
+  const isComposing = () => {
+    const c = composing();
+    return (
+      !!c &&
+      c.path === props.path &&
+      c.side === props.side &&
+      (props.side === "old" ? c.oldLine : c.newLine) === props.line
+    );
+  };
+  return (
+    <>
+      <For each={list()}>
+        {(t) => (
+          <tr class="pt-comments-row">
+            <CommentCell split={props.split} side={props.side}>
+              <Thread thread={t} />
+            </CommentCell>
+          </tr>
+        )}
+      </For>
+      <Show when={isComposing()}>
+        <InlineForm pos={composing()!} split={props.split} side={props.side} />
+      </Show>
+    </>
+  );
+}

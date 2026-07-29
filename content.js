@@ -21,6 +21,7 @@ import { FileTree } from "./src/components/FileTree";
 import { DiffFile } from "./src/components/DiffFile";
 import { Toolbar } from "./src/components/Toolbar";
 import { Settings } from "./src/components/Settings";
+import { GeneralThreads } from "./src/components/Thread";
 import {
   setTreeFiles,
   setFilter,
@@ -42,7 +43,14 @@ import {
   setGapErr,
   ctxKey,
   resetDiffState,
+  setReviewThreads,
+  setComposing,
 } from "./src/store";
+
+// review.js is a separate bundle with its own module state, so the threads
+// store lives here (where <DiffFile> reads it) and review.js writes through
+// this window bridge — same pattern as window.ptView / window.ptProvider.
+window.ptStore = { setReviewThreads, setComposing };
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
@@ -494,11 +502,17 @@ async function main() {
 
   let views = [];
 
+  // general (non-line) discussion, rendered reactively from the threads store;
+  // review.js fills the store. The box survives renderDiff, which clears main.
+  const gthreadsBox = document.createElement("div");
+  render(GeneralThreads, gthreadsBox);
+
   function renderDiff(text) {
     const parsed = parseDiff(text);
     rawPre.textContent = text;
     main.textContent = "";
     resetDiffState();
+    main.appendChild(gthreadsBox);
 
     if (parsed.preamble) {
       const pre = document.createElement("pre");

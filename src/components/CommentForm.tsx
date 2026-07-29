@@ -22,6 +22,8 @@ export interface CommentFormProps {
   onError: (message: string) => void;
   suggestionText?: string | null;
   onDraft?: ((body: string) => Promise<void>) | null;
+  // prefill (used by the inline note editor)
+  initial?: string;
 }
 
 // textarea helpers, ported from review.js surround/prefixLines
@@ -58,7 +60,10 @@ export function CommentForm(props: CommentFormProps) {
   const [previewHtml, setPreviewHtml] = createSignal("");
   const [busy, setBusy] = createSignal(false);
 
-  onMount(() => setTimeout(() => ta.focus()));
+  onMount(() => {
+    if (props.initial) ta.value = props.initial;
+    setTimeout(() => ta.focus());
+  });
 
   const showPreview = async () => {
     setPreviewHtml(
