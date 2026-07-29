@@ -32,13 +32,12 @@ typecheck: node_modules
 
 check:
 	node --check content.js
-	node --check providers.js
 	node --check review.js
 	node --check options.js
 	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
 
-test: check
+test: check typecheck
 	node test/run.mjs
 
 zip: build

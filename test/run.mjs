@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-// Dependency-free checks for the pure logic in content.js. The file is a
-// content script (not a module), so it is evaluated in a vm with stubbed
-// browser globals; main() bails on the stub contentType, leaving the
-// top-level function declarations reachable on the sandbox.
+// Checks for the pure logic. content.js is a content script (not a module),
+// so it is evaluated in a vm with stubbed browser globals; main() bails on the
+// stub contentType, leaving the top-level function declarations reachable on
+// the sandbox. providers.ts is transpiled with esbuild and run the same way.
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { transformSync } from "esbuild";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 
@@ -120,6 +121,49 @@ t("changelog.sh groups commits by type", () => {
   assert.ok(/### .*Fixes/.test(out), out);
   // scoped commits render the scope in bold
   assert.ok(/^- (\*\*[\w.-]+:\*\* )?.+ \(`[0-9a-f]+`\)$/m.test(out), out);
+});
+
+// providers.ts is TypeScript; transpile it (types stripped) and run its
+// URL-routing in a vm with stubbed globals. Construction is network-free, so
+// this checks the module loads and routes each host to the right provider.
+function loadProvider(loc) {
+  const src = readFileSync(new URL("src/providers.ts", root), "utf8");
+  const { code } = transformSync(src, { loader: "ts" });
+  const win = {};
+  const sb = {
+    window: win,
+    location: loc,
+    chrome: {
+      storage: { local: { get: async () => ({}) }, sync: { get: async () => ({}), remove() {} } },
+      runtime: { sendMessage: async () => ({}) },
+    },
+  };
+  vm.createContext(sb);
+  vm.runInContext(code, sb);
+  return win.ptProvider;
+}
+
+t("providers route a GitLab MR", () => {
+  const p = loadProvider({
+    host: "gitlab.example.com",
+    origin: "https://gitlab.example.com",
+    pathname: "/group/sub/proj/-/merge_requests/104.diff",
+    href: "https://gitlab.example.com/group/sub/proj/-/merge_requests/104.diff",
+  });
+  assert.equal(p.kind, "gitlab");
+  assert.equal(p.can.drafts, true);
+  assert.equal(typeof p.postThread, "function");
+});
+
+t("providers route a GitHub PR", () => {
+  const p = loadProvider({ host: "github.com", pathname: "/owner/repo/pull/7.diff" });
+  assert.equal(p.kind, "github");
+  assert.equal(p.can.drafts, false);
+  assert.equal(p.drafts, undefined);
+});
+
+t("providers are null on an unrelated page", () => {
+  assert.equal(loadProvider({ host: "example.com", pathname: "/whatever.diff" }), null);
 });
 
 console.log(`\n${passed} checks passed`);
