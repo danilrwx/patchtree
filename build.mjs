@@ -17,7 +17,7 @@ const HEADER = "// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE)
 // files, so they are not bundled together — flip `bundle` when a Solid entry
 // starts importing its own modules.
 const ENTRIES = [
-  { name: "content", bundle: false },
+  { name: "content", bundle: true },
   { name: "providers", bundle: false },
   { name: "review", bundle: false },
   { name: "options", bundle: true },

@@ -12,3 +12,4 @@ patchtree*.zip
 test-results/
 playwright-report/
 blob-report/
+.cnt.mjs

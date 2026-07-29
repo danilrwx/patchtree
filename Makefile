@@ -31,7 +31,7 @@ typecheck: node_modules
 	npm run --silent typecheck
 
 check:
-	node --check content.js
+	cp content.js .cnt.mjs && node --check .cnt.mjs && rm -f .cnt.mjs
 	node --check review.js
 	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
