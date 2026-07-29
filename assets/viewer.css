@@ -931,6 +931,13 @@ html.pt-on {
   border: 1px solid var(--pt-border);
   border-radius: 6px;
   margin: 16px 0;
+}
+
+/* the first file aligns to the top of the column (like the tree's filter),
+   instead of sitting 16px lower than the file list beside it */
+#pt-main > .pt-file:first-of-type,
+#pt-preamble {
+  margin-top: 0;
   /* render only sections near the viewport — resize/reflow cost stops
      scaling with the whole diff */
   content-visibility: auto;
