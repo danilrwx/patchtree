@@ -14,6 +14,7 @@
 
 import { Show, type Accessor } from "solid-js";
 import { onActivate } from "../a11y";
+import { canExpand } from "../store";
 
 export interface DiffFileHeaderProps {
   path: string;
@@ -56,10 +57,12 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
       <span class="pt-stats">
         <span class="pt-adds">+{props.adds}</span> <span class="pt-dels">−{props.dels}</span>
       </span>
-      <label class="pt-viewed pt-fullfile">
-        <input type="checkbox" onChange={(e) => props.onToggleFull(e.currentTarget.checked)} />
-        Full file
-      </label>
+      <Show when={canExpand()}>
+        <label class="pt-viewed pt-fullfile">
+          <input type="checkbox" onChange={(e) => props.onToggleFull(e.currentTarget.checked)} />
+          Full file
+        </label>
+      </Show>
       <label class="pt-viewed">
         <input
           type="checkbox"

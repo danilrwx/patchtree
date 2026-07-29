@@ -39,7 +39,7 @@
   ],
   "content_scripts": [
     {
-      "matches": ["*://*/*.diff", "*://*/*.patch"],
+      "matches": ["*://*/*.diff", "*://*/*.patch", "file:///*.diff", "file:///*.patch"],
       "js": ["content.js", "providers.js", "review.js"],
       "css": ["viewer.css"],
       "run_at": "document_idle"

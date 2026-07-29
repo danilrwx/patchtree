@@ -14,7 +14,9 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 
 ### Diff rendering
 
-- Renders any plain-text `*.diff` / `*.patch` page, whatever served it.
+- Renders any plain-text `*.diff` / `*.patch` page, whatever served it —
+  including **local files** opened via `file://` (git-format or a plain
+  `diff -u`; review actions are off since there is no host to talk to).
 - **Inline and side-by-side** views; fully added/deleted files take the
   full width in split mode.
 - **Word-level diff**: changed words inside modified line pairs get a
@@ -112,6 +114,8 @@ read & write); rendering works without tokens. Tokens are stored in
 
 Make sure the extension's **Site access** is “On all sites” (or grant
 your hosts explicitly) — without it the content script is not injected.
+To render local `.diff` / `.patch` files (`file://`), also enable
+**Allow access to file URLs** in the extension's details page.
 
 ## Firefox
 

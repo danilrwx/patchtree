@@ -123,6 +123,9 @@ export function resolveLang(path: string | null | undefined, text: string | null
   return base;
 }
 
+// strip the tab-separated timestamp some diff tools append to a ---/+++ path
+const diffPath = (s: string) => s.replace(/\t.*$/, "");
+
 export function parseDiff(text: string): ParsedDiff {
   const lines = text.split("\n");
   const files: DiffFile[] = [];
@@ -130,12 +133,27 @@ export function parseDiff(text: string): ParsedDiff {
   let file: DiffFile | null = null;
   let hunk: Hunk | null = null;
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (line.startsWith("diff --git ")) {
       file = { header: [line], oldPath: null, newPath: null, hunks: [], binary: false };
       files.push(file);
       hunk = null;
       continue;
+    }
+    // A plain unified diff (diff -u, git --no-prefix) has no "diff --git" line;
+    // the "--- \n+++ \n@@" triple is its file boundary. Guard on hunks>0 so the
+    // "--- a/x" inside a git header isn't mistaken for a new file, and require
+    // the @@ so hunk content that happens to start with "--- " is not.
+    if (
+      line.startsWith("--- ") &&
+      lines[i + 1]?.startsWith("+++ ") &&
+      lines[i + 2]?.startsWith("@@") &&
+      (!file || file.hunks.length > 0)
+    ) {
+      file = { header: [], oldPath: null, newPath: null, hunks: [], binary: false };
+      files.push(file);
+      hunk = null;
     }
     if (!file) {
       preamble.push(line);
@@ -150,9 +168,15 @@ export function parseDiff(text: string): ParsedDiff {
       }
     }
     if (!hunk) {
-      if (line.startsWith("--- a/")) file.oldPath = line.slice(6);
-      else if (line.startsWith("+++ b/")) file.newPath = line.slice(6);
-      else if (line.startsWith("new file mode")) file.isNew = true;
+      if (line.startsWith("--- ")) {
+        const p = diffPath(line.slice(4)).replace(/^a\//, "");
+        if (p === "/dev/null") file.isNew = true;
+        else file.oldPath = p;
+      } else if (line.startsWith("+++ ")) {
+        const p = diffPath(line.slice(4)).replace(/^b\//, "");
+        if (p === "/dev/null") file.isDeleted = true;
+        else file.newPath = p;
+      } else if (line.startsWith("new file mode")) file.isNew = true;
       else if (line.startsWith("deleted file mode")) file.isDeleted = true;
       else if (line.startsWith("Binary files") || line === "GIT binary patch") file.binary = true;
       file.header.push(line);

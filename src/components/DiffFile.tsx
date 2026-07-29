@@ -23,6 +23,7 @@ import {
   ctxKey,
   gapFull,
   gapErr,
+  canExpand,
 } from "../store";
 import { DiffFileHeader } from "./DiffFileHeader";
 
@@ -226,7 +227,7 @@ export function DiffFile(props: DiffFileProps) {
             <For each={m.segments}>
               {(seg) => (
                 <>
-                  <Show when={seg.gap}>{(g) => <ExpanderU gap={g()} />}</Show>
+                  <Show when={canExpand() && seg.gap}>{(g) => <ExpanderU gap={g()} />}</Show>
                   <Show when={showHeader(seg)}>
                     <tr class="pt-hunk">
                       <td colspan={4}>{hunkText(seg.header)}</td>
@@ -236,7 +237,7 @@ export function DiffFile(props: DiffFileProps) {
                 </>
               )}
             </For>
-            <Show when={m.trailingGap}>{(g) => <ExpanderU gap={g()} />}</Show>
+            <Show when={canExpand() && m.trailingGap}>{(g) => <ExpanderU gap={g()} />}</Show>
           </tbody>
         </table>
         <Show when={!m.full}>
@@ -251,7 +252,7 @@ export function DiffFile(props: DiffFileProps) {
               <For each={m.segments}>
                 {(seg) => (
                   <>
-                    <Show when={seg.gap}>{(g) => <ExpanderS gap={g()} />}</Show>
+                    <Show when={canExpand() && seg.gap}>{(g) => <ExpanderS gap={g()} />}</Show>
                     <Show when={showHeader(seg)}>
                       <tr class="pt-hunk">
                         <td colspan={4}>{hunkText(seg.header)}</td>
@@ -261,7 +262,7 @@ export function DiffFile(props: DiffFileProps) {
                   </>
                 )}
               </For>
-              <Show when={m.trailingGap}>{(g) => <ExpanderS gap={g()} />}</Show>
+              <Show when={canExpand() && m.trailingGap}>{(g) => <ExpanderS gap={g()} />}</Show>
             </tbody>
           </table>
         </Show>

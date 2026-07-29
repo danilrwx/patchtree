@@ -33,6 +33,9 @@ export interface TreeFile {
 export const [treeFiles, setTreeFiles] = createSignal<TreeFile[]>([]);
 export const [filter, setFilter] = createSignal("");
 export const [viewMode, setViewMode] = createSignal<"unified" | "split">("unified");
+// Expanding hidden lines and the full-file view fetch source from the host, so
+// they only make sense with a GitHub/GitLab provider — off for local patches.
+export const [canExpand, setCanExpand] = createSignal(false);
 export const [viewedDone, setViewedDone] = createSignal(0);
 export const [viewedTotal, setViewedTotal] = createSignal(0);
 

@@ -62,6 +62,34 @@ t("parseDiff basics", () => {
   assert.ok(kinds.includes("-") && kinds.includes("+"));
 });
 
+t("parseDiff reads a plain unified diff (no diff --git, no a//b/)", () => {
+  const plain = `--- old/a.go
++++ new/a.go
+@@ -1,2 +1,2 @@
+ package a
+-x := 1
++x := 2
+--- b.py
++++ b.py
+@@ -1 +1 @@
+-y = 1
++y = 2
+`;
+  const { files } = parseDiff(plain);
+  assert.equal(files.length, 2);
+  assert.equal(files[0].oldPath, "old/a.go");
+  assert.equal(files[0].newPath, "new/a.go");
+  assert.equal(files[0].hunks.length, 1);
+  assert.equal(files[1].newPath, "b.py");
+  assert.equal(files[1].hunks[0].lines.map((l) => l.t).join("").slice(0, 2), "-+");
+});
+
+t("parseDiff maps /dev/null to new/deleted", () => {
+  const added = parseDiff("--- /dev/null\n+++ n.go\n@@ -0,0 +1 @@\n+hi\n");
+  assert.equal(added.files[0].isNew, true);
+  assert.equal(added.files[0].newPath, "n.go");
+});
+
 t("alignHunk pairs a replacement", () => {
   const { files } = parseDiff(DIFF);
   const pairs = alignHunk(files[0].hunks[0]);

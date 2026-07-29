@@ -28,6 +28,7 @@ import {
   setCounts,
   viewed,
   setViewMode,
+  setCanExpand,
   setViewedDone,
   setViewedTotal,
   settings,
@@ -965,6 +966,11 @@ async function main() {
         break;
     }
   });
+
+  // providers.js (a later content script) has run by now; without a
+  // GitHub/GitLab provider there is no host to fetch source from, so hide the
+  // expand-hidden-lines and full-file controls (e.g. for local file:// patches)
+  setCanExpand(!!window.ptProvider);
 
   renderDiff(raw);
 
