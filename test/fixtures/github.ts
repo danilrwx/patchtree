@@ -244,6 +244,26 @@ export async function mockGithubSuggestion(context: BrowserContext): Promise<voi
   });
 }
 
+const renameDiff = readFileSync(path.join(__dirname, "rename.diff"), "utf8");
+
+// a diff of pure renames (no line changes); no line threads exist for these
+export async function mockGithubRename(context: BrowserContext): Promise<void> {
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: renameDiff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    return json([]);
+  });
+}
+
 export async function mockGithub(context: BrowserContext): Promise<void> {
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })

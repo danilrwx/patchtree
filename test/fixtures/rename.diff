@@ -1,0 +1,8 @@
+diff --git a/src/Files.App/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_contrast-black.png b/src/Files.App (Package)/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_contrast-black.png
+similarity index 100%
+rename from src/Files.App/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_contrast-black.png
+rename to src/Files.App (Package)/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_contrast-black.png
+diff --git a/src/Files.App/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_altform-lightunplated_contrast-black.png b/src/Files.App (Package)/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_altform-unplated_contrast-black.png
+similarity index 100%
+rename from src/Files.App/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_altform-lightunplated_contrast-black.png
+rename to src/Files.App (Package)/Assets/AppTiles/Preview/contrast-black/Square44x44Logo.targetsize-30_altform-unplated_contrast-black.png
