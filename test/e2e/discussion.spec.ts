@@ -22,13 +22,25 @@ test("the unresolved dropdown lists open threads and jumps to one", async ({ con
   await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
+  // scroll away first, so jumping has to bring the thread back into view
+  await page.evaluate(() => window.scrollTo(0, 0));
+
   const dd = page.locator("#pt-unresolved");
   await expect(dd).toContainText("1 unresolved", { timeout: 20000 });
   await dd.locator("summary").click();
   await dd.locator(".pt-dd-item").first().click();
 
-  // jumping to the thread flashes its row
-  await expect(page.locator(".pt-comments-row.pt-flash")).toBeVisible();
+  // jumping flashes the row AND actually scrolls it into the viewport
+  const row = page.locator(".pt-comments-row.pt-flash");
+  await expect(row).toBeVisible();
+  await expect
+    .poll(() =>
+      row.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top >= 0 && r.bottom <= window.innerHeight ? 1 : 0;
+      })
+    )
+    .toBe(1);
 });
 
 test("the general discussion block renders and accepts a reply", async ({ context, page }) => {

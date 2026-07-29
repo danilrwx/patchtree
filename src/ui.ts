@@ -88,9 +88,22 @@ export function prefixLines(ta: HTMLTextAreaElement, prefixFor: (i: number) => s
 }
 
 // Scroll an element to the viewport center and briefly flash it.
+//
+// A single scrollIntoView lands wrong when the target sits below off-screen
+// files: content-visibility gives those an estimated height, so intervening
+// sections resolve to their real height mid-scroll and drag the target away.
+// Re-centre over a few frames until the position stops moving (same convergence
+// the reload scroll-restore uses).
 export function flashCenter(el: Element | null | undefined) {
   if (!el) return;
-  el.scrollIntoView({ block: "center" });
+  let tries = 0;
+  const step = () => {
+    const r = el.getBoundingClientRect();
+    const want = Math.max(0, r.top + window.scrollY - (window.innerHeight - r.height) / 2);
+    if (Math.abs(window.scrollY - want) > 2) window.scrollTo({ top: want });
+    if (tries++ < 20) requestAnimationFrame(step);
+  };
+  step();
   el.classList.add("pt-flash");
   setTimeout(() => el.classList.remove("pt-flash"), 1200);
 }
