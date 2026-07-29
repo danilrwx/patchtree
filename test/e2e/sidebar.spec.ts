@@ -28,6 +28,23 @@ test("collapse button toggles the file tree", async ({ context, page }) => {
   await expect(page.locator("#pt-tree")).toBeVisible();
 });
 
+test("the tree toggle is pinned far-left, ahead of the other bar controls", async ({
+  context,
+  page,
+}) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+
+  const bar = (await page.locator("#pt-bar").boundingBox())!;
+  const toggle = (await page.locator("#pt-collapse").boundingBox())!;
+  const seg = (await page.locator("#pt-bar .pt-seg").boundingBox())!;
+  // flush against the bar's left edge, and left of the right-hand controls
+  expect(toggle.x - bar.x).toBeLessThan(6);
+  expect(toggle.x + toggle.width).toBeLessThan(seg.x);
+  // margin-right:auto leaves a real gap, so the controls really are a right group
+  expect(seg.x - (toggle.x + toggle.width)).toBeGreaterThan(40);
+});
+
 test("funnel menu filters the tree by extension", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

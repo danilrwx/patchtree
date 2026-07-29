@@ -38,4 +38,12 @@ test("plain patch from a non-provider host renders without expand controls", asy
   // no provider → no source fetching
   await expect(page.locator(".pt-expander")).toHaveCount(0);
   await expect(page.locator(".pt-fullfile")).toHaveCount(0);
+
+  // the tree toggle stays pinned to the far left of the bar even here, where
+  // there is no review layer to anchor it
+  const bar = (await page.locator("#pt-bar").boundingBox())!;
+  const toggle = (await page.locator("#pt-collapse").boundingBox())!;
+  const seg = (await page.locator("#pt-bar .pt-seg").boundingBox())!;
+  expect(toggle.x - bar.x).toBeLessThan(6);
+  expect(toggle.x + toggle.width).toBeLessThan(seg.x);
 });
