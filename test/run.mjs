@@ -90,6 +90,23 @@ t("parseDiff maps /dev/null to new/deleted", () => {
   assert.equal(added.files[0].newPath, "n.go");
 });
 
+t("parseDiff names pure renames and binary files (no ---/+++)", () => {
+  const rename = parseDiff(
+    "diff --git a/old.png b/new dir/img.png\n" +
+      "similarity index 100%\nrename from old.png\nrename to new dir/img.png\n"
+  ).files[0];
+  assert.equal(rename.oldPath, "old.png");
+  assert.equal(rename.newPath, "new dir/img.png");
+  assert.equal(rename.hunks.length, 0);
+
+  const bin = parseDiff(
+    "diff --git a/logo.png b/logo.png\ndeleted file mode 100644\n" +
+      "Binary files a/logo.png and /dev/null differ\n"
+  ).files[0];
+  assert.equal(bin.newPath, "logo.png"); // path recovered from the diff --git line
+  assert.equal(bin.binary, true);
+});
+
 t("alignHunk pairs a replacement", () => {
   const { files } = parseDiff(DIFF);
   const pairs = alignHunk(files[0].hunks[0]);

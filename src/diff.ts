@@ -136,7 +136,11 @@ export function parseDiff(text: string): ParsedDiff {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("diff --git ")) {
-      file = { header: [line], oldPath: null, newPath: null, hunks: [], binary: false };
+      // seed paths from the header so binary add/delete (no ---/+++ lines) still
+      // get a name; explicit ---/+++ and rename lines refine below. Lazy so the
+      // first " b/" splits old from new (a real "a b/…" dir is fixed by ---/+++).
+      const m = /^diff --git a\/(.*?) b\/(.*)$/.exec(line);
+      file = { header: [line], oldPath: m?.[1] ?? null, newPath: m?.[2] ?? null, hunks: [], binary: false };
       files.push(file);
       hunk = null;
       continue;
@@ -176,7 +180,11 @@ export function parseDiff(text: string): ParsedDiff {
         const p = diffPath(line.slice(4)).replace(/^b\//, "");
         if (p === "/dev/null") file.isDeleted = true;
         else file.newPath = p;
-      } else if (line.startsWith("new file mode")) file.isNew = true;
+      } else if (line.startsWith("rename from ")) file.oldPath = line.slice(12);
+      else if (line.startsWith("rename to ")) file.newPath = line.slice(10);
+      else if (line.startsWith("copy from ")) file.oldPath = line.slice(10);
+      else if (line.startsWith("copy to ")) file.newPath = line.slice(8);
+      else if (line.startsWith("new file mode")) file.isNew = true;
       else if (line.startsWith("deleted file mode")) file.isDeleted = true;
       else if (line.startsWith("Binary files") || line === "GIT binary patch") file.binary = true;
       file.header.push(line);
