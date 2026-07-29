@@ -620,11 +620,8 @@ export function initReview(P: Provider, view: PtView) {
       start = Math.min(cur.startLine, line);
       end = Math.max(cur.endLine, line);
     }
-    const rowFor = (n: number) =>
-      document.querySelector<HTMLElement>(
-        `tr[data-path="${CSS.escape(tr.dataset.path!)}"][data-${side === "old" ? "old" : "new"}="${n}"]`
-      );
-    const endTr = rowFor(end) || tr;
+    const rowAt = (n: number) => rowFor(tr.dataset.path!, side, n);
+    const endTr = rowAt(end) || tr;
 
     // <DiffFile> renders the form after endLine and marks the range; the
     // descriptor carries the rows' data-* so the provider can build the position.
@@ -634,7 +631,7 @@ export function initReview(P: Provider, view: PtView) {
       side,
       startLine: start,
       endLine: end,
-      desc: buildPosDesc({ side, startTr: rowFor(start) || tr, endTr }),
+      desc: buildPosDesc({ side, startTr: rowAt(start) || tr, endTr }),
     });
   }
 
