@@ -23,6 +23,7 @@ import {
   setComposing,
   threadIndex,
   reviewThreads,
+  fileLines,
   anchorKey,
   type ReviewThread,
   type ReviewNote,
@@ -95,6 +96,17 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
   const [dismissed, setDismissed] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
   const line = () => props.thread.pos?.newLine ?? 0;
+  // the new-side lines the suggestion replaces, shown as removed rows
+  const before = () => {
+    const pos = props.thread.pos;
+    if (!pos || pos.newLine == null) return [];
+    const map = fileLines()[pos.path];
+    if (!map) return [];
+    const out: string[] = [];
+    for (let n = pos.newLine - props.part.minus; n <= pos.newLine + props.part.plus; n++)
+      if (map[n] != null) out.push(map[n]);
+    return out;
+  };
   const canDismiss = () =>
     props.thread.resolvable && !props.thread.resolved && rv().can.resolve && rv().token;
   const canApply = () =>
@@ -144,6 +156,14 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
       </div>
       <table class="pt-sug-table">
         <tbody>
+          <For each={before()}>
+            {(l) => (
+              <tr class="pt-del">
+                <td class="pt-mark">−</td>
+                <td class="pt-code">{l}</td>
+              </tr>
+            )}
+          </For>
           <For each={props.part.sug!.split("\n")}>
             {(l) => (
               <tr class="pt-add">

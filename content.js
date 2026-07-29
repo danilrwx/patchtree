@@ -46,6 +46,7 @@ import {
   setReviewThreads,
   setComposing,
   composing,
+  setFileLines,
 } from "./src/store";
 
 // review.js is a separate bundle with its own module state, so the threads
@@ -523,6 +524,21 @@ async function main() {
     }
 
     views = parsed.files.map(buildFileView);
+
+    // new-side line text by number, for <Suggestion> to show replaced lines
+    const fl = {};
+    for (const f of parsed.files) {
+      const p = f.newPath || f.oldPath || "(unknown)";
+      const map = {};
+      for (const h of f.hunks) {
+        let n = h.newStart;
+        for (const l of h.lines)
+          if (l.t === "+" || l.t === " ") map[n++] = l.s;
+      }
+      fl[p] = map;
+    }
+    setFileLines(fl);
+
     setTreeFiles(
       views.map((v) => ({
         path: v.path,

@@ -205,6 +205,45 @@ export async function mockGithubThreads(context: BrowserContext): Promise<void> 
   });
 }
 
+// text the suggestion block proposes; asserted in the rendered widget
+export const SUGGESTION_TEXT = "e2e suggested replacement";
+
+// one thread whose only comment is a ```suggestion``` block on a rendered line
+export async function mockGithubSuggestion(context: BrowserContext): Promise<void> {
+  const node = {
+    id: "SUG1",
+    isResolved: false,
+    path: "pkg/virt-controller/watch/dra/dra.go",
+    line: 62,
+    diffSide: "RIGHT",
+    comments: {
+      nodes: [
+        {
+          databaseId: 3001,
+          body: `\`\`\`suggestion\n${SUGGESTION_TEXT}\n\`\`\``,
+          createdAt: "2026-01-01T00:00:00Z",
+          author: { login: "reviewer", databaseId: 7 },
+        },
+      ],
+    },
+  };
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p === "/markdown") return route.fulfill({ contentType: "text/html", body: "<p></p>" });
+    return json([]);
+  });
+}
+
 export async function mockGithub(context: BrowserContext): Promise<void> {
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })

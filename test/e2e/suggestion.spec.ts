@@ -1,0 +1,33 @@
+// Copyright 2026 Daniil Antoshin
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// A ```suggestion``` comment renders as a widget showing the replaced (−) and
+// proposed (+) lines, with an Apply button when a token is present.
+import { test, expect, seedToken } from "./fixtures";
+import { mockGithubSuggestion, DIFF_URL, SUGGESTION_TEXT } from "../fixtures/github";
+
+test("a suggestion renders replaced and proposed lines", async ({ context, page }) => {
+  await mockGithubSuggestion(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const sug = page.locator(".pt-sug").first();
+  await expect(sug).toBeAttached({ timeout: 20000 });
+  // proposed (+) line from the suggestion block
+  await expect(sug.locator(".pt-sug-table tr.pt-add", { hasText: SUGGESTION_TEXT })).toHaveCount(1);
+  // at least one replaced (−) line, reconstructed from the diff's new side
+  await expect(sug.locator(".pt-sug-table tr.pt-del").first()).toBeVisible();
+  // token present → Apply offered
+  await expect(sug.locator("button", { hasText: "Apply suggestion" })).toBeVisible();
+});
