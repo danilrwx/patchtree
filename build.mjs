@@ -19,7 +19,7 @@ const HEADER = "// Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE)
 const ENTRIES = [
   { name: "content", bundle: true },
   { name: "providers", bundle: false },
-  { name: "review", bundle: false },
+  { name: "review", bundle: true },
   { name: "options", bundle: true },
   { name: "background", bundle: false, format: "esm" },
 ];

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
 "use strict";
+import { render } from "solid-js/web";
+import { CommentForm } from "./src/components/CommentForm";
 
 (() => {
   const P = window.ptProvider;
@@ -517,6 +519,7 @@
     }
   }
 
+  // still used by the inline note editor and the review-summary textarea
   function surround(ta, before, after = before) {
     const s = ta.selectionStart;
     const e = ta.selectionEnd;
@@ -579,78 +582,27 @@
     return bar;
   }
 
+  // thin adapter: mount the Solid <CommentForm> into a host the callers append
   function commentForm(placeholder, onSubmit, onClose, suggestionText, onDraft) {
     const wrap = document.createElement("div");
-    wrap.className = "pt-comment-form";
-    const ta = document.createElement("textarea");
-    ta.placeholder = placeholder;
-    ta.rows = 3;
-
-    const tabs = document.createElement("div");
-    tabs.className = "pt-form-tabs";
-    const writeTab = document.createElement("button");
-    writeTab.type = "button";
-    writeTab.textContent = "Write";
-    writeTab.className = "pt-active";
-    const previewTab = document.createElement("button");
-    previewTab.type = "button";
-    previewTab.textContent = "Preview";
-    tabs.append(writeTab, previewTab);
-
-    const toolbar = mdToolbar(ta, suggestionText);
-    const preview = document.createElement("div");
-    preview.className = "pt-md pt-form-preview";
-    preview.style.display = "none";
-
-    const setTab = async (isPreview) => {
-      writeTab.classList.toggle("pt-active", !isPreview);
-      previewTab.classList.toggle("pt-active", isPreview);
-      ta.style.display = isPreview ? "none" : "";
-      toolbar.style.display = isPreview ? "none" : "";
-      preview.style.display = isPreview ? "" : "none";
-      if (isPreview)
-        preview.innerHTML = ta.value.trim()
-          ? await renderMarkdown(ta.value)
-          : "<p><i>Nothing to preview</i></p>";
-    };
-    writeTab.addEventListener("click", () => setTab(false));
-    previewTab.addEventListener("click", () => setTab(true));
-
-    const send = document.createElement("button");
-    send.textContent = "Comment";
-    send.className = "pt-primary";
-    const cancel = document.createElement("button");
-    cancel.textContent = "Cancel";
-    const actions = document.createElement("div");
-    actions.className = "pt-form-actions";
-    actions.append(cancel);
-    const close = () => {
-      wrap.remove();
-      onClose?.();
-    };
-    const wire = (btn, fn) =>
-      btn.addEventListener("click", async () => {
-        if (!ta.value.trim()) return;
-        btn.disabled = true;
-        try {
-          await fn(ta.value);
-          close();
-        } catch (e) {
-          status(`comment failed: ${e.message}`, true);
-          btn.disabled = false;
-        }
-      });
-    if (onDraft) {
-      const draftBtn = document.createElement("button");
-      draftBtn.textContent = "Add to review";
-      wire(draftBtn, onDraft);
-      actions.append(draftBtn);
-    }
-    actions.append(send);
-    wrap.append(tabs, toolbar, ta, preview, actions);
-    cancel.addEventListener("click", close);
-    wire(send, onSubmit);
-    setTimeout(() => ta.focus());
+    let dispose;
+    dispose = render(
+      () =>
+        CommentForm({
+          placeholder,
+          onSubmit,
+          onDraft,
+          suggestionText,
+          renderMarkdown,
+          onError: (m) => status(m, true),
+          onClose: () => {
+            dispose();
+            wrap.remove();
+            onClose?.();
+          },
+        }),
+      wrap
+    );
     return wrap;
   }
 

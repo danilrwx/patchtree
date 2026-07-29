@@ -32,7 +32,7 @@ typecheck: node_modules
 
 check:
 	cp content.js .cnt.mjs && node --check .cnt.mjs && rm -f .cnt.mjs
-	node --check review.js
+	cp review.js .rev.mjs && node --check .rev.mjs && rm -f .rev.mjs
 	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
 
