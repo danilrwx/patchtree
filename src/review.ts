@@ -24,9 +24,7 @@ export interface PtView {
   initialRaw: string;
   makeDropdown: (labelHTML: string) => any;
   menuItem: (menu: HTMLElement, html: string, fn: (item: HTMLElement) => void) => HTMLElement;
-  esc: (s: string) => string;
   addSettingRow: (label: string, control: HTMLElement) => void;
-  addMenuItem: (html: string, fn: (item: HTMLElement) => void) => HTMLElement;
   markCommented: (counts: Map<string, number>) => void;
 }
 
@@ -363,8 +361,6 @@ export function initReview(P: Provider, view: PtView) {
       });
     return bar;
   }
-
-  // thin adapter: mount the Solid <CommentForm> into a host the callers append
 
   function buildCommitSelect(bar: HTMLElement) {
     const { dd, sum, menu } = view.makeDropdown(

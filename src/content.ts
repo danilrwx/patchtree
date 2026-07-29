@@ -14,7 +14,7 @@
 
 "use strict";
 
-import { resolveLang, parseDiff, esc, buildFileModel } from "./diff";
+import { resolveLang, parseDiff, buildFileModel } from "./diff";
 import { render } from "solid-js/web";
 import { createSignal, batch } from "solid-js";
 import { unwrap, reconcile } from "solid-js/store";
@@ -878,14 +878,12 @@ async function main() {
     initialRaw: raw,
     makeDropdown,
     menuItem,
-    esc,
     addSettingRow: (labelText: string, control: HTMLElement) => {
       const row = buildRow(labelText, control);
       const sep = gear.menu.querySelector(".pt-dd-sep");
       if (sep) gear.menu.insertBefore(row, sep);
       else gear.menu.appendChild(row);
     },
-    addMenuItem: (html: string, fn: (item: HTMLElement) => void) => menuItem(gear.menu, html, fn),
     markCommented: (counts: Map<string, number>) => {
       for (const v of views) setCounts(v.path, counts.get(v.path) || 0);
     },
