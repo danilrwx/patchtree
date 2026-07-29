@@ -1212,16 +1212,25 @@ html.pt-nowrap #pt-root.pt-mode-split .pt-file-body {
   display: table-row;
 }
 .pt-rail {
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: hidden;
   position: sticky;
   bottom: 0;
-  height: 12px;
+  height: 11px;
   background: var(--pt-bg);
   z-index: 3;
+  scrollbar-width: thin;
 }
 .pt-rail-sp {
   height: 1px;
+}
+/* always show the rail's scrollbar (macOS hides overlay bars until scrolled) */
+.pt-rail::-webkit-scrollbar {
+  height: 9px;
+}
+.pt-rail::-webkit-scrollbar-thumb {
+  background: var(--pt-muted);
+  border-radius: 5px;
 }
 
 #pt-raw,
