@@ -32,11 +32,16 @@ const BATCH = 48;
 function sampleHtml(palette: string): string {
   const c = palette.split(" ");
   const span = (color: string, text: string) => `<span style="color:#${color}">${esc(text)}</span>`;
+  // c[8]=red (base08), c[11]=green (base0B): show how a diff's removed/added
+  // lines look — the whole point of the extension — not just syntax colors
+  const del = (t: string) => `<span style="display:block;background:#${c[8]}2b">${esc(t)}</span>`;
+  const add = (t: string) => `<span style="display:block;background:#${c[11]}2b">${esc(t)}</span>`;
   return (
     `<pre class="pt-theme-sample" style="background:#${c[0]};color:#${c[5]}">` +
     `${span(c[3], "// load and apply a scheme")}\n` +
     `${span(c[14], "fn")} ${span(c[13], "apply")}(${span(c[8], "name")}: ${span(c[10], "&str")}) {\n` +
-    `  ${span(c[14], "let")} theme = scheme.${span(c[13], "with_base")}(${span(c[9], "16")});\n` +
+    del("-  let theme = scheme.with_base(16);") +
+    add("+  let theme = scheme.with_base(24);") +
     `  ${span(c[13], "println!")}(${span(c[11], '"applied: {}"')}, name);\n` +
     `}</pre>`
   );

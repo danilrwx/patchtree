@@ -13,30 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Build themes.json from the tinted-theming schemes collection (MIT licensed),
-# pinned to a commit. Both base16 and base24 schemes are included; patchtree
-# uses the base00–base0F part of the palette.
+# Build assets/themes.json from the tinted-theming schemes collection (MIT licensed),
+# pinned to a commit. Only base24 schemes are included; patchtree uses the
+# base00–base0F part of the palette.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REF=9bd28ed313560db3c5b605c63bc4e309e78e3fc8
 
-if [ "${FORCE:-}" != "1" ] && [ -s themes.json ]; then
-  echo "themes.json up to date (FORCE=1 to refetch)"
+if [ "${FORCE:-}" != "1" ] && [ -s assets/themes.json ]; then
+  echo "assets/themes.json up to date (FORCE=1 to refetch)"
   exit 0
 fi
 
+mkdir -p assets
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 curl -sfL "https://github.com/tinted-theming/schemes/archive/$REF.tar.gz" | tar xz -C "$tmp"
 src="$tmp/schemes-$REF"
 
-node - "$src" > themes.json <<'EOF'
+node - "$src" > assets/themes.json <<'EOF'
 const { readdirSync, readFileSync } = require("fs");
 const src = process.argv[2];
 const out = [];
-for (const system of ["base16", "base24"]) {
+for (const system of ["base24"]) {
   for (const file of readdirSync(`${src}/${system}`).sort()) {
     if (!file.endsWith(".yaml")) continue;
     const text = readFileSync(`${src}/${system}/${file}`, "utf8");
@@ -56,4 +57,4 @@ for (const system of ["base16", "base24"]) {
 process.stdout.write(JSON.stringify(out));
 EOF
 
-node -e "const t=require('./themes.json'); console.log(t.length, 'themes,', JSON.stringify(t[0]).length, 'bytes first')"
+node -e "const t=require('./assets/themes.json'); console.log(t.length, 'themes,', JSON.stringify(t[0]).length, 'bytes first')"
