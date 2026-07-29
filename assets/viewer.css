@@ -117,6 +117,13 @@ html.pt-on body {
   gap: 8px;
 }
 
+/* the general-discussion host is always present but empty when there are no
+   discussion threads; drop it from the flex flow so it doesn't add a leading
+   gap above the first file */
+#pt-main > div:not(:has(*)) {
+  display: none;
+}
+
 #pt-tree {
   grid-area: tree;
   position: sticky;
