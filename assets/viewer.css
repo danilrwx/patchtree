@@ -320,6 +320,9 @@ html.pt-on {
   position: sticky;
   top: 0;
   background: var(--pt-bg);
+  /* a separator under the sticky bar so a file header that scrolls up flush
+     against it (its own top border gone under the bar) still has a top edge */
+  border-bottom: 1px solid var(--pt-border);
   z-index: 4;
 }
 
