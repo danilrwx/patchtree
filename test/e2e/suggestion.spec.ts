@@ -15,7 +15,12 @@
 // A ```suggestion``` comment renders as a widget showing the replaced (−) and
 // proposed (+) lines, with an Apply button when a token is present.
 import { test, expect, seedToken } from "./fixtures";
-import { mockGithubSuggestion, DIFF_URL, SUGGESTION_TEXT } from "../fixtures/github";
+import {
+  mockGithubSuggestion,
+  mockGithubMultiSuggestion,
+  DIFF_URL,
+  SUGGESTION_TEXT,
+} from "../fixtures/github";
 
 test("a suggestion renders replaced and proposed lines", async ({ context, page }) => {
   await mockGithubSuggestion(context);
@@ -56,4 +61,20 @@ test("suggestion rows are code-height, not inflated by comment-cell padding", as
   await check();
   await page.locator('button[title="Side-by-side"]').click();
   await check();
+});
+
+test("a GitHub multi-line suggestion replaces the whole comment range", async ({
+  context,
+  page,
+}) => {
+  await mockGithubMultiSuggestion(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const sug = page.locator(".pt-sug").first();
+  await expect(sug).toBeAttached({ timeout: 20000 });
+  // the range is startLine..line (62..63) from the comment, not the fence — so
+  // two removed lines, not one
+  await expect(sug.locator(".pt-sug-table tr.pt-del")).toHaveCount(2);
+  await expect(sug.locator(".pt-sug-table tr.pt-add")).toHaveCount(2);
 });

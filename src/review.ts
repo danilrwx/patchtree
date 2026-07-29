@@ -260,10 +260,14 @@ export function initReview(P: Provider, view: PtView) {
     },
     applySuggestion: async (t: any, part: any, line: number, meta: any) => {
       try {
+        // GitHub carries the replaced range in the comment (startLine..line);
+        // GitLab encodes it in the fence (line-minus .. line+plus)
+        const start =
+          t.pos?.startLine != null && t.pos.startLine < line ? t.pos.startLine : line - part.minus;
         await P.applySuggestion({
           id: meta?.id,
           path: t.pos?.path,
-          startLine: line - part.minus,
+          startLine: start,
           endLine: line + part.plus,
           text: part.sug,
         });

@@ -82,9 +82,14 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
     if (!pos || pos.newLine == null) return [];
     const map = fileLines()[pos.path];
     if (!map) return [];
+    // GitHub carries the range in the comment (startLine..newLine); GitLab
+    // encodes it in the fence header (newLine-minus .. newLine+plus)
+    const first =
+      pos.startLine != null && pos.startLine < pos.newLine
+        ? pos.startLine
+        : pos.newLine - props.part.minus;
     const out: string[] = [];
-    for (let n = pos.newLine - props.part.minus; n <= pos.newLine + props.part.plus; n++)
-      if (map[n] != null) out.push(map[n]);
+    for (let n = first; n <= pos.newLine + props.part.plus; n++) if (map[n] != null) out.push(map[n]);
     return out;
   });
   const sug = createMemo(() => props.part.sug!.split("\n"));

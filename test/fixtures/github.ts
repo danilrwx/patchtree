@@ -244,6 +244,44 @@ export async function mockGithubSuggestion(context: BrowserContext): Promise<voi
   });
 }
 
+// a multi-line GitHub suggestion: a plain ```suggestion fence whose replaced
+// range comes from the comment's startLine..line (62..63), not the fence header
+export async function mockGithubMultiSuggestion(context: BrowserContext): Promise<void> {
+  const node = {
+    id: "SUG2",
+    isResolved: false,
+    path: "pkg/virt-controller/watch/dra/dra.go",
+    line: 63,
+    startLine: 62,
+    diffSide: "RIGHT",
+    comments: {
+      nodes: [
+        {
+          databaseId: 3002,
+          body: "```suggestion\nfirst replaced\nsecond replaced\n```",
+          createdAt: "2026-01-01T00:00:00Z",
+          author: { login: "reviewer", databaseId: 7 },
+        },
+      ],
+    },
+  };
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p === "/markdown") return route.fulfill({ contentType: "text/html", body: "<p></p>" });
+    return json([]);
+  });
+}
+
 const renameDiff = readFileSync(path.join(__dirname, "rename.diff"), "utf8");
 
 // a diff of pure renames (no line changes); no line threads exist for these

@@ -408,6 +408,7 @@ export function makeProvider(): Provider | null {
             side: c0.side === "LEFT" ? "old" : "new",
             oldLine: c0.side === "LEFT" ? c0.line : null,
             newLine: c0.side === "LEFT" ? null : c0.line,
+            startLine: c0.start_line ?? null,
           },
           notes: list.map((c) => noteN(c, "line")),
         });
@@ -418,7 +419,7 @@ export function makeProvider(): Provider | null {
     const THREADS_GQL = `query($owner:String!,$repo:String!,$num:Int!){
       repository(owner:$owner,name:$repo){ pullRequest(number:$num){
         reviewThreads(first:100){ nodes{
-          id isResolved path line diffSide
+          id isResolved path line startLine diffSide
           comments(first:100){ nodes{
             databaseId body createdAt
             author{ login ... on User { databaseId } }
@@ -490,6 +491,9 @@ export function makeProvider(): Provider | null {
                   side,
                   oldLine: side === "old" ? th.line : null,
                   newLine: side === "new" ? th.line : null,
+                  // first line of a multi-line comment; the suggestion range on
+                  // GitHub comes from this (start_line..line), not the fence
+                  startLine: th.startLine ?? null,
                 },
                 notes: comments.map((c: any) => ({
                   id: c.databaseId,
