@@ -292,9 +292,16 @@ function wireSplitScroll(section: HTMLElement) {
   const cols = [oldHs, newHs];
 
   const measure = () => {
+    // widen every row to the column's longest line so the whole pane pans as
+    // one; the rail spacer matches so its scrollbar spans the same range
+    const inner = (arr: HTMLElement[]) => arr.map((h) => h.firstElementChild as HTMLElement);
     const max = (arr: HTMLElement[]) => arr.reduce((m, e) => Math.max(m, e.scrollWidth), 0);
-    (railOld.firstElementChild as HTMLElement).style.width = `${max(oldHs)}px`;
-    (railNew.firstElementChild as HTMLElement).style.width = `${max(newHs)}px`;
+    const wOld = max(inner(oldHs));
+    const wNew = max(inner(newHs));
+    section.style.setProperty("--pt-hsw-old", `${wOld}px`);
+    section.style.setProperty("--pt-hsw-new", `${wNew}px`);
+    (railOld.firstElementChild as HTMLElement).style.width = `${wOld}px`;
+    (railNew.firstElementChild as HTMLElement).style.width = `${wNew}px`;
   };
   measure();
   splitMeasures.add(measure);

@@ -42,16 +42,21 @@ test("split nowrap: panes scroll horizontally and in sync", async ({ context, pa
   );
   expect(railSp).toBeGreaterThan(1000);
 
-  // scrolling one pane's code moves the other pane to the same offset
-  const synced = await page.evaluate(() => {
-    const olds = [...document.querySelectorAll('.pt-hs[data-hs="old"]')] as HTMLElement[];
+  // scrolling one long line pans the WHOLE pane (short lines too) and syncs the
+  // other pane to the same offset — not just the couple of overflowing rows
+  const r = await page.evaluate(() => {
+    const olds = [...document.querySelectorAll('.pt-hs[data-hs="old"]:not(.pt-void)')] as HTMLElement[];
     const news = [...document.querySelectorAll('.pt-hs[data-hs="new"]')] as HTMLElement[];
-    const o = olds.find((e) => e.scrollWidth > e.clientWidth)!;
-    o.scrollLeft = 200;
-    o.dispatchEvent(new Event("scroll"));
-    const n = news.find((e) => e.scrollWidth > e.clientWidth)!;
-    return { old: o.scrollLeft, new: n.scrollLeft };
+    const long = olds.find((e) => e.scrollWidth > e.clientWidth)!;
+    long.scrollLeft = 200;
+    long.dispatchEvent(new Event("scroll"));
+    const shortRow = olds.find((e) => e.textContent?.includes("package f"))!;
+    const otherPane = news.find((e) => e.scrollWidth > e.clientWidth)!;
+    return { long: long.scrollLeft, short: shortRow.scrollLeft, other: otherPane.scrollLeft };
   });
-  expect(synced.new).toBe(synced.old);
-  expect(synced.new).toBe(200);
+  // the short "package f" row was widened to the column max, so it pans too
+  expect(r.short).toBe(200);
+  expect(r.long).toBe(200);
+  // and the new pane follows in sync
+  expect(r.other).toBe(200);
 });

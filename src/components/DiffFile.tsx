@@ -259,9 +259,13 @@ export function DiffFile(props: DiffFileProps) {
         <Show when={p.entry}>{p.entry!.no}</Show>
       </td>
       <td class={`pt-code${p.entry ? ` ${p.cls}-code` : " pt-void"}`}>
-        {/* the code sits in a per-side horizontal scroller so each pane scrolls
-            long lines independently; content.ts syncs the two columns' scrollLeft */}
-        <div class="pt-hs" data-hs={p.side} innerHTML={p.entry ? code(p.entry.text, p.side, p.row, p.bg) : ""} />
+        {/* the code sits in a per-side horizontal scroller; the inner block is
+            widened to the column's longest line (min-width, set in content.ts)
+            so every row pans together as one pane, and the two columns' scroll
+            is kept in sync */}
+        <div class="pt-hs" data-hs={p.side}>
+          <div class="pt-hs-in" innerHTML={p.entry ? code(p.entry.text, p.side, p.row, p.bg) : ""} />
+        </div>
       </td>
     </>
   );

@@ -1203,6 +1203,14 @@ html.pt-nowrap #pt-root.pt-mode-split .pt-file-body {
 .pt-nowrap .pt-split .pt-hs::-webkit-scrollbar {
   display: none;
 }
+/* widen each row to the column's longest line so panning moves the whole pane
+   (short rows scroll too), not just the overflowing lines */
+.pt-nowrap .pt-split .pt-hs[data-hs="old"] .pt-hs-in {
+  min-width: var(--pt-hsw-old, 0);
+}
+.pt-nowrap .pt-split .pt-hs[data-hs="new"] .pt-hs-in {
+  min-width: var(--pt-hsw-new, 0);
+}
 
 /* one horizontal scrollbar per pane, sticky at the bottom of the viewport */
 .pt-srail {
