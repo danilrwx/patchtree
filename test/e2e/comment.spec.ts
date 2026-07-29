@@ -56,3 +56,38 @@ test("shift-click extends the comment range across lines", async ({ context, pag
   );
   expect(await page.locator(".pt-unified tr.pt-range").count()).toBeGreaterThan(1);
 });
+
+test("dragging across line numbers selects a range", async ({ context, page }) => {
+  await mockGithubStateful(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const cells = page.locator(".pt-unified tr.pt-add td.pt-no", { hasText: /\d/ });
+  await cells.nth(0).scrollIntoViewIfNeeded();
+  const a = (await cells.nth(0).boundingBox())!;
+  const b = (await cells.nth(1).boundingBox())!;
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(page.locator(".pt-inline-form .pt-comment-lines").first()).toContainText(
+    "Comment on lines 63–64"
+  );
+  expect(await page.locator(".pt-unified tr.pt-range").count()).toBeGreaterThan(1);
+});
+
+test("the inline form offers a suggestion prefilled with the line", async ({ context, page }) => {
+  await mockGithubStateful(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const noCell = page.locator(".pt-unified tr.pt-add td.pt-no", { hasText: /\d/ }).first();
+  await noCell.scrollIntoViewIfNeeded();
+  await noCell.click();
+
+  const sug = page.locator(".pt-comment-form .pt-md-sug").first();
+  await expect(sug).toBeVisible();
+  await sug.click();
+  await expect(page.locator(".pt-comment-form textarea").first()).toHaveValue(/```suggestion/);
+});

@@ -304,17 +304,33 @@ function InlineForm(props: { pos: Composing; split: boolean; side: string }) {
     props.pos.startLine === props.pos.endLine
       ? `Comment on line ${props.pos.endLine}`
       : `Comment on lines ${props.pos.startLine}–${props.pos.endLine}`;
+  // the new-side text of the selected range, to prefill a suggestion block;
+  // suggestions only apply to the new side, so skip it for old-side selections
+  const suggestion = () => {
+    const p = props.pos;
+    if (p.side !== "new") return null;
+    const map = fileLines()[p.path];
+    if (!map) return null;
+    const lines: string[] = [];
+    for (let n = p.startLine; n <= p.endLine; n++) {
+      if (map[n] == null) return null;
+      lines.push(map[n]);
+    }
+    return { text: lines.join("\n"), minus: p.endLine - p.startLine };
+  };
   return (
     <tr class="pt-inline-form">
       <CommentCell split={props.split} side={props.side}>
         <div class="pt-comment-lines">{label()}</div>
         <CommentForm
-          placeholder="Leave a comment (shift-click a line number to extend the range)…"
+          placeholder="Leave a comment (drag or shift-click line numbers to select a range)…"
           renderMarkdown={rv().renderMarkdown}
           onError={(m) => rv().status(m, true)}
           onSubmit={(body) => rv().submitComment(props.pos, body)}
           onDraft={rv().can.drafts ? (body) => rv().draftComment(props.pos, body) : null}
           onClose={() => setComposing(null)}
+          suggestionText={suggestion()?.text ?? null}
+          suggestionMinus={suggestion()?.minus ?? 0}
         />
       </CommentCell>
     </tr>

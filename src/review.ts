@@ -519,7 +519,73 @@ export function initReview(P: Provider, view: PtView) {
     };
   }
 
+  // GitHub-style range selection: press on a line number and drag over others
+  // to select a range (shift-click still works via onLineClick). The range is
+  // committed live to `composing` as you drag; the trailing click is swallowed.
+  let drag: { path: string; side: string; startLine: number; startTr: HTMLElement } | null = null;
+  let didDrag = false;
+  let suppressClick = false;
+  let lastStart = 0;
+  let lastEnd = 0;
+
+  const rowFor = (path: string, side: string, n: number) =>
+    document.querySelector<HTMLElement>(
+      `tr[data-path="${CSS.escape(path)}"][data-${side === "old" ? "old" : "new"}="${n}"]`
+    );
+
+  function onLineMouseDown(e: MouseEvent) {
+    if (e.button !== 0 || e.altKey || e.shiftKey) return;
+    const td = (e.target as HTMLElement).closest(".pt-no") as HTMLTableCellElement | null;
+    if (!td || td.classList.contains("pt-void")) return;
+    const tr = td.closest("tr") as HTMLElement | null;
+    if (!tr?.dataset.path || !P.token || currentCommit || !refs) return;
+    const side = clickSide(td, tr);
+    const line = lineNo(tr, side);
+    if (!line) return;
+    drag = { path: tr.dataset.path, side, startLine: line, startTr: tr };
+    didDrag = false;
+    lastStart = lastEnd = 0;
+  }
+
+  function onDocMouseMove(e: MouseEvent) {
+    if (!drag) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    const tr = el?.closest<HTMLElement>(`tr[data-path="${CSS.escape(drag.path)}"]`);
+    const line = tr && lineNo(tr, drag.side);
+    if (!line) return;
+    if (!didDrag) {
+      if (line === drag.startLine) return;
+      didDrag = true;
+      document.body.style.userSelect = "none";
+    }
+    const start = Math.min(drag.startLine, line);
+    const end = Math.max(drag.startLine, line);
+    if (start === lastStart && end === lastEnd) return;
+    lastStart = start;
+    lastEnd = end;
+    const startTr = rowFor(drag.path, drag.side, start) || drag.startTr;
+    const endTr = rowFor(drag.path, drag.side, end) || tr;
+    setComposing({
+      path: drag.path,
+      oldPath: endTr.dataset.oldPath || endTr.dataset.path!,
+      side: drag.side,
+      startLine: start,
+      endLine: end,
+      desc: buildPosDesc({ side: drag.side, startTr, endTr }),
+    });
+  }
+
+  function onDocMouseUp() {
+    if (drag && didDrag) suppressClick = true;
+    drag = null;
+    document.body.style.userSelect = "";
+  }
+
   function onLineClick(e: MouseEvent) {
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
     const td = (e.target as HTMLElement).closest(".pt-no") as HTMLTableCellElement | null;
     if (!td || td.classList.contains("pt-void")) return;
     const tr = td.closest("tr") as HTMLElement | null;
@@ -676,6 +742,9 @@ export function initReview(P: Provider, view: PtView) {
     loadDrafts();
 
     view.root.addEventListener("click", onLineClick);
+    view.root.addEventListener("mousedown", onLineMouseDown);
+    document.addEventListener("mousemove", onDocMouseMove);
+    document.addEventListener("mouseup", onDocMouseUp);
   }
 
   setup();

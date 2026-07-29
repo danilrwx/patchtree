@@ -22,6 +22,9 @@ export interface CommentFormProps {
   renderMarkdown: (text: string) => Promise<string>;
   onError: (message: string) => void;
   suggestionText?: string | null;
+  // how many lines above the anchored line the suggestion also replaces
+  // (a multi-line selection); becomes the `suggestion:-N+0` block header
+  suggestionMinus?: number;
   onDraft?: ((body: string) => Promise<void>) | null;
   // prefill (used by the inline note editor)
   initial?: string;
@@ -112,7 +115,7 @@ export function CommentForm(props: CommentFormProps) {
         <Show when={props.suggestionText != null}>
           {tb("diff", "Insert suggestion", "pt-md-sug", () => {
             const s = ta.selectionStart;
-            const block = `\`\`\`suggestion:-0+0\n${props.suggestionText}\n\`\`\`\n`;
+            const block = `\`\`\`suggestion:-${props.suggestionMinus ?? 0}+0\n${props.suggestionText}\n\`\`\`\n`;
             ta.setRangeText(block, s, ta.selectionEnd);
             ta.focus();
             const lineStart = s + block.indexOf("\n") + 1;
