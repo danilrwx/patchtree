@@ -14,7 +14,7 @@
 
 // Access-tokens overlay: per-GitLab-host PATs plus a GitHub token, stored in
 // storage.local and never synced. Ported from the imperative openTokensDialog.
-import { For, onMount } from "solid-js";
+import { For, onMount, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
 
 interface Row {
@@ -51,7 +51,15 @@ export function TokensDialog(props: { onClose: () => void }) {
     props.onClose();
   };
 
+  onMount(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("keydown", onKey);
+    onCleanup(() => document.removeEventListener("keydown", onKey));
+  });
+
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: modal backdrop; click-outside is a mouse convenience, Escape and the Done button close it for keyboard
+    // biome-ignore lint/a11y/useKeyWithClickEvents: see above — Escape handles the keyboard path
     <div id="pt-tokens-dialog" onClick={(e) => e.target === e.currentTarget && close()}>
       <div class="pt-dialog pt-tokens">
         <div class="pt-gallery-head">

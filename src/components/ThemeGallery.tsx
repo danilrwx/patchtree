@@ -15,7 +15,7 @@
 // Theme gallery overlay: a searchable grid of scheme previews plus a custom
 // base16/base24 yaml paste. 500+ styled previews freeze layout if drawn at
 // once, so the grid renders in batches as a sentinel scrolls into view.
-import { For, Show, createMemo, createEffect, createSignal, onMount } from "solid-js";
+import { For, Show, createMemo, createEffect, createSignal, onMount, onCleanup } from "solid-js";
 import { esc } from "../diff";
 import { clickable } from "../a11y";
 import { Select } from "./Select";
@@ -70,6 +70,12 @@ export function ThemeGallery(props: {
     setRendered(BATCH);
   });
 
+  onMount(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
+    document.addEventListener("keydown", onKey);
+    onCleanup(() => document.removeEventListener("keydown", onKey));
+  });
+
   onMount(async () => {
     const list = ((await chrome.runtime.sendMessage({ type: "themes" })) || []) as Theme[];
     setAll(list.filter((t) => t?.palette && t?.name));
@@ -83,6 +89,8 @@ export function ThemeGallery(props: {
   });
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: modal backdrop; click-outside is a mouse convenience, Escape and the Close button close it for keyboard
+    // biome-ignore lint/a11y/useKeyWithClickEvents: see above — Escape handles the keyboard path
     <div id="pt-themes-dialog" onClick={(e) => e.target === e.currentTarget && props.onClose()}>
       <div class="pt-dialog pt-gallery">
         <div class="pt-gallery-head">
