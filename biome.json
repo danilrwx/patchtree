@@ -3,12 +3,12 @@
 	"files": {
 		"includes": [
 			"**",
-			"!vendor",
+			"!assets/vendor",
+			"!assets/fonts",
+			"!assets/queries",
+			"!assets/themes.json",
 			"!dist",
 			"!build",
-			"!fonts",
-			"!queries",
-			"!themes.json",
 			"!node_modules",
 			"!package-lock.json"
 		]

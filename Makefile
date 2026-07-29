@@ -53,10 +53,9 @@ hooks:
 	git config core.hooksPath scripts/git-hooks
 	@echo "git hooks installed (core.hooksPath=scripts/git-hooks)"
 
-# content/review/options are TypeScript (covered by typecheck); only the
-# unbundled background script and the manifest JSON are checked here
+# the sources are TypeScript (covered by typecheck); here we only sanity-check
+# that the manifest is valid JSON
 check:
-	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
 
 test: check lint typecheck
@@ -87,4 +86,4 @@ changelog:
 	@./scripts/changelog.sh $(RANGE)
 
 clean:
-	rm -rf vendor fonts queries themes.json build dist patchtree.zip patchtree-firefox.zip
+	rm -rf assets/vendor assets/fonts assets/queries assets/themes.json build dist patchtree.zip patchtree-firefox.zip

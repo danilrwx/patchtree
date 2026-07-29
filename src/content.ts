@@ -116,7 +116,7 @@ function injectFonts() {
   const css = FONT_FACES.map(
     ([family, weight, style, file]) =>
       `@font-face{font-family:"${family}";font-weight:${weight};font-style:${style};` +
-      `src:url("${chrome.runtime.getURL(`fonts/${file}`)}") format("woff2");}`
+      `src:url("${chrome.runtime.getURL(`assets/fonts/${file}`)}") format("woff2");}`
   ).join("\n");
   const el = document.createElement("style");
   el.textContent = css;

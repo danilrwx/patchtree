@@ -45,18 +45,18 @@ GRAMMARS=(
 
 if [ "${FORCE:-}" != "1" ]; then
   missing=0
-  [ -s vendor/web-tree-sitter.js ] && [ -s vendor/web-tree-sitter.wasm ] || missing=1
-  [ -s vendor/wasm/tree-sitter-gotmpl.wasm ] || missing=1
-  for entry in "${GRAMMARS[@]}"; do [ -s "vendor/wasm/${entry#* }" ] || missing=1; done
+  [ -s assets/vendor/web-tree-sitter.js ] && [ -s assets/vendor/web-tree-sitter.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-gotmpl.wasm ] || missing=1
+  for entry in "${GRAMMARS[@]}"; do [ -s "assets/vendor/wasm/${entry#* }" ] || missing=1; done
   if [ "$missing" = 0 ]; then
-    echo "vendor/ up to date (FORCE=1 to refetch)"
+    echo "assets/vendor/ up to date (FORCE=1 to refetch)"
     exit 0
   fi
 fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir -p vendor/wasm
+mkdir -p assets/vendor/wasm
 
 fetch_pkg() {
   rm -rf "$tmp/package"
@@ -68,20 +68,20 @@ fetch_pkg() {
 
 echo "web-tree-sitter@$WEB_TREE_SITTER"
 fetch_pkg "web-tree-sitter@$WEB_TREE_SITTER"
-cp "$tmp/package/web-tree-sitter.js" "$tmp/package/web-tree-sitter.wasm" vendor/
+cp "$tmp/package/web-tree-sitter.js" "$tmp/package/web-tree-sitter.wasm" assets/vendor/
 
 for entry in "${GRAMMARS[@]}"; do
   pkg=${entry% *}
   wasm=${entry#* }
   echo "$pkg -> $wasm"
   fetch_pkg "$pkg"
-  cp "$tmp/package/$wasm" vendor/wasm/
+  cp "$tmp/package/$wasm" assets/vendor/wasm/
 done
 
 echo "ngalaiko/tree-sitter-go-template@$GOTMPL_SHA -> tree-sitter-gotmpl.wasm"
-out="$PWD/vendor/wasm/tree-sitter-gotmpl.wasm"
+out="$PWD/assets/vendor/wasm/tree-sitter-gotmpl.wasm"
 curl -sfL "https://github.com/ngalaiko/tree-sitter-go-template/archive/$GOTMPL_SHA.tar.gz" | tar xz -C "$tmp"
 ( cd "$tmp/tree-sitter-go-template-$GOTMPL_SHA" &&
   npx --yes tree-sitter-cli@$WEB_TREE_SITTER build --wasm -o "$out" . )
 
-echo "vendor/ done"
+echo "assets/vendor/ done"

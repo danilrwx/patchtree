@@ -12,23 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Parser, Language, Query } from "./vendor/web-tree-sitter.js";
+// path is relative to the built dist/background.js (unbundled ES module); the
+// vendored loader is fetched at build time and resolved at runtime, not by tsc
+// @ts-expect-error — no types for the vendored web-tree-sitter loader
+import { Parser, Language, Query } from "./assets/vendor/web-tree-sitter.js";
 
 // typescript files are parsed with the tsx grammar so one wasm covers ts/tsx,
 // and its query is the javascript query plus typescript additions
-const GRAMMAR = { typescript: "tsx" };
-const QUERY_PARTS = { typescript: ["javascript", "typescript"], cpp: ["c", "cpp"] };
+const GRAMMAR: Record<string, string> = { typescript: "tsx" };
+const QUERY_PARTS: Record<string, string[]> = {
+  typescript: ["javascript", "typescript"],
+  cpp: ["c", "cpp"],
+};
 
 const MAX_CAPTURES = 50000;
 
-let ready;
-let parser;
-const langs = new Map();
+interface Lang {
+  language: any;
+  query: any;
+}
+type Row = { s: number; e: number; c: string };
+type Rows = Record<number, Row[]>;
+
+let ready: any;
+let parser: any;
+const langs = new Map<string, Promise<Lang>>();
 
 function init() {
   if (!ready) {
     ready = Parser.init({
-      locateFile: () => chrome.runtime.getURL("vendor/web-tree-sitter.wasm"),
+      locateFile: () => chrome.runtime.getURL("assets/vendor/web-tree-sitter.wasm"),
     }).then(() => {
       parser = new Parser();
     });
@@ -36,17 +49,17 @@ function init() {
   return ready;
 }
 
-async function loadLang(name) {
-  if (langs.has(name)) return langs.get(name);
+async function loadLang(name: string): Promise<Lang> {
+  if (langs.has(name)) return langs.get(name)!;
   const p = (async () => {
     const grammar = GRAMMAR[name] || name;
     const language = await Language.load(
-      chrome.runtime.getURL(`vendor/wasm/tree-sitter-${grammar}.wasm`)
+      chrome.runtime.getURL(`assets/vendor/wasm/tree-sitter-${grammar}.wasm`)
     );
     const parts = QUERY_PARTS[name] || [name];
     const sources = await Promise.all(
       parts.map((q) =>
-        fetch(chrome.runtime.getURL(`queries/${q}.scm`)).then((r) => r.text())
+        fetch(chrome.runtime.getURL(`assets/queries/${q}.scm`)).then((r) => r.text())
       )
     );
     const query = new Query(language, sources.join("\n"));
@@ -57,20 +70,20 @@ async function loadLang(name) {
   return p;
 }
 
-function cssClass(captureName) {
+function cssClass(captureName: string): string {
   // mapping keys / struct fields get their own color, not the generic variable
   if (captureName.startsWith("variable.other.member")) return "property";
   return captureName.split(".")[0];
 }
 
-function lineStartsOf(text) {
+function lineStartsOf(text: string): number[] {
   const ls = [0];
   for (let i = 0; i < text.length; i++) if (text[i] === "\n") ls.push(i + 1);
   return ls;
 }
 
 // split a node across the lines it spans into per-line {s,e,c} entries
-function pushNode(rows, node, c, lineStarts, text) {
+function pushNode(rows: Rows, node: any, c: string, lineStarts: number[], text: string) {
   for (let row = node.startPosition.row; row <= node.endPosition.row; row++) {
     const lineStart = lineStarts[row];
     const lineEnd = row + 1 < lineStarts.length ? lineStarts[row + 1] - 1 : text.length;
@@ -80,20 +93,20 @@ function pushNode(rows, node, c, lineStarts, text) {
   }
 }
 
-function parseWith(language, text) {
+function parseWith(language: any, text: string) {
   parser.setLanguage(language);
   return parser.parse(text);
 }
 
-function highlight(langName, text) {
+function highlight(langName: string, text: string) {
   if (langName === "gotmpl") return highlightGotmpl(text);
   return init()
     .then(() => loadLang(langName))
-    .then(({ language, query }) => {
+    .then(({ language, query }: Lang) => {
       const tree = parseWith(language, text);
       if (!tree) return { rows: {} };
       const lineStarts = lineStartsOf(text);
-      const rows = {};
+      const rows: Rows = {};
       const captures = query.captures(tree.rootNode);
       const n = Math.min(captures.length, MAX_CAPTURES);
       for (let i = 0; i < n; i++) {
@@ -117,12 +130,12 @@ function highlight(langName, text) {
 // template syntax, so it parses a copy with every action blanked out — same
 // length and line breaks, so capture positions still map to the original —
 // then gotmpl actions are layered over it.
-function highlightGotmpl(text) {
+function highlightGotmpl(text: string) {
   return init()
     .then(() => Promise.all([loadLang("gotmpl"), loadLang("yaml")]))
-    .then(([gt, yaml]) => {
+    .then(([gt, yaml]: Lang[]) => {
       const lineStarts = lineStartsOf(text);
-      const rows = {};
+      const rows: Rows = {};
 
       const masked = text.replace(/\{\{[\s\S]*?\}\}/g, (m) => m.replace(/[^\n]/g, " "));
       const yamlTree = parseWith(yaml.language, masked);
@@ -148,12 +161,8 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type === "openOptions") {
-    chrome.runtime.openOptionsPage();
-    return;
-  }
   if (msg?.type === "themes") {
-    fetch(chrome.runtime.getURL("themes.json"))
+    fetch(chrome.runtime.getURL("assets/themes.json"))
       .then((r) => r.json())
       .then((t) => sendResponse(t))
       .catch(() => sendResponse(null));
@@ -166,7 +175,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg?.type !== "highlight") return;
-  highlight(msg.lang, msg.text).then(sendResponse, (err) => {
+  highlight(msg.lang, msg.text).then(sendResponse, (err: any) => {
     console.warn("highlight failed:", msg.lang, err);
     sendResponse(null);
   });

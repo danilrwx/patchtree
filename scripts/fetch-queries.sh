@@ -44,18 +44,18 @@ SOURCES=(
 
 if [ "${FORCE:-}" != "1" ]; then
   missing=0
-  for entry in "${SOURCES[@]}"; do [ -s "queries/${entry%% *}.scm" ] || missing=1; done
+  for entry in "${SOURCES[@]}"; do [ -s "assets/queries/${entry%% *}.scm" ] || missing=1; done
   if [ "$missing" = 0 ]; then
-    echo "queries/ up to date (FORCE=1 to refetch)"
+    echo "assets/queries/ up to date (FORCE=1 to refetch)"
     exit 0
   fi
 fi
 
-mkdir -p queries
+mkdir -p assets/queries
 for entry in "${SOURCES[@]}"; do
   lang=${entry%% *}
   url=${entry#* }
   echo "$lang"
-  curl -sfL "$url" -o "queries/$lang.scm"
+  curl -sfL "$url" -o "assets/queries/$lang.scm"
 done
-echo "queries/ done"
+echo "assets/queries/ done"

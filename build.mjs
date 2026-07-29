@@ -40,26 +40,18 @@ const HEADER = [
 
 // One output .js per entry. content bundles the whole extension UI (providers
 // and the review controller are now imported, not separate window-bridged
-// scripts); options bundles its Solid page; the service worker stays an
-// unbundled ES module because it imports the vendored web-tree-sitter loader.
+// scripts); the service worker stays an unbundled ES module because it imports
+// the vendored web-tree-sitter loader.
 const ENTRIES = [
   { name: "content", bundle: true },
-  { name: "options", bundle: true },
   { name: "background", bundle: false, format: "esm" },
 ];
 
 // copied into dist/ unchanged; paths in manifest.json stay valid because the
 // layout is preserved.
-const ASSETS = [
-  "manifest.json",
-  "options.html",
-  "viewer.css",
-  "icons",
-  "fonts",
-  "vendor",
-  "queries",
-  "themes.json",
-];
+// only the manifest sits at the dist root; everything else (fetched deps,
+// icons, viewer.css, options.html) lives under assets/, mirrored to dist/assets/
+const ASSETS = ["manifest.json", "assets"];
 
 function resolveEntry(name) {
   for (const p of [`src/${name}.tsx`, `src/${name}.ts`, `${name}.tsx`, `${name}.ts`, `${name}.js`]) {

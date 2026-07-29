@@ -34,25 +34,25 @@ EXPECTED=(
 )
 if [ "${FORCE:-}" != "1" ]; then
   missing=0
-  for f in "${EXPECTED[@]}"; do [ -s "fonts/$f.woff2" ] || missing=1; done
+  for f in "${EXPECTED[@]}"; do [ -s "assets/fonts/$f.woff2" ] || missing=1; done
   if [ "$missing" = 0 ]; then
-    echo "fonts/ up to date (FORCE=1 to refetch)"
+    echo "assets/fonts/ up to date (FORCE=1 to refetch)"
     exit 0
   fi
 fi
 
-mkdir -p fonts
+mkdir -p assets/fonts
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 echo "JetBrains Mono $JB"
 for f in JetBrainsMono-Regular JetBrainsMono-Italic JetBrainsMono-Bold; do
-  curl -sfL "$RAW/JetBrains/JetBrainsMono/$JB/fonts/webfonts/$f.woff2" -o "fonts/$f.woff2"
+  curl -sfL "$RAW/JetBrains/JetBrainsMono/$JB/fonts/webfonts/$f.woff2" -o "assets/fonts/$f.woff2"
 done
 
 echo "Inter $INTER"
 for f in InterVariable InterVariable-Italic; do
-  curl -sfL "$RAW/rsms/inter/$INTER/docs/font-files/$f.woff2" -o "fonts/$f.woff2"
+  curl -sfL "$RAW/rsms/inter/$INTER/docs/font-files/$f.woff2" -o "assets/fonts/$f.woff2"
 done
 
 echo "Nerd Fonts $NERD"
@@ -70,6 +70,6 @@ for ttf in \
   Iosevka/IosevkaNerdFontMono-Regular Iosevka/IosevkaNerdFontMono-Bold; do
   base=$(basename "$ttf")
   echo "  $base.woff2"
-  npx --yes ttf2woff2 < "$tmp/$ttf.ttf" > "fonts/$base.woff2"
+  npx --yes ttf2woff2 < "$tmp/$ttf.ttf" > "assets/fonts/$base.woff2"
 done
-echo "fonts/ done"
+echo "assets/fonts/ done"
