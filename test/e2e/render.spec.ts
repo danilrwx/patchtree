@@ -26,3 +26,19 @@ test("renders the PR diff with tree, highlighting and a mocked thread", async ({
   await comment.scrollIntoViewIfNeeded();
   await expect(comment).toBeVisible();
 });
+
+test("shows word-diff marks and toggles to side-by-side", async ({ context, page }) => {
+  await mockGithub(context);
+  await page.goto(DIFF_URL);
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  // intra-line word diff on the modified line pairs
+  expect(await page.locator(".pt-word-add").count()).toBeGreaterThan(0);
+  expect(await page.locator(".pt-word-del").count()).toBeGreaterThan(0);
+
+  // inline by default, then switch to split
+  await expect(page.locator(".pt-mode-unified")).toHaveCount(1);
+  await page.locator('button[title="Side-by-side"]').click();
+  await expect(page.locator(".pt-mode-split")).toHaveCount(1);
+  await expect(page.locator(".pt-mode-unified")).toHaveCount(0);
+});

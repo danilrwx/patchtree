@@ -38,6 +38,7 @@ check:
 
 test: check typecheck
 	node test/run.mjs
+	node test/providers.mjs
 
 # Playwright end-to-end: loads the built extension against the PR .diff fixture
 # with the adapter mocked. MV3 extensions need headed Chromium (xvfb on CI).
