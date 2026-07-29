@@ -14,7 +14,7 @@
 
 import { setReviewThreads, setComposing, composing, setReviewApi } from "./store";
 import { icons } from "./icons";
-import { flashCenter } from "./ui";
+import { flashCenter, makeDropdown, menuItem } from "./ui";
 import type { Provider } from "./types";
 
 // The imperative surface content.ts builds and hands to the review controller.
@@ -23,8 +23,6 @@ export interface PtView {
   root: HTMLElement;
   renderDiff: (text: string) => void;
   initialRaw: string;
-  makeDropdown: (labelHTML: string) => any;
-  menuItem: (menu: HTMLElement, html: string, fn: (item: HTMLElement) => void) => HTMLElement;
   addSettingRow: (label: string, control: HTMLElement) => void;
   markCommented: (counts: Map<string, number>) => void;
 }
@@ -110,7 +108,7 @@ export function initReview(P: Provider, view: PtView) {
         ? `${t.pos.path.split("/").pop()}:${t.pos.newLine || t.pos.oldLine}`
         : "discussion";
       const snippet = (note?.body || "").replace(/\s+/g, " ").slice(0, 60);
-      view.menuItem(
+      menuItem(
         unresolvedEl.menu,
         `<span class="pt-sha">${esc(loc)}</span><span>${esc(snippet)}</span>`,
         () => {
@@ -362,7 +360,7 @@ export function initReview(P: Provider, view: PtView) {
   }
 
   function buildCommitSelect(bar: HTMLElement) {
-    const { dd, sum, menu } = view.makeDropdown(
+    const { dd, sum, menu } = makeDropdown(
       `${icons.commit || ""}<span class="pt-dd-label">All commits</span>`
     );
     dd.id = "pt-commits";
@@ -373,7 +371,7 @@ export function initReview(P: Provider, view: PtView) {
       dd.open = false;
       if (sha === currentCommit) return;
       currentCommit = sha;
-      sum.querySelector(".pt-dd-label").textContent =
+      sum.querySelector(".pt-dd-label")!.textContent =
         label.length > 44 ? `${label.slice(0, 43)}…` : label;
       for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
@@ -387,7 +385,7 @@ export function initReview(P: Provider, view: PtView) {
     };
 
     const addItem = (sha: string, html: string, label: string) => {
-      const item = view.menuItem(menu, html, (it: any) => choose(sha, label, it));
+      const item = menuItem(menu, html, (it: any) => choose(sha, label, it));
       items.push(item);
       return item;
     };
@@ -651,7 +649,7 @@ export function initReview(P: Provider, view: PtView) {
     badge.hidden = true;
     select.after(badge);
 
-    unresolvedEl = view.makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
+    unresolvedEl = makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
     unresolvedEl.dd.id = "pt-unresolved";
     unresolvedEl.dd.style.display = "none";
     select.after(unresolvedEl.dd);

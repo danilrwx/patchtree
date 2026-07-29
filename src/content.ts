@@ -15,7 +15,7 @@
 "use strict";
 
 import { resolveLang, parseDiff, buildFileModel } from "./diff";
-import { flashCenter, mountDialog } from "./ui";
+import { flashCenter, mountDialog, makeDropdown, menuItem } from "./ui";
 import { injectFonts } from "./fonts";
 import { BASE16, applySettings, parseBase16Yaml } from "./theme";
 import { render } from "solid-js/web";
@@ -247,27 +247,6 @@ function looksLikeDiff(text: string) {
 }
 
 
-function makeDropdown(labelHTML: string) {
-  const dd = document.createElement("details");
-  dd.className = "pt-dd";
-  const sum = document.createElement("summary");
-  sum.innerHTML = labelHTML;
-  const menu = document.createElement("div");
-  menu.className = "pt-dd-menu";
-  dd.append(sum, menu);
-  return { dd, sum, menu };
-}
-
-function menuItem(menu: HTMLElement, html: string, onClick: (item: HTMLElement) => void) {
-  const item = document.createElement("div");
-  item.className = "pt-dd-item";
-  item.innerHTML = html;
-  item.addEventListener("click", () => onClick(item));
-  menu.appendChild(item);
-  return item;
-}
-
-// base16 palettes, base00..base0F
 async function main() {
   if (document.contentType !== "text/plain") return;
   const raw = document.body.innerText;
@@ -734,8 +713,6 @@ async function main() {
     root,
     renderDiff,
     initialRaw: raw,
-    makeDropdown,
-    menuItem,
     addSettingRow: (labelText: string, control: HTMLElement) => {
       const row = buildRow(labelText, control);
       const sep = gear.menu.querySelector(".pt-dd-sep");

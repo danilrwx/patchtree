@@ -33,6 +33,32 @@ export function mountDialog(id: string, factory: (close: () => void) => JSX.Elem
   document.body.appendChild(host);
 }
 
+// A <details> dropdown with a summary and an empty menu container.
+export function makeDropdown(labelHTML: string) {
+  const dd = document.createElement("details");
+  dd.className = "pt-dd";
+  const sum = document.createElement("summary");
+  sum.innerHTML = labelHTML;
+  const menu = document.createElement("div");
+  menu.className = "pt-dd-menu";
+  dd.append(sum, menu);
+  return { dd, sum, menu };
+}
+
+// Append a clickable item to a dropdown menu.
+export function menuItem(
+  menu: HTMLElement,
+  html: string,
+  onClick: (item: HTMLElement) => void
+) {
+  const item = document.createElement("div");
+  item.className = "pt-dd-item";
+  item.innerHTML = html;
+  item.addEventListener("click", () => onClick(item));
+  menu.appendChild(item);
+  return item;
+}
+
 // Scroll an element to the viewport center and briefly flash it.
 export function flashCenter(el: Element | null | undefined) {
   if (!el) return;
