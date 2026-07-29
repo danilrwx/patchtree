@@ -830,10 +830,6 @@ html.pt-on {
   cursor: pointer;
 }
 
-#pt-commits {
-  margin-right: 8px;
-}
-
 #pt-commits > summary {
   max-width: 380px;
 }
