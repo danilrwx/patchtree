@@ -1,26 +1,22 @@
 // Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-// Regression net for the diff-rendering + review path. Runs against the built
-// extension with the GitHub adapter mocked; must stay green through the Solid
-// rewrite of content.js/review.js.
+// Same regression net as render.spec.ts, but for the GitLab adapter on a
+// self-hosted host. Must stay green through the Solid rewrite.
 import { test, expect } from "./fixtures";
-import { mockGithub, DIFF_URL, COMMENT_BODY } from "../fixtures/github";
+import { mockGitlab, DIFF_URL, COMMENT_BODY } from "../fixtures/gitlab";
 
-test("renders the PR diff with tree, highlighting and a mocked thread", async ({
+test("renders a GitLab MR diff with tree, highlighting and a mocked thread", async ({
   context,
   page,
 }) => {
-  await mockGithub(context);
+  await mockGitlab(context);
   await page.goto(DIFF_URL);
 
-  // file tree lists both files of the patch
   await expect(page.locator(".pt-tree-file")).toHaveCount(2);
   await expect(page.locator(".pt-tree-file", { hasText: "dra_test.go" })).toHaveCount(1);
-
-  // syntax highlighting is applied by the background worker (async)
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
-  // the inline thread row; lazily rendered under content-visibility, so
-  // scroll it in to verify
+  // the inline thread row (not the toolbar's unresolved dropdown); lazily
+  // rendered under content-visibility, so scroll it in to verify
   const comment = page.locator(".pt-comments-row", { hasText: COMMENT_BODY }).first();
   await expect(comment).toBeAttached({ timeout: 20000 });
   await comment.scrollIntoViewIfNeeded();
