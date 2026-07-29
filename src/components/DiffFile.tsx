@@ -24,6 +24,7 @@ import {
   gapFull,
   gapErr,
   canExpand,
+  inComposeRange,
 } from "../store";
 import { DiffFileHeader } from "./DiffFileHeader";
 import { AnchorRows } from "./Thread";
@@ -137,7 +138,15 @@ export function DiffFile(props: DiffFileProps) {
     if (pair.ctx)
       return (
         <>
-          <tr class="pt-ctx" {...metaAttrs(rowMeta(m, pair.old, pair.new, true))}>
+          <tr
+            class="pt-ctx"
+            classList={{
+              "pt-range":
+                inComposeRange(path, "new", pair.new!.no) ||
+                inComposeRange(path, "old", pair.old!.no),
+            }}
+            {...metaAttrs(rowMeta(m, pair.old, pair.new, true))}
+          >
             <td class="pt-no">{pair.old!.no}</td>
             <td class="pt-no">{pair.new!.no}</td>
             <td class="pt-mark" />
@@ -150,7 +159,11 @@ export function DiffFile(props: DiffFileProps) {
     return (
       <>
         <Show when={pair.old}>
-          <tr class="pt-del" {...metaAttrs(rowMeta(m, pair.old, null, false))}>
+          <tr
+            class="pt-del"
+            classList={{ "pt-range": inComposeRange(path, "old", pair.old!.no) }}
+            {...metaAttrs(rowMeta(m, pair.old, null, false))}
+          >
             <td class="pt-no">{pair.old!.no}</td>
             <td class="pt-no" />
             <td class="pt-mark">-</td>
@@ -159,7 +172,11 @@ export function DiffFile(props: DiffFileProps) {
           <AnchorRows path={path} side="old" line={pair.old!.no} split={false} />
         </Show>
         <Show when={pair.new}>
-          <tr class="pt-add" {...metaAttrs(rowMeta(m, null, pair.new, false))}>
+          <tr
+            class="pt-add"
+            classList={{ "pt-range": inComposeRange(path, "new", pair.new!.no) }}
+            {...metaAttrs(rowMeta(m, null, pair.new, false))}
+          >
             <td class="pt-no" />
             <td class="pt-no">{pair.new!.no}</td>
             <td class="pt-mark">+</td>
@@ -188,7 +205,15 @@ export function DiffFile(props: DiffFileProps) {
     const cls = pair.ctx ? "pt-ctx" : "pt-del";
     return (
       <>
-        <tr class="pt-srow" {...metaAttrs(rowMeta(m, pair.old, pair.new, pair.ctx))}>
+        <tr
+          class="pt-srow"
+          classList={{
+            "pt-range":
+              inComposeRange(path, "new", pair.new?.no ?? null) ||
+              inComposeRange(path, "old", pair.old?.no ?? null),
+          }}
+          {...metaAttrs(rowMeta(m, pair.old, pair.new, pair.ctx))}
+        >
           <SplitCell entry={pair.old} side="old" row={pair.oldRow} cls={cls} bg={pair.wdA} />
           <SplitCell
             entry={pair.new}

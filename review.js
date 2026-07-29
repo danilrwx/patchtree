@@ -16,7 +16,7 @@
 
 // The threads store lives in content.js's bundle (where <DiffFile> reads it);
 // this controller writes to it through window.ptStore.
-const { setReviewThreads, setComposing } = window.ptStore;
+const { setReviewThreads, setComposing, composing } = window.ptStore;
 
 (() => {
   const P = window.ptProvider;
@@ -532,15 +532,30 @@ const { setReviewThreads, setComposing } = window.ptStore;
     const line = lineNo(tr, side);
     if (!line) return;
 
-    // <DiffFile> renders the form row reactively at this anchor; the descriptor
-    // carries the row's data-* so the provider can build the API position.
+    // shift-click extends the open range on the same file+side; otherwise start
+    // a fresh single-line selection
+    const cur = composing();
+    let start = line;
+    let end = line;
+    if (e.shiftKey && cur && cur.path === tr.dataset.path && cur.side === side) {
+      start = Math.min(cur.startLine, line);
+      end = Math.max(cur.endLine, line);
+    }
+    const rowFor = (n) =>
+      document.querySelector(
+        `tr[data-path="${CSS.escape(tr.dataset.path)}"][data-${side === "old" ? "old" : "new"}="${n}"]`
+      );
+    const endTr = rowFor(end) || tr;
+
+    // <DiffFile> renders the form after endLine and marks the range; the
+    // descriptor carries the rows' data-* so the provider can build the position.
     setComposing({
       path: tr.dataset.path,
-      oldPath: tr.dataset.oldPath || tr.dataset.path,
+      oldPath: endTr.dataset.oldPath || endTr.dataset.path,
       side,
-      oldLine: side === "old" ? line : null,
-      newLine: side === "new" ? line : null,
-      desc: buildPosDesc({ side, startTr: tr, endTr: tr }),
+      startLine: start,
+      endLine: end,
+      desc: buildPosDesc({ side, startTr: rowFor(start) || tr, endTr }),
     });
   }
 

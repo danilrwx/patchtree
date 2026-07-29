@@ -45,12 +45,13 @@ import {
   resetDiffState,
   setReviewThreads,
   setComposing,
+  composing,
 } from "./src/store";
 
 // review.js is a separate bundle with its own module state, so the threads
 // store lives here (where <DiffFile> reads it) and review.js writes through
 // this window bridge — same pattern as window.ptView / window.ptProvider.
-window.ptStore = { setReviewThreads, setComposing };
+window.ptStore = { setReviewThreads, setComposing, composing };
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;

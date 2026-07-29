@@ -26,7 +26,7 @@ import {
   anchorKey,
   type ReviewThread,
   type ReviewNote,
-  type ReviewThreadPos,
+  type Composing,
 } from "../store";
 import { CommentForm } from "./CommentForm";
 
@@ -49,8 +49,8 @@ interface ReviewBridge {
   editNote: (t: ReviewThread, n: ReviewNote, body: string) => Promise<void>;
   deleteNote: (t: ReviewThread, n: ReviewNote) => Promise<void>;
   discardDraft: (t: ReviewThread) => Promise<void>;
-  submitComment: (pos: ReviewThreadPos, body: string) => Promise<void>;
-  draftComment: (pos: ReviewThreadPos, body: string) => Promise<void>;
+  submitComment: (pos: Composing, body: string) => Promise<void>;
+  draftComment: (pos: Composing, body: string) => Promise<void>;
   applySuggestion: (t: ReviewThread, part: SugPart, line: number, meta: unknown) => Promise<void>;
   dismissSuggestion: (t: ReviewThread) => Promise<void>;
 }
@@ -299,12 +299,17 @@ function CommentCell(props: { split: boolean; side: string; children: JSX.Elemen
   );
 }
 
-function InlineForm(props: { pos: ReviewThreadPos; split: boolean; side: string }) {
+function InlineForm(props: { pos: Composing; split: boolean; side: string }) {
+  const label = () =>
+    props.pos.startLine === props.pos.endLine
+      ? `Comment on line ${props.pos.endLine}`
+      : `Comment on lines ${props.pos.startLine}–${props.pos.endLine}`;
   return (
     <tr class="pt-inline-form">
       <CommentCell split={props.split} side={props.side}>
+        <div class="pt-comment-lines">{label()}</div>
         <CommentForm
-          placeholder="Leave a comment…"
+          placeholder="Leave a comment (shift-click a line number to extend the range)…"
           renderMarkdown={rv().renderMarkdown}
           onError={(m) => rv().status(m, true)}
           onSubmit={(body) => rv().submitComment(props.pos, body)}
@@ -347,12 +352,7 @@ export function AnchorRows(props: {
     props.line == null ? [] : threadIndex().get(anchorKey(props.path, props.side, props.line)) ?? [];
   const isComposing = () => {
     const c = composing();
-    return (
-      !!c &&
-      c.path === props.path &&
-      c.side === props.side &&
-      (props.side === "old" ? c.oldLine : c.newLine) === props.line
-    );
+    return !!c && c.path === props.path && c.side === props.side && c.endLine === props.line;
   };
   return (
     <>

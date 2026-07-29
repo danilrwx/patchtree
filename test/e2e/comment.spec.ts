@@ -40,3 +40,19 @@ test("posting a line comment renders it inline", async ({ context, page }) => {
   await comment.scrollIntoViewIfNeeded();
   await expect(comment).toBeVisible();
 });
+
+test("shift-click extends the comment range across lines", async ({ context, page }) => {
+  await mockGithubStateful(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const cells = page.locator(".pt-unified tr.pt-add td.pt-no", { hasText: /\d/ });
+  await cells.nth(0).scrollIntoViewIfNeeded();
+  await cells.nth(0).click();
+  await cells.nth(1).click({ modifiers: ["Shift"] });
+
+  await expect(page.locator(".pt-inline-form .pt-comment-lines").first()).toContainText(
+    "Comment on lines 63–64"
+  );
+  expect(await page.locator(".pt-unified tr.pt-range").count()).toBeGreaterThan(1);
+});
