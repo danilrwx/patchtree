@@ -158,6 +158,9 @@ export interface Provider {
   permalink(path: string, side: Side, line: number): string | null;
   blobUrl(path: string): string | null;
   applySuggestion(desc: SuggestionApply): Promise<unknown>;
+  // a data: URL of an image file at the old (base) or new (head) revision, for
+  // binary image previews; null if unavailable
+  imageDataUrl(path: string, side: Side): Promise<string | null>;
   // GitLab-only (gated by can.whitespace / can.drafts)
   whitespaceDiff?(): Promise<string>;
   drafts?(): Promise<Draft[]>;

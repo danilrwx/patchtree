@@ -26,6 +26,21 @@ const { code } = transformSync(readFileSync(new URL("src/providers.ts", root), "
   format: "cjs",
 });
 
+// providers.ts imports { imageMime } from "./diff"; provide it to the sandbox's
+// require so the cjs-transpiled module can resolve it
+const diffMod = { exports: {} };
+new Function(
+  "module",
+  "exports",
+  "require",
+  transformSync(readFileSync(new URL("src/diff.ts", root), "utf8"), { loader: "ts", format: "cjs" })
+    .code
+)(diffMod, diffMod.exports, () => ({}));
+const sandboxRequire = (id) => {
+  if (id === "./diff") return diffMod.exports;
+  throw new Error(`unexpected require: ${id}`);
+};
+
 let passed = 0;
 const t = (name, fn) => {
   fn();
@@ -59,6 +74,7 @@ async function harness({ location, tokenHost, token = "SEKRET", sendMessage } = 
   const sandbox = {
     module: mod,
     exports: mod.exports,
+    require: sandboxRequire,
     location,
     fetch: async (url, opts = {}) => {
       calls.push({ url, opts, method: opts.method || "GET", body: opts.body, headers: opts.headers });

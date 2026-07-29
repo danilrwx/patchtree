@@ -282,6 +282,30 @@ export async function mockGithubMultiSuggestion(context: BrowserContext): Promis
   });
 }
 
+const imageDiff = readFileSync(path.join(__dirname, "image.diff"), "utf8");
+// a 1x1 transparent PNG
+const PNG_B64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+// a binary image file change; the contents API returns base64 for old + new refs
+export async function mockGithubImage(context: BrowserContext): Promise<void> {
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: imageDiff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === `/repos/${OWNER}/${REPO}/contents/logo.png`) return json({ content: PNG_B64 });
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    return json([]);
+  });
+}
+
 const renameDiff = readFileSync(path.join(__dirname, "rename.diff"), "utf8");
 
 // a diff of pure renames (no line changes); no line threads exist for these

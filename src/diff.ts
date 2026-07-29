@@ -112,6 +112,27 @@ export function langFor(path: string | null | undefined): string | null {
   return LANG_BY_EXT[ext] || null;
 }
 
+// image types we can preview old/new side by side (fetched from the provider)
+const IMAGE_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
+  avif: "image/avif",
+  svg: "image/svg+xml",
+};
+
+export function imageMime(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_MIME[ext] ?? null;
+}
+
+export const isImagePath = (path: string | null | undefined): boolean => imageMime(path) !== null;
+
 // Helm/Go templates: .tpl is always a template; a .yaml/.yml carrying
 // {{ … }} actions is highlighted as a template too (yaml text stays plain,
 // the actions get colored), everything else keeps its yaml highlighting.

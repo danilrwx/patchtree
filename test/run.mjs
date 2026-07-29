@@ -33,8 +33,18 @@ function loadTs(rel) {
   return module.exports;
 }
 
-const { parseDiff, alignHunk, wordDiff, resolveLang, langFor, renderLineHTML, buildFileModel, rowMeta } =
-  loadTs("src/diff.ts");
+const {
+  parseDiff,
+  alignHunk,
+  wordDiff,
+  resolveLang,
+  langFor,
+  renderLineHTML,
+  buildFileModel,
+  rowMeta,
+  imageMime,
+  isImagePath,
+} = loadTs("src/diff.ts");
 
 let passed = 0;
 const t = (name, fn) => {
@@ -138,6 +148,14 @@ t("parseDiff keeps a No-newline marker and copy paths", () => {
   assert.equal(copied.oldPath, "x");
   assert.equal(copied.newPath, "y");
   assert.ok(!copied.isRenamed); // a copy is not a rename
+});
+
+t("imageMime / isImagePath recognise image files", () => {
+  assert.equal(imageMime("a/b/logo.png"), "image/png");
+  assert.equal(imageMime("icon.SVG"), "image/svg+xml");
+  assert.equal(imageMime("main.go"), null);
+  assert.equal(isImagePath("x.jpeg"), true);
+  assert.equal(isImagePath("x.txt"), false);
 });
 
 t("alignHunk pairs a replacement", () => {

@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { For, Show, type Accessor } from "solid-js";
+import { For, Show, createSignal, onMount, type Accessor } from "solid-js";
 import { icons } from "../icons";
 import { clickable } from "../a11y";
 import {
   renderLineHTML,
   rowMeta,
   wordDiff,
+  isImagePath,
   type FileModel,
   type Gap,
   type RowMeta,
   type AlignSide,
 } from "../diff";
+import type { FileStatus } from "../store";
 import {
   highlights,
   hlKey,
@@ -45,8 +47,11 @@ export interface DiffFileProps {
   generated: boolean;
   binary: boolean;
   renamed: boolean;
+  status: FileStatus;
   oldPath: string | null;
   newPath: string | null;
+  // fetch an image file's data URL at the old/new revision (binary previews)
+  image?: (side: "old" | "new") => Promise<string | null>;
   viewed: Accessor<boolean>;
   // false until the file scrolls near the viewport — defers building the row
   // DOM/reactivity so a big diff doesn't mount every file up front
@@ -71,6 +76,47 @@ function metaAttrs(m: RowMeta): Record<string, string> {
   return a;
 }
 
+
+// binary image preview: old and new revisions side by side (only the relevant
+// side for a pure add/delete), fetched as data URLs from the provider
+function ImagePreview(props: {
+  image: (side: "old" | "new") => Promise<string | null>;
+  status: FileStatus;
+}) {
+  const [oldSrc, setOldSrc] = createSignal<string | null>(null);
+  const [newSrc, setNewSrc] = createSignal<string | null>(null);
+  const [loaded, setLoaded] = createSignal(false);
+  onMount(async () => {
+    const grab = (side: "old" | "new") => props.image(side).catch(() => null);
+    const [o, n] = await Promise.all([
+      props.status === "added" ? null : grab("old"),
+      props.status === "deleted" ? null : grab("new"),
+    ]);
+    setOldSrc(o);
+    setNewSrc(n);
+    setLoaded(true);
+  });
+  return (
+    <Show when={loaded()} fallback={<div class="pt-binary">loading image…</div>}>
+      <Show when={oldSrc() || newSrc()} fallback={<div class="pt-binary">binary file</div>}>
+        <div class="pt-img-diff">
+          <Show when={oldSrc()}>
+            <figure class="pt-img-old">
+              <img src={oldSrc()!} alt="old" />
+              <figcaption>old</figcaption>
+            </figure>
+          </Show>
+          <Show when={newSrc()}>
+            <figure class="pt-img-new">
+              <img src={newSrc()!} alt="new" />
+              <figcaption>new</figcaption>
+            </figure>
+          </Show>
+        </div>
+      </Show>
+    </Show>
+  );
+}
 
 export function DiffFile(props: DiffFileProps) {
   const m = props.model;
@@ -291,8 +337,13 @@ export function DiffFile(props: DiffFileProps) {
           </tbody>
         </table>
       </Show>
-      <Show when={props.binary}>
-        <div class="pt-binary">binary file</div>
+      <Show when={props.binary} fallback={null}>
+        <Show
+          when={props.image && isImagePath(props.newPath || props.oldPath)}
+          fallback={<div class="pt-binary">binary file</div>}
+        >
+          <ImagePreview image={props.image!} status={props.status} />
+        </Show>
       </Show>
       <Show when={!props.binary && props.mount()} fallback={<Show when={!props.binary}><div class="pt-file-ph" style={{ height: `${estRows * 19}px` }} /></Show>}>
         <table class="pt-table pt-unified">

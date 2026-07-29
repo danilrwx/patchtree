@@ -1063,6 +1063,42 @@ html.pt-on {
   color: var(--pt-muted);
 }
 
+.pt-img-diff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px;
+}
+
+.pt-img-diff figure {
+  margin: 0;
+  max-width: 100%;
+}
+
+.pt-img-diff img {
+  display: block;
+  max-width: 320px;
+  max-height: 320px;
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  /* checkerboard so transparent images are legible */
+  background-image: linear-gradient(45deg, var(--pt-header-bg) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--pt-header-bg) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--pt-header-bg) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--pt-header-bg) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.pt-img-diff figcaption {
+  margin-top: 4px;
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.5 var(--pt-ui);
+  color: var(--pt-muted);
+}
+
+.pt-img-diff .pt-img-old figcaption { color: #cf222e; }
+.pt-img-diff .pt-img-new figcaption { color: #1a7f37; }
+
 .pt-table {
   width: 100%;
   border-collapse: collapse;

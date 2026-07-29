@@ -20,6 +20,7 @@ import type {
   SuggestionApply,
   Side,
 } from "./types";
+import { imageMime } from "./diff";
 
 // Review providers: one normalized interface, two implementations. Returns the
 // provider matching the current page, or null (e.g. a local file:// patch).
@@ -42,6 +43,10 @@ export function makeProvider(): Provider | null {
   function gitlab(projectPath: string, iid: string): Provider {
     const project = encodeURIComponent(projectPath);
     let refs: Refs | null = null;
+    // resolves once setRefs lands the base/head shas, so image previews (which
+    // mount before the review layer fetches refs) can wait for them
+    let markRefs: () => void = () => {};
+    const refsReady = new Promise<void>((r) => (markRefs = r));
 
     const headers = (extra: Record<string, string> = {}): Record<string, string> => {
       const h = { ...extra };
@@ -141,6 +146,7 @@ export function makeProvider(): Provider | null {
       tokenHint: `no token for ${location.host} — add one in ⚙ → Access tokens to review`,
       setRefs: (i) => {
         refs = i;
+        markRefs();
       },
       init: async () => {
         P.token = await tokenFor(location.host);
@@ -283,6 +289,21 @@ export function makeProvider(): Provider | null {
           : null,
       blobUrl: (path) =>
         refs ? `${location.origin}/${projectPath}/-/blob/${refs.headSha}/${encodeURI(path)}` : null,
+      imageDataUrl: async (path, side) => {
+        const mime = imageMime(path);
+        if (!mime) return null;
+        await Promise.race([refsReady, new Promise((r) => setTimeout(r, 8000))]);
+        const ref = side === "old" ? refs?.baseSha : refs?.headSha;
+        if (!ref) return null;
+        try {
+          const f = await api(
+            `/projects/${project}/repository/files/${encodeURIComponent(path)}?ref=${ref}`
+          );
+          return f?.content ? `data:${mime};base64,${f.content}` : null;
+        } catch {
+          return null;
+        }
+      },
       applySuggestion: (sug) =>
         api(`/projects/${project}/suggestions/${sug.id}/apply`, { method: "PUT" }),
       drafts: async () =>
@@ -323,6 +344,8 @@ export function makeProvider(): Provider | null {
   function github(owner: string, repo: string, num: string): Provider {
     const API = "https://api.github.com";
     const base = `/repos/${owner}/${repo}`;
+    let markRefs: () => void = () => {};
+    const refsReady = new Promise<void>((r) => (markRefs = r));
     let refs: Refs | null = null;
 
     const headers = (extra: Record<string, string> = {}): Record<string, string> => {
@@ -443,6 +466,7 @@ export function makeProvider(): Provider | null {
       tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic or fine-grained PAT)",
       setRefs: (i) => {
         refs = i;
+        markRefs();
       },
       init: async () => {
         P.token = await tokenFor("github.com");
@@ -655,6 +679,19 @@ export function makeProvider(): Provider | null {
           : null,
       blobUrl: (path) =>
         refs ? `https://github.com/${owner}/${repo}/blob/${refs.headSha}/${encodeURI(path)}` : null,
+      imageDataUrl: async (path, side) => {
+        const mime = imageMime(path);
+        if (!mime) return null;
+        await Promise.race([refsReady, new Promise((r) => setTimeout(r, 8000))]);
+        const ref = side === "old" ? refs?.baseSha : refs?.headSha;
+        if (!ref) return null;
+        try {
+          const f = await api(`${base}/contents/${encodeURI(path)}?ref=${ref}`);
+          return f?.content ? `data:${mime};base64,${String(f.content).replace(/\n/g, "")}` : null;
+        } catch {
+          return null;
+        }
+      },
       // GitHub has no single-suggestion apply endpoint — commit the replacement
       // to the PR head branch (like GitLab's apply does to the MR source branch).
       applySuggestion: async (desc: SuggestionApply) => {
