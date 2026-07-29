@@ -1,0 +1,70 @@
+--- a/pkg/newbig.go
++++ b/pkg/newbig.go
+@@ -0,0 +1,60 @@
++line 1 of the brand new file
++line 2 of the brand new file
++line 3 of the brand new file
++line 4 of the brand new file
++line 5 of the brand new file
++line 6 of the brand new file
++line 7 of the brand new file
++line 8 of the brand new file
++line 9 of the brand new file
++line 10 of the brand new file
++line 11 of the brand new file
++line 12 of the brand new file
++line 13 of the brand new file
++line 14 of the brand new file
++line 15 of the brand new file
++line 16 of the brand new file
++line 17 of the brand new file
++line 18 of the brand new file
++line 19 of the brand new file
++line 20 of the brand new file
++line 21 of the brand new file
++line 22 of the brand new file
++line 23 of the brand new file
++line 24 of the brand new file
++line 25 of the brand new file
++line 26 of the brand new file
++line 27 of the brand new file
++line 28 of the brand new file
++line 29 of the brand new file
++line 30 of the brand new file
++line 31 of the brand new file
++line 32 of the brand new file
++line 33 of the brand new file
++line 34 of the brand new file
++line 35 of the brand new file
++line 36 of the brand new file
++line 37 of the brand new file
++line 38 of the brand new file
++line 39 of the brand new file
++line 40 of the brand new file
++line 41 of the brand new file
++line 42 of the brand new file
++line 43 of the brand new file
++line 44 of the brand new file
++line 45 of the brand new file
++line 46 of the brand new file
++line 47 of the brand new file
++line 48 of the brand new file
++line 49 of the brand new file
++line 50 of the brand new file
++line 51 of the brand new file
++line 52 of the brand new file
++line 53 of the brand new file
++line 54 of the brand new file
++line 55 of the brand new file
++line 56 of the brand new file
++line 57 of the brand new file
++line 58 of the brand new file
++line 59 of the brand new file
++line 60 of the brand new file
+--- a/pkg/second.go
++++ b/pkg/second.go
+@@ -1,4 +1,5 @@
+ package p
+
+ func A(){}
++func B(){}

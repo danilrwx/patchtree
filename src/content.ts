@@ -166,6 +166,13 @@ function buildFileView(file: any, index: number) {
   const model = buildFileModel(file);
   if (model.full) section.classList.add("pt-full");
 
+  // Give content-visibility a per-file height estimate instead of the fixed
+  // 600px default. A large (pt-full) file otherwise collapses to 600px when it
+  // scrolls out of view, jumping the scroll position and dragging the sticky
+  // header with it.
+  const estRows = model.segments.reduce((a, s) => a + s.pairs.length + 1, 0);
+  section.style.setProperty("contain-intrinsic-height", `auto ${44 + estRows * 20}px`);
+
   const status: FileStatus = file.isDeleted
     ? "deleted"
     : file.isNew
