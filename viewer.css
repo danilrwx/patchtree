@@ -198,8 +198,15 @@ html.pt-on {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 2px 6px 2px 14px;
+  border: 0;
   border-radius: 4px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   color: var(--pt-fg);
   text-decoration: none;
   white-space: nowrap;

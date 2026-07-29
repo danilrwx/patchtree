@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { For, Show, type Accessor } from "solid-js";
+import { clickable } from "../a11y";
 import { renderLineHTML, rowMeta, type FileModel, type Gap, type RowMeta, type AlignSide } from "../diff";
 import {
   highlights,
@@ -79,7 +80,7 @@ export function DiffFile(props: DiffFileProps) {
       when={ctxLines[p.gap.id]}
       fallback={
         <tr class="pt-expander">
-          <td colspan={4} onClick={() => props.onExpand(p.gap)}>
+          <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
             <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
               <span innerHTML={icons().unfold} /> <span>expand hidden lines</span>
             </Show>
@@ -105,7 +106,7 @@ export function DiffFile(props: DiffFileProps) {
       when={ctxLines[p.gap.id]}
       fallback={
         <tr class="pt-expander">
-          <td colspan={4} onClick={() => props.onExpand(p.gap)}>
+          <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
             <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
               <span innerHTML={icons().unfold} /> <span>expand hidden lines</span>
             </Show>

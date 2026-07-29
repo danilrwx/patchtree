@@ -83,13 +83,12 @@ function TreeNode(props: { node: Node }) {
       </For>
       <For each={files()}>
         {(f) => (
-          <a
+          <button
+            type="button"
             class="pt-tree-file"
-            href="#"
             classList={{ "pt-viewed-file": !!viewed[f.path] }}
             style={{ display: isVisible(f, q()) ? "" : "none" }}
             onClick={(e) => {
-              e.preventDefault();
               if ((e.target as Element).closest(".pt-tree-cmt")) f.selectComment();
               else f.select();
             }}
@@ -106,7 +105,7 @@ function TreeNode(props: { node: Node }) {
             <span class="pt-tree-stats">
               <span class="pt-adds">+{f.adds}</span> <span class="pt-dels">−{f.dels}</span>
             </span>
-          </a>
+          </button>
         )}
       </For>
     </>

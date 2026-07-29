@@ -15,6 +15,7 @@
 // Styled replacement for a native <select>, ported from content.js makeSelect.
 // The menu is positioned fixed on open so it isn't clipped by scrolling parents.
 import { For, createSignal, type Accessor } from "solid-js";
+import { clickable } from "../a11y";
 
 export interface SelectOption {
   value: string | number;
@@ -74,6 +75,7 @@ export function Select(props: {
 
   return (
     <details class="pt-dd pt-select" ref={dd} onToggle={onToggle}>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: <summary> is a native, focusable disclosure control; onKeyDown only adds arrow-key navigation */}
       <summary ref={sum} onKeyDown={onKeyDown} style={{ "font-family": fontOf(current()?.value ?? "") }}>
         <span class="pt-dd-label">{current()?.label ?? ""}</span>
       </summary>
@@ -84,7 +86,7 @@ export function Select(props: {
               class="pt-dd-item"
               classList={{ "pt-active": o.value === props.value(), "pt-kbd": kbd() === i() }}
               style={{ "font-family": fontOf(o.value) }}
-              onClick={() => pick(o)}
+              {...clickable(() => pick(o))}
             >
               {o.label}
             </div>

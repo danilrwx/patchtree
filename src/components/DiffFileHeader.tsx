@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { Show, type Accessor } from "solid-js";
+import { onActivate } from "../a11y";
 
 export interface DiffFileHeaderProps {
   path: string;
@@ -32,12 +33,16 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
   const icons = () => (window as any).ptIcons ?? {};
   const rename = () => !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
   return (
+    // biome-ignore lint/a11y/useSemanticElements: the header holds its own interactive controls (copy button, checkboxes) and cannot nest them inside a native <button>; role="button" is the correct pattern
     <div
       class="pt-file-header"
+      role="button"
+      tabIndex={0}
       onClick={(e) => {
         if ((e.target as Element).closest(".pt-viewed, .pt-fullfile, .pt-hbtn, a")) return;
         props.onToggleFold();
       }}
+      onKeyDown={onActivate(() => props.onToggleFold())}
     >
       <span class="pt-fold" innerHTML={icons().chevron} />
       <span class="pt-path">{props.path}</span>

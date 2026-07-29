@@ -14,6 +14,7 @@
 
 import { createSignal, Show } from "solid-js";
 import { settings, themeOptions } from "../store";
+import { clickable } from "../a11y";
 import { Select } from "./Select";
 
 const CODE_FONTS = [
@@ -34,10 +35,10 @@ export interface SettingsProps {
 
 function Row(props: { label: string; children: any }) {
   return (
-    <label class="pt-set-row">
+    <div class="pt-set-row">
       <span>{props.label}</span>
       {props.children}
-    </label>
+    </div>
   );
 }
 
@@ -96,7 +97,7 @@ export function Settings(props: SettingsProps) {
           onChange={props.onPickTheme}
         />
       </Row>
-      <div class="pt-dd-item" onClick={() => props.onOpenGallery()}>
+      <div class="pt-dd-item" {...clickable(() => props.onOpenGallery())}>
         Theme gallery…
       </div>
       <Row label="UI font">
