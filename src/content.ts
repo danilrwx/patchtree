@@ -19,6 +19,7 @@ import { render } from "solid-js/web";
 import { createSignal, batch } from "solid-js";
 import { unwrap, reconcile } from "solid-js/store";
 import { FileTree } from "./components/FileTree";
+import { FileFilter } from "./components/FileFilter";
 import { DiffFile } from "./components/DiffFile";
 import { Toolbar } from "./components/Toolbar";
 import { Settings } from "./components/Settings";
@@ -47,10 +48,12 @@ import {
   ctxKey,
   resetDiffState,
   setFileLines,
+  setActiveFile,
+  type FileStatus,
 } from "./store";
 import { makeProvider } from "./providers";
 import { initReview, type PtView } from "./review";
-import { octicon, SVG_GEAR } from "./icons";
+import { octicon, SVG_GEAR, icons } from "./icons";
 import type { Provider } from "./types";
 
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
@@ -163,11 +166,20 @@ function buildFileView(file: any, index: number) {
   const model = buildFileModel(file);
   if (model.full) section.classList.add("pt-full");
 
+  const status: FileStatus = file.isDeleted
+    ? "deleted"
+    : file.isNew
+      ? "added"
+      : file.oldPath && file.newPath && file.oldPath !== file.newPath
+        ? "renamed"
+        : "modified";
+
   const view = {
     section,
     path,
     adds,
     dels,
+    status,
     texts: { old: model.oldText, new: model.newText },
     lang: resolveLang(path, `${model.newText}\n${model.oldText}`),
   };
@@ -373,10 +385,16 @@ async function main() {
   filter.placeholder = "Filter files…";
   const treeList = document.createElement("div");
   treeList.id = "pt-tree-list";
-  tree.append(filter, treeList);
+  const head = document.createElement("div");
+  head.id = "pt-tree-head";
+  const filterHost = document.createElement("span");
+  filterHost.id = "pt-filter-host";
+  head.append(filter, filterHost);
+  tree.append(head, treeList);
   root.appendChild(tree);
   filter.addEventListener("input", () => setFilter(filter.value));
   render(FileTree, treeList);
+  render(FileFilter, filterHost);
 
   const splitter = document.createElement("div");
   splitter.id = "pt-splitter";
@@ -386,8 +404,21 @@ async function main() {
   main.id = "pt-main";
   root.appendChild(main);
 
-  const { treeWidth } = await chrome.storage.sync.get("treeWidth");
+  const { treeWidth, sidebarHidden } = await chrome.storage.sync.get(["treeWidth", "sidebarHidden"]);
   if (treeWidth) tree.style.width = `${treeWidth}px`;
+
+  const collapse = document.createElement("button");
+  collapse.id = "pt-collapse";
+  collapse.type = "button";
+  collapse.title = "Toggle file tree";
+  collapse.innerHTML = icons.sidebar;
+  root.classList.toggle("pt-tree-hidden", !!sidebarHidden);
+  collapse.addEventListener("click", () => {
+    const h = !root.classList.contains("pt-tree-hidden");
+    root.classList.toggle("pt-tree-hidden", h);
+    chrome.storage.sync.set({ sidebarHidden: h });
+  });
+  bar.insertBefore(collapse, bar.firstChild);
   splitter.addEventListener("mousedown", (e) => {
     e.preventDefault();
     const left = tree.getBoundingClientRect().left;
@@ -457,6 +488,7 @@ async function main() {
         path: v.path,
         adds: v.adds,
         dels: v.dels,
+        status: v.status,
         select: () => v.section.scrollIntoView(),
         selectComment: () => {
           const row = [...v.section.querySelectorAll(".pt-comments-row")].find((r) => (r as HTMLElement).offsetParent);
@@ -679,6 +711,28 @@ async function main() {
     for (const d of document.querySelectorAll("details.pt-dd[open], details#pt-review[open]"))
       if (!d.contains(e.target as Node)) (d as HTMLDetailsElement).open = false;
   });
+
+  // scroll-spy: mark the file whose section sits at the top of the viewport so
+  // the tree can highlight it and follow along
+  let spyPending = 0;
+  const updateActive = () => {
+    spyPending = 0;
+    let cur = "";
+    for (const v of views) {
+      if (!v.section.offsetParent) continue;
+      if (v.section.getBoundingClientRect().top <= 70) cur = v.path;
+      else break;
+    }
+    setActiveFile(cur || views[0]?.path || "");
+  };
+  document.addEventListener(
+    "scroll",
+    () => {
+      if (!spyPending) spyPending = requestAnimationFrame(updateActive);
+    },
+    { passive: true }
+  );
+  updateActive();
 
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;

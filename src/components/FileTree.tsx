@@ -12,9 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { For, createMemo } from "solid-js";
+import { For, createMemo, createEffect } from "solid-js";
 import { icons } from "../icons";
-import { treeFiles, filter, viewed, counts, type TreeFile } from "../store";
+import {
+  treeFiles,
+  filter,
+  viewed,
+  counts,
+  activeFile,
+  hiddenExts,
+  showViewed,
+  showDeleted,
+  extOf,
+  type TreeFile,
+} from "../store";
 
 interface Node {
   dirs: Map<string, Node>;
@@ -52,6 +63,9 @@ function collectFiles(node: Node, out: TreeFile[] = []): TreeFile[] {
 }
 
 function isVisible(f: TreeFile, q: string): boolean {
+  if (hiddenExts[extOf(f.path)]) return false;
+  if (!showViewed() && viewed[f.path]) return false;
+  if (!showDeleted() && f.status === "deleted") return false;
   if (!q) return true;
   if (f.path.toLowerCase().includes(q)) return true;
   return q.length >= 3 && f.textLower().includes(q);
@@ -87,7 +101,8 @@ function TreeNode(props: { node: Node }) {
           <button
             type="button"
             class="pt-tree-file"
-            classList={{ "pt-viewed-file": !!viewed[f.path] }}
+            classList={{ "pt-viewed-file": !!viewed[f.path], [`pt-st-${f.status}`]: true }}
+            data-path={f.path}
             style={{ display: isVisible(f, q()) ? "" : "none" }}
             onClick={(e) => {
               if ((e.target as Element).closest(".pt-tree-cmt")) f.selectComment();
@@ -115,5 +130,26 @@ function TreeNode(props: { node: Node }) {
 
 export function FileTree() {
   const root = createMemo(() => build(treeFiles()));
+
+  // highlight the file under the viewport and keep it in view inside the nav;
+  // one effect toggles the class imperatively so every row need not subscribe
+  let marked: HTMLElement | null = null;
+  createEffect(() => {
+    const p = activeFile();
+    const nav = document.getElementById("pt-tree");
+    if (!nav) return;
+    marked?.classList.remove("pt-active");
+    const el = p
+      ? (nav.querySelector(`.pt-tree-file[data-path="${CSS.escape(p)}"]`) as HTMLElement | null)
+      : null;
+    marked = el;
+    if (!el?.offsetParent) return;
+    el.classList.add("pt-active");
+    const er = el.getBoundingClientRect();
+    const nr = nav.getBoundingClientRect();
+    if (er.top < nr.top + 4) nav.scrollTop -= nr.top + 4 - er.top;
+    else if (er.bottom > nr.bottom - 4) nav.scrollTop += er.bottom - (nr.bottom - 4);
+  });
+
   return <TreeNode node={root()} />;
 }
