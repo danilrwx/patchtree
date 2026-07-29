@@ -4,8 +4,8 @@ AMO supports a limited Markdown set (bold `**`, italic `_`, links, blockquote,
 code ``` ``` ```, `-`/`1.` lists — no headings). The Description below is
 written in that dialect and can be pasted as-is.
 
-## Name
-Patchtree - turn any raw .diff / .patch page into
+## Name (≤ 50 chars)
+Patchtree — pretty diffs & code review
 
 ## Summary (≤ 250 chars)
 Turn any raw .diff / .patch page into a full code-review UI: tree-sitter syntax highlighting, a searchable file tree, inline & side-by-side views, and inline review — comments, suggestions, approvals — for GitLab and GitHub.
