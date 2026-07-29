@@ -114,7 +114,7 @@ html.pt-on body {
      own formatting context, so sibling margins don't collapse and would double */
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 /* the general-discussion host is always present but empty when there are no
