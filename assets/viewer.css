@@ -1561,6 +1561,9 @@ html.pt-on {
 
 .pt-form-actions button,
 .pt-dialog .pt-form-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font: var(--pt-ui-size, 14px)/1.55 var(--pt-ui);
   padding: 4px 12px;
   border: 1px solid var(--pt-border);
@@ -1568,6 +1571,17 @@ html.pt-on {
   background: var(--pt-bg);
   color: var(--pt-fg);
   cursor: pointer;
+}
+
+.pt-form-actions button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* spinner tuned for the green primary button */
+.pt-spin-on-primary {
+  border-color: rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
 }
 
 .pt-form-actions button:hover {

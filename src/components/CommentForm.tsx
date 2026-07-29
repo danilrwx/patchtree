@@ -66,7 +66,10 @@ export function CommentForm(props: CommentFormProps) {
   let ta!: HTMLTextAreaElement;
   const [preview, setPreview] = createSignal(false);
   const [previewHtml, setPreviewHtml] = createSignal("");
-  const [busy, setBusy] = createSignal(false);
+  // which action is in flight ("submit" | "draft"), so its button shows a
+  // spinner while we wait for the server
+  const [pending, setPending] = createSignal("");
+  const busy = () => pending() !== "";
 
   onMount(() => {
     if (props.initial) ta.value = props.initial;
@@ -80,15 +83,15 @@ export function CommentForm(props: CommentFormProps) {
     setPreview(true);
   };
 
-  const run = (fn: (body: string) => Promise<void>) => async () => {
+  const run = (fn: (body: string) => Promise<void>, key: string) => async () => {
     if (!ta.value.trim() || busy()) return;
-    setBusy(true);
+    setPending(key);
     try {
       await fn(ta.value);
       props.onClose();
     } catch (e: any) {
       props.onError(`comment failed: ${e.message}`);
-      setBusy(false);
+      setPending("");
     }
   };
 
@@ -140,11 +143,17 @@ export function CommentForm(props: CommentFormProps) {
           Cancel
         </button>
         <Show when={props.onDraft}>
-          <button type="button" disabled={busy()} onClick={run(props.onDraft!)}>
+          <button type="button" disabled={busy()} onClick={run(props.onDraft!, "draft")}>
+            <Show when={pending() === "draft"}>
+              <span class="pt-spin" />
+            </Show>
             Add to review
           </button>
         </Show>
-        <button type="button" class="pt-primary" disabled={busy()} onClick={run(props.onSubmit)}>
+        <button type="button" class="pt-primary" disabled={busy()} onClick={run(props.onSubmit, "submit")}>
+          <Show when={pending() === "submit"}>
+            <span class="pt-spin pt-spin-on-primary" />
+          </Show>
           {props.submitLabel ?? "Comment"}
         </button>
       </div>

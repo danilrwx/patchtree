@@ -16,7 +16,7 @@
 // seeing the posted comment render. Pins comment creation before the review
 // layer is ported to Solid.
 import { test, expect, seedToken } from "./fixtures";
-import { mockGithubStateful, DIFF_URL } from "../fixtures/github";
+import { mockGithubStateful, DIFF_URL, OWNER, REPO, NUM } from "../fixtures/github";
 
 test("posting a line comment renders it inline", async ({ context, page }) => {
   await mockGithubStateful(context);
@@ -39,6 +39,33 @@ test("posting a line comment renders it inline", async ({ context, page }) => {
   await expect(comment).toBeAttached({ timeout: 10000 });
   await comment.scrollIntoViewIfNeeded();
   await expect(comment).toBeVisible();
+});
+
+test("posting a comment shows a spinner while waiting for the server", async ({
+  context,
+  page,
+}) => {
+  await mockGithubStateful(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  // delay the create request so the in-flight spinner is observable
+  await page.route(
+    `https://api.github.com/repos/${OWNER}/${REPO}/pulls/${NUM}/comments`,
+    async (route) => {
+      if (route.request().method() === "POST") await new Promise((r) => setTimeout(r, 800));
+      await route.fallback();
+    }
+  );
+
+  const noCell = page.locator(".pt-unified tr.pt-add td.pt-no", { hasText: /\d/ }).first();
+  await noCell.scrollIntoViewIfNeeded();
+  await noCell.click();
+  const ta = page.locator(".pt-comment-form textarea").first();
+  await ta.fill("e2e: spinner while posting");
+  await page.locator(".pt-comment-form button.pt-primary").first().click();
+
+  await expect(page.locator(".pt-comment-form button.pt-primary .pt-spin")).toBeVisible();
 });
 
 test("shift-click extends the comment range across lines", async ({ context, page }) => {
