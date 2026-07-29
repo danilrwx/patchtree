@@ -175,9 +175,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg?.type !== "highlight") return;
-  highlight(msg.lang, msg.text).then(sendResponse, (err: any) => {
+  const fail = (err: any) => {
     console.warn("highlight failed:", msg.lang, err);
     sendResponse(null);
-  });
+  };
+  // dual form (a file's old+new sides in one round-trip); the single `text`
+  // form is still used for expander context lines
+  if (msg.old !== undefined || msg.new !== undefined) {
+    const side = (t: string) => (t ? highlight(msg.lang, t) : Promise.resolve({ rows: {} }));
+    Promise.all([side(msg.old), side(msg.new)]).then(
+      ([o, n]) => sendResponse({ old: o.rows, new: n.rows }),
+      fail
+    );
+    return true;
+  }
+  highlight(msg.lang, msg.text).then(sendResponse, fail);
   return true;
 });

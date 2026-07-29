@@ -16,6 +16,7 @@
 
 import { resolveLang, parseDiff, esc, buildFileModel } from "./diff";
 import { render } from "solid-js/web";
+import { createSignal, batch } from "solid-js";
 import { unwrap, reconcile } from "solid-js/store";
 import { FileTree } from "./components/FileTree";
 import { DiffFile } from "./components/DiffFile";
@@ -63,6 +64,21 @@ let provider: Provider | null = null;
 let updateProgress: () => void = () => {};
 // user-added base16 palettes (name → space-joined hex), loaded in main()
 let customThemes: Record<string, string> = {};
+
+// the first few files mount their rows eagerly; the rest mount as their section
+// scrolls near the viewport, so a large diff paints without building every row
+const EAGER_FILES = 6;
+const mountSetters = new WeakMap<Element, () => void>();
+const mountObserver = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries)
+      if (e.isIntersecting) {
+        mountSetters.get(e.target)?.();
+        mountObserver.unobserve(e.target);
+      }
+  },
+  { rootMargin: "1500px 0px" }
+);
 
 // Fetch the hidden lines a gap hides and publish them (plus their highlight)
 // to the store; <DiffFile> renders the context rows and hides the now-redundant
@@ -129,7 +145,7 @@ function injectFonts() {
 const GENERATED_RE =
   /(^|\/)(go\.sum|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|composer\.lock|Gemfile\.lock|poetry\.lock)$|\.pb\.go$|zz_generated|\.generated\.|\.min\.(js|css)$|\.map$|(^|\/)vendor\//;
 
-function buildFileView(file: any) {
+function buildFileView(file: any, index: number) {
   const section = document.createElement("section");
   section.className = "pt-file";
 
@@ -159,6 +175,20 @@ function buildFileView(file: any) {
   const setFolded = (f: boolean) => section.classList.toggle("pt-folded", f);
   const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter(Boolean);
 
+  // the first few files mount + highlight eagerly; the rest wait until their
+  // section scrolls near the viewport (shared mountObserver)
+  const eager = index < EAGER_FILES;
+  const [mounted, setMounted] = createSignal(eager);
+  const activate = () => {
+    setMounted(true);
+    highlightFile(view);
+  };
+  if (eager) highlightFile(view);
+  else {
+    mountSetters.set(section, activate);
+    mountObserver.observe(section);
+  }
+
   const initiallyViewed = viewedSet.has(path);
   render(
     () =>
@@ -171,6 +201,7 @@ function buildFileView(file: any) {
         oldPath: file.oldPath,
         newPath: file.newPath,
         viewed: () => !!viewed[path],
+        mount: mounted,
         onCopy: () => navigator.clipboard.writeText(path),
         onToggleFold: () => setFolded(!section.classList.contains("pt-folded")),
         onToggleFull: (checked) => {
@@ -194,16 +225,27 @@ function buildFileView(file: any) {
   return view;
 }
 
-async function highlightSide(lang: string | null, text: string, path: string, side: string) {
-  if (!lang || !text || text.length > MAX_HIGHLIGHT_CHARS) return;
+// Highlight both sides of a file in one round-trip, then write all rows in a
+// single reactive batch so the mounted cells re-render once, not per line.
+async function highlightFile(v: { lang: string | null; texts: { old: string; new: string }; path: string }) {
+  if (!v.lang) return;
+  const fits = (t: string) => t && t.length <= MAX_HIGHLIGHT_CHARS;
+  const oldT = fits(v.texts.old) ? v.texts.old : "";
+  const newT = fits(v.texts.new) ? v.texts.new : "";
+  if (!oldT && !newT) return;
   let resp: any;
   try {
-    resp = await chrome.runtime.sendMessage({ type: "highlight", lang, text });
+    resp = await chrome.runtime.sendMessage({ type: "highlight", lang: v.lang, old: oldT, new: newT });
   } catch {
     return;
   }
-  if (!resp?.rows) return;
-  for (const [row, ranges] of Object.entries(resp.rows)) setHighlights(hlKey(path, side, +row), ranges as any);
+  if (!resp) return;
+  batch(() => {
+    for (const [row, ranges] of Object.entries(resp.new || {}))
+      setHighlights(hlKey(v.path, "new", +row), ranges as any);
+    for (const [row, ranges] of Object.entries(resp.old || {}))
+      setHighlights(hlKey(v.path, "old", +row), ranges as any);
+  });
 }
 
 function looksLikeDiff(text: string) {
@@ -430,12 +472,7 @@ async function main() {
     for (const v of views) setViewed(v.path, viewedSet.has(v.path));
     for (const v of views) main.appendChild(v.section);
     updateProgress();
-
-    for (const v of views) {
-      if (!v.lang) continue;
-      highlightSide(v.lang, v.texts.new, v.path, "new");
-      highlightSide(v.lang, v.texts.old, v.path, "old");
-    }
+    // highlighting is kicked off per file when it mounts (see buildFileView)
   }
 
   const { view: savedView = "unified" } = await chrome.storage.sync.get("view");
