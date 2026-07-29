@@ -15,6 +15,7 @@
 "use strict";
 
 import { resolveLang, parseDiff, buildFileModel } from "./diff";
+import { flashCenter } from "./ui";
 import { render } from "solid-js/web";
 import { createSignal, batch } from "solid-js";
 import { unwrap, reconcile } from "solid-js/store";
@@ -515,11 +516,8 @@ async function main() {
         select: () => v.section.scrollIntoView(),
         selectComment: () => {
           const row = [...v.section.querySelectorAll(".pt-comments-row")].find((r) => (r as HTMLElement).offsetParent);
-          if (row) {
-            row.scrollIntoView({ block: "center" });
-            row.classList.add("pt-flash");
-            setTimeout(() => row.classList.remove("pt-flash"), 1200);
-          } else v.section.scrollIntoView();
+          if (row) flashCenter(row);
+          else v.section.scrollIntoView();
         },
         textLower: () => (`${v.texts?.new || ""}\n${v.texts?.old || ""}`).toLowerCase(),
       }))
@@ -834,12 +832,7 @@ async function main() {
       return idx;
     };
     const go = (el: any) => el && window.scrollTo({ top: window.scrollY + top(el) - 56 });
-    const goCenter = (el: any) => {
-      if (!el) return;
-      el.scrollIntoView({ block: "center" });
-      el.classList.add("pt-flash");
-      setTimeout(() => el.classList.remove("pt-flash"), 1200);
-    };
+    const goCenter = flashCenter;
     const mid = window.innerHeight / 2;
     const cur = () => sections[Math.max(0, currentIdx(sections))];
     switch (e.key) {

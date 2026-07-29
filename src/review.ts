@@ -14,6 +14,7 @@
 
 import { setReviewThreads, setComposing, composing, setReviewApi } from "./store";
 import { icons } from "./icons";
+import { flashCenter } from "./ui";
 import type { Provider } from "./types";
 
 // The imperative surface content.ts builds and hands to the review controller.
@@ -128,9 +129,7 @@ export function initReview(P: Provider, view: PtView) {
     const row = document.querySelector(sel);
     const target =
       row?.nextElementSibling?.classList.contains("pt-comments-row") ? row.nextElementSibling : row;
-    target?.scrollIntoView({ block: "center" });
-    target?.classList.add("pt-flash");
-    setTimeout(() => target?.classList.remove("pt-flash"), 1200);
+    flashCenter(target);
   }
 
   const mdCache = new Map<string, string>();
