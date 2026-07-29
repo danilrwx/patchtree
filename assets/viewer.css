@@ -211,7 +211,7 @@ html.pt-on {
 
 .pt-tree-file.pt-active {
   background: var(--pt-hunk-bg);
-  box-shadow: inset 2px 0 0 var(--pt-fg);
+  box-shadow: inset 2px 0 0 #0969da;
 }
 
 #pt-tree summary:hover {
