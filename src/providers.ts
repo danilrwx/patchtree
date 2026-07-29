@@ -17,7 +17,6 @@ import type {
   Note,
   Refs,
   LineAnchor,
-  ReviewInput,
   SuggestionApply,
   Side,
 } from "./types";
@@ -179,7 +178,7 @@ window.ptProvider = (() => {
             id: d.id,
             resolvable: !!first,
             resolved: first ? !!first.resolved : false,
-            general: !pos || pos.position_type !== "text",
+            general: pos?.position_type !== "text",
             pos: null,
             notes: notes.map(noteN),
           };

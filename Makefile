@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: all deps vendor queries fonts themes build node_modules typecheck zip zip-firefox check test e2e changelog clean
+.PHONY: all deps vendor queries fonts themes build node_modules typecheck lint hooks zip zip-firefox check test e2e changelog clean
 
 all: build
 
@@ -43,13 +43,23 @@ build: deps node_modules
 typecheck: node_modules
 	npm run --silent typecheck
 
+# biome lints the code; check-headers enforces the Apache license notice
+lint: node_modules
+	npx biome lint
+	node scripts/check-headers.mjs
+
+# install the repo's git hooks (pre-commit runs lint + typecheck)
+hooks:
+	git config core.hooksPath scripts/git-hooks
+	@echo "git hooks installed (core.hooksPath=scripts/git-hooks)"
+
 check:
 	cp content.js .cnt.mjs && node --check .cnt.mjs && rm -f .cnt.mjs
 	cp review.js .rev.mjs && node --check .rev.mjs && rm -f .rev.mjs
 	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
 
-test: check typecheck
+test: check lint typecheck
 	node test/run.mjs
 	node test/providers.mjs
 

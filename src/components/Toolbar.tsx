@@ -29,12 +29,14 @@ export function Toolbar(props: { onSetMode: (mode: "unified" | "split") => void 
       </span>
       <div class="pt-seg">
         <button
+          type="button"
           title="Inline"
           classList={{ "pt-active": viewMode() !== "split" }}
           innerHTML={SVG_ROWS}
           onClick={() => props.onSetMode("unified")}
         />
         <button
+          type="button"
           title="Side-by-side"
           classList={{ "pt-active": viewMode() === "split" }}
           innerHTML={SVG_COLS}

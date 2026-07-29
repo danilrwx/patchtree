@@ -228,7 +228,7 @@ import { CommentForm } from "./src/components/CommentForm";
 
   async function renderNote(note, anchorTr, thread) {
     const div = document.createElement("div");
-    div.className = "pt-note" + (note.resolved ? " pt-resolved" : "");
+    div.className = `pt-note${note.resolved ? " pt-resolved" : ""}`;
     const head = document.createElement("div");
     head.className = "pt-note-head";
     head.innerHTML =
@@ -497,7 +497,7 @@ import { CommentForm } from "./src/components/CommentForm";
       for (const tr of trs) {
         const { row, td } = threadRow(tr, t.pos.side, "pt-comments-row");
         insertAfter(tr, row);
-        if (!t._target || !t._target.isConnected) t._target = row;
+        if (!t._target?.isConnected) t._target = row;
         Promise.all(t.notes.map((n) => renderNote(n, tr, t))).then((els) => {
           td.append(...els);
           if (P.token) td.appendChild(threadActions(t, td, tr));
@@ -586,7 +586,7 @@ import { CommentForm } from "./src/components/CommentForm";
     if (suggestionText != null)
       add("diff", "Insert suggestion", "pt-md-sug", () => {
         const s = ta.selectionStart;
-        const block = "```suggestion:-0+0\n" + suggestionText + "\n```\n";
+        const block = `\`\`\`suggestion:-0+0\n${suggestionText}\n\`\`\`\n`;
         ta.setRangeText(block, s, ta.selectionEnd);
         ta.focus();
         const lineStart = s + block.indexOf("\n") + 1;
@@ -633,7 +633,7 @@ import { CommentForm } from "./src/components/CommentForm";
       if (sha === currentCommit) return;
       currentCommit = sha;
       sum.querySelector(".pt-dd-label").textContent =
-        label.length > 44 ? label.slice(0, 43) + "…" : label;
+        label.length > 44 ? `${label.slice(0, 43)}…` : label;
       for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
         let text = window.ptView.initialRaw;

@@ -5,9 +5,11 @@
   "description": "Build toolchain for the patchtree extension",
   "scripts": {
     "build": "node build.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint && node scripts/check-headers.mjs"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.6",
     "@playwright/test": "1.62.0",
     "@types/chrome": "0.0.287",
     "@types/node": "22.20.1",

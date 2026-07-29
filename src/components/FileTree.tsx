@@ -38,7 +38,7 @@ function build(files: TreeFile[]): Node {
 function mergeChain(name: string, node: Node): [string, Node] {
   while (node.dirs.size === 1 && node.files.length === 0) {
     const [subName, subChild] = node.dirs.entries().next().value!;
-    name += "/" + subName;
+    name += `/${subName}`;
     node = subChild;
   }
   return [name, node];

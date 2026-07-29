@@ -104,7 +104,7 @@ function injectFonts() {
   const css = FONT_FACES.map(
     ([family, weight, style, file]) =>
       `@font-face{font-family:"${family}";font-weight:${weight};font-style:${style};` +
-      `src:url("${chrome.runtime.getURL("fonts/" + file)}") format("woff2");}`
+      `src:url("${chrome.runtime.getURL(`fonts/${file}`)}") format("woff2");}`
   ).join("\n");
   const el = document.createElement("style");
   el.textContent = css;
@@ -138,7 +138,7 @@ function buildFileView(file) {
     adds,
     dels,
     texts: { old: model.oldText, new: model.newText },
-    lang: resolveLang(path, model.newText + "\n" + model.oldText),
+    lang: resolveLang(path, `${model.newText}\n${model.oldText}`),
   };
 
   const setFolded = (f) => section.classList.toggle("pt-folded", f);
@@ -187,7 +187,7 @@ async function highlightSide(lang, text, path, side) {
   } catch {
     return;
   }
-  if (!resp || !resp.rows) return;
+  if (!resp?.rows) return;
   for (const [row, ranges] of Object.entries(resp.rows)) setHighlights(hlKey(path, side, +row), ranges);
 }
 
@@ -289,7 +289,7 @@ function makeSelect(options, value, onChange, cfg = {}) {
     items = [];
     const cur = opts.find((o) => o.value === current) || opts[0];
     label.textContent = cur ? cur.label : "";
-    if (cfg.styleFont) sum.style.fontFamily = cur && cur.value ? `"${cur.value}"` : "";
+    if (cfg.styleFont) sum.style.fontFamily = cur?.value ? `"${cur.value}"` : "";
     for (const o of opts) {
       const item = menuItem(menu, esc(o.label), () => {
         current = o.value;
@@ -408,8 +408,8 @@ function applySettings(s) {
   if (s.codeFont) st.setProperty("--pt-mono", `"${s.codeFont}", ui-monospace, monospace`);
   else st.removeProperty("--pt-mono");
   st.setProperty("--pt-tab", s.tabSize || 4);
-  st.setProperty("--pt-size", (s.fontSize || 14) + "px");
-  st.setProperty("--pt-ui-size", (s.uiFontSize || 14) + "px");
+  st.setProperty("--pt-size", `${s.fontSize || 14}px`);
+  st.setProperty("--pt-ui-size", `${s.uiFontSize || 14}px`);
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
   st.setProperty("--pt-liga", s.noLigatures ? '"calt" 0, "liga" 0' : "normal");
 
@@ -463,7 +463,7 @@ async function main() {
   root.appendChild(main);
 
   const { treeWidth } = await chrome.storage.sync.get("treeWidth");
-  if (treeWidth) tree.style.width = treeWidth + "px";
+  if (treeWidth) tree.style.width = `${treeWidth}px`;
   splitter.addEventListener("mousedown", (e) => {
     e.preventDefault();
     const left = tree.getBoundingClientRect().left;
@@ -474,7 +474,7 @@ async function main() {
       if (pending) return;
       pending = requestAnimationFrame(() => {
         pending = 0;
-        tree.style.width = w + "px";
+        tree.style.width = `${w}px`;
       });
     };
     const up = () => {
@@ -521,7 +521,7 @@ async function main() {
             setTimeout(() => row.classList.remove("pt-flash"), 1200);
           } else v.section.scrollIntoView();
         },
-        textLower: () => ((v.texts?.new || "") + "\n" + (v.texts?.old || "")).toLowerCase(),
+        textLower: () => (`${v.texts?.new || ""}\n${v.texts?.old || ""}`).toLowerCase(),
       }))
     );
     for (const v of views) setViewed(v.path, viewedSet.has(v.path));

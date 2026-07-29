@@ -39,6 +39,7 @@ export async function seedToken(
 }
 
 export const test = base.extend<{ context: BrowserContext }>({
+  // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the destructure even for a no-dependency fixture
   context: async ({}, use) => {
     const context = await chromium.launchPersistentContext("", {
       // MV3 extensions (service worker + content scripts) load only in headed

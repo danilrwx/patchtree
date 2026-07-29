@@ -164,11 +164,11 @@ export function DiffFile(props: DiffFileProps) {
 
   const SplitCell = (p: { entry: AlignSide | null; side: string; row: number | null; cls: string; bg: any }) => (
     <>
-      <td class={"pt-no" + (p.entry ? ` ${p.cls}-no` : " pt-void")}>
+      <td class={`pt-no${p.entry ? ` ${p.cls}-no` : " pt-void"}`}>
         <Show when={p.entry}>{p.entry!.no}</Show>
       </td>
       <td
-        class={"pt-code" + (p.entry ? ` ${p.cls}-code` : " pt-void")}
+        class={`pt-code${p.entry ? ` ${p.cls}-code` : " pt-void"}`}
         innerHTML={p.entry ? code(p.entry.text, p.side, p.row, p.bg) : ""}
       />
     </>

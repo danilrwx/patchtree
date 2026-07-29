@@ -84,14 +84,14 @@ function App() {
                   />
                 </td>
                 <td>
-                  <button onClick={() => removeRow(i())}>✕</button>
+                  <button type="button" onClick={() => removeRow(i())}>✕</button>
                 </td>
               </tr>
             )}
           </For>
         </tbody>
       </table>
-      <button onClick={addRow}>Add host</button>
+      <button type="button" onClick={addRow}>Add host</button>
 
       <h3>GitHub</h3>
       <p>

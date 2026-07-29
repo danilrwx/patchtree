@@ -73,7 +73,7 @@ t("alignHunk pairs a replacement", () => {
 
 t("wordDiff marks only the changed token", () => {
   const wd = wordDiff("const x = 1", "const x = 2");
-  assert.ok(wd && wd.a.length && wd.b.length);
+  assert.ok(wd?.a.length && wd.b.length);
   assert.equal(wd.b[0].c, "word-add");
   // the changed span should be the "2", not the whole line
   assert.ok(wd.b[0].e - wd.b[0].s <= 1);
@@ -122,7 +122,7 @@ t("buildFileModel: rows, texts, word-diff and meta", () => {
   assert.deepEqual([pairs[0].oldRow, pairs[0].newRow], [0, 0]);
   const repl = pairs.find((p) => !p.ctx);
   assert.deepEqual([repl.oldRow, repl.newRow], [1, 1]);
-  assert.ok(repl.wdB && repl.wdB.length, "word-diff on the new side");
+  assert.ok(repl.wdB?.length, "word-diff on the new side");
   assert.ok(m.newText.startsWith("package main\nconst x = 2"), m.newText);
   // the add row's meta carries new + both line codes
   const meta = rowMeta(m, null, repl.new, false);

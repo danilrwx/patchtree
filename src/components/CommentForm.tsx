@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createSignal, onMount, Show, type Accessor } from "solid-js";
+import { createSignal, onMount, Show, } from "solid-js";
 
 export interface CommentFormProps {
   placeholder: string;
@@ -107,7 +107,7 @@ export function CommentForm(props: CommentFormProps) {
         <Show when={props.suggestionText != null}>
           {tb("diff", "Insert suggestion", "pt-md-sug", () => {
             const s = ta.selectionStart;
-            const block = "```suggestion:-0+0\n" + props.suggestionText + "\n```\n";
+            const block = `\`\`\`suggestion:-0+0\n${props.suggestionText}\n\`\`\`\n`;
             ta.setRangeText(block, s, ta.selectionEnd);
             ta.focus();
             const lineStart = s + block.indexOf("\n") + 1;

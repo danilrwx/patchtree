@@ -41,7 +41,7 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
     >
       <span class="pt-fold" innerHTML={icons().chevron} />
       <span class="pt-path">{props.path}</span>
-      <button class="pt-hbtn" title="Copy path" innerHTML={icons().copy} onClick={() => props.onCopy()} />
+      <button type="button" class="pt-hbtn" title="Copy path" innerHTML={icons().copy} onClick={() => props.onCopy()} />
       <Show when={rename()}>
         <span class="pt-rename">← {props.oldPath}</span>
       </Show>
