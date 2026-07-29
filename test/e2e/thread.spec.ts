@@ -42,6 +42,24 @@ test("replying to a thread renders the reply", async ({ context, page }) => {
   });
 });
 
+test("an open reply form doesn't stretch the Resolve button beside it", async ({
+  context,
+  page,
+}) => {
+  const thread = await openThread(context, page);
+  await thread.locator(".pt-reply-btn", { hasText: "Reply" }).click();
+
+  const form = thread.locator(".pt-comment-form");
+  await expect(form).toBeVisible();
+  const resolve = thread.locator(".pt-reply-btn", { hasText: "Resolve" });
+  const rb = (await resolve.boundingBox())!;
+  const fb = (await form.boundingBox())!;
+  // Resolve stays a normal-height button (the flex row used to stretch it to
+  // the form's height), and wraps below the full-width form rather than beside it
+  expect(rb.height).toBeLessThan(50);
+  expect(rb.y).toBeGreaterThan(fb.y + fb.height - 24);
+});
+
 test("resolving a thread collapses it, and its notes are marked resolved", async ({
   context,
   page,

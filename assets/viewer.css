@@ -1635,8 +1635,16 @@ html.pt-on {
 
 .pt-thread-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
   max-width: 720px;
+}
+
+/* an open reply form takes a full row so Resolve wraps below it, instead of
+   sitting stretched in a tall box beside the form (esp. in split view) */
+.pt-thread-actions .pt-comment-form {
+  flex: 1 1 100%;
 }
 
 .pt-badge-pending {
