@@ -22,6 +22,16 @@ export const [filter, setFilter] = createSignal("");
 export const [viewMode, setViewMode] = createSignal<"unified" | "split">("unified");
 export const [viewedDone, setViewedDone] = createSignal(0);
 export const [viewedTotal, setViewedTotal] = createSignal(0);
+
+// appearance settings (mirrors the persisted `settings` object) and the theme
+// picker options; the gear <Settings> renders from these, the theme gallery
+// updates them
+export const [settings, setSettings] = createStore<Record<string, any>>({});
+export const [themeOptions, setThemeOptions] = createSignal<SelectOptionLike[]>([]);
+export interface SelectOptionLike {
+  value: string | number;
+  label: string;
+}
 export const [viewed, setViewed] = createStore<Record<string, boolean>>({});
 export const [counts, setCounts] = createStore<Record<string, number>>({});
 

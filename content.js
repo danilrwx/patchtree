@@ -2,9 +2,11 @@
 "use strict";
 import { resolveLang, parseDiff, esc, buildFileModel } from "./src/diff";
 import { render } from "solid-js/web";
+import { unwrap, reconcile } from "solid-js/store";
 import { FileTree } from "./src/components/FileTree";
 import { DiffFile } from "./src/components/DiffFile";
 import { Toolbar } from "./src/components/Toolbar";
+import { Settings } from "./src/components/Settings";
 import {
   setTreeFiles,
   setFilter,
@@ -14,6 +16,9 @@ import {
   setViewMode,
   setViewedDone,
   setViewedTotal,
+  settings,
+  setSettings,
+  setThemeOptions,
   setHighlights,
   hlKey,
   setCtxLines,
@@ -546,11 +551,15 @@ async function main() {
   gear.sum.title = "Settings";
   bar.appendChild(gear.dd);
 
-  const { settings = {} } = await chrome.storage.sync.get("settings");
-  applySettings(settings);
-  const saveSettings = () => chrome.storage.sync.set({ settings });
+  const { settings: loaded = {} } = await chrome.storage.sync.get("settings");
+  setSettings(loaded);
+  applySettings(loaded);
+  const saveSettings = () => chrome.storage.sync.set({ settings: unwrap(settings) });
   chrome.storage.onChanged.addListener((ch, area) => {
-    if (area === "sync" && ch.settings) applySettings(ch.settings.newValue || {});
+    if (area === "sync" && ch.settings) {
+      setSettings(reconcile(ch.settings.newValue || {}));
+      applySettings(ch.settings.newValue || {});
+    }
   });
 
   const buildRow = (labelText, control) => {
@@ -561,25 +570,23 @@ async function main() {
     row.append(span, control);
     return row;
   };
-  const setRow = (labelText, control) => gear.menu.appendChild(buildRow(labelText, control));
 
   const { customThemes = {} } = await chrome.storage.sync.get("customThemes");
   window.ptCustomThemes = customThemes;
 
-  const themeOptions = () => {
+  const computeThemeOptions = () => {
     const names = ["GitHub", ...Object.keys(BASE16), ...Object.keys(customThemes)];
     if (settings.theme && settings.themePalette && !names.includes(settings.theme))
       names.push(settings.theme);
     return names.map((n) => ({ value: n === "GitHub" ? "" : n, label: n }));
   };
-  const themeSel = makeSelect(themeOptions(), settings.theme || "", (v) => {
-    settings.theme = v;
-    settings.themePalette = "";
-    applySettings(settings);
+  setThemeOptions(computeThemeOptions());
+
+  const patch = (key, value) => {
+    setSettings(key, value);
+    applySettings(unwrap(settings));
     saveSettings();
-  });
-  const rebuildThemeOptions = () => themeSel.ptSet(themeOptions(), settings.theme || "");
-  setRow("Theme", themeSel);
+  };
 
   // tinted-theming base16 yaml: base00..base0F hex values + scheme/name field
   const parseBase16Yaml = (text) => {
@@ -596,11 +603,11 @@ async function main() {
   };
 
   const applyTheme = (name, palette) => {
-    settings.theme = name;
-    settings.themePalette = palette;
-    applySettings(settings);
+    setSettings("theme", name);
+    setSettings("themePalette", palette);
+    applySettings(unwrap(settings));
     saveSettings();
-    rebuildThemeOptions();
+    setThemeOptions(computeThemeOptions());
   };
 
   const themeCard = (t) => {
@@ -733,117 +740,21 @@ async function main() {
     search.focus();
   };
 
-  menuItem(gear.menu, "Theme gallery…", () => {
-    gear.dd.open = false;
-    openThemesDialog();
-  });
-
-  const fontControl = (key, bundled) => {
-    const wrap = document.createElement("span");
-    wrap.className = "pt-font-ctl";
-    const options = [
-      { value: "", label: "Default" },
-      ...bundled.map((f) => ({ value: f, label: f })),
-      { value: "__custom", label: "Custom…" },
-    ];
-    const input = document.createElement("input");
-    input.placeholder = "system font name";
-    input.style.display = "none";
-
-    const current = settings[key] || "";
-    const isBundled = bundled.includes(current);
-    if (current && !isBundled) {
-      input.value = current;
-      input.style.display = "";
-    }
-
-    const save = (v) => {
-      settings[key] = v;
-      applySettings(settings);
-      saveSettings();
-    };
-    const sel = makeSelect(
-      options,
-      isBundled ? current : current ? "__custom" : "",
-      (v) => {
-        if (v === "__custom") {
-          input.style.display = "";
-          input.focus();
-        } else {
-          input.style.display = "none";
-          save(v);
-        }
-      },
-      { styleFont: true }
-    );
-    let debounce;
-    input.addEventListener("input", () => {
-      clearTimeout(debounce);
-      debounce = setTimeout(() => save(input.value.trim()), 400);
-    });
-    wrap.append(sel, input);
-    return wrap;
-  };
-  setRow("UI font", fontControl("uiFont", ["Inter"]));
-  setRow(
-    "Code font",
-    fontControl("codeFont", [
-      "JetBrains Mono",
-      "JetBrainsMono Nerd Font Mono",
-      "FiraCode Nerd Font Mono",
-      "Hack Nerd Font Mono",
-      "MesloLGS Nerd Font Mono",
-      "Iosevka Nerd Font Mono",
-    ])
+  render(
+    () =>
+      Settings({
+        patch,
+        onPickTheme: (v) => {
+          setSettings("themePalette", "");
+          patch("theme", v);
+        },
+        onOpenGallery: () => {
+          gear.dd.open = false;
+          openThemesDialog();
+        },
+      }),
+    gear.menu
   );
-
-  const tabSel = makeSelect(
-    [2, 4, 8].map((n) => ({ value: n, label: String(n) })),
-    settings.tabSize || 4,
-    (v) => {
-      settings.tabSize = v;
-      applySettings(settings);
-      saveSettings();
-    }
-  );
-  setRow("Tab width", tabSel);
-
-  const sizeRow = (label, key, dflt) => {
-    const input = document.createElement("input");
-    input.type = "number";
-    input.min = 9;
-    input.max = 20;
-    input.value = settings[key] || dflt;
-    input.addEventListener("change", () => {
-      settings[key] = Math.max(9, Math.min(20, +input.value || dflt));
-      input.value = settings[key];
-      applySettings(settings);
-      saveSettings();
-    });
-    setRow(label, input);
-  };
-  sizeRow("Code font size", "fontSize", 14);
-  sizeRow("UI font size", "uiFontSize", 14);
-
-  const italicCb = document.createElement("input");
-  italicCb.type = "checkbox";
-  italicCb.checked = !settings.noItalic;
-  italicCb.addEventListener("change", () => {
-    settings.noItalic = !italicCb.checked;
-    applySettings(settings);
-    saveSettings();
-  });
-  setRow("Italic comments", italicCb);
-
-  const ligaCb = document.createElement("input");
-  ligaCb.type = "checkbox";
-  ligaCb.checked = !settings.noLigatures;
-  ligaCb.addEventListener("change", () => {
-    settings.noLigatures = !ligaCb.checked;
-    applySettings(settings);
-    saveSettings();
-  });
-  setRow("Ligatures", ligaCb);
 
   const sep = document.createElement("div");
   sep.className = "pt-dd-sep";
