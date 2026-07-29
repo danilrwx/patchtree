@@ -127,15 +127,14 @@ html.pt-on body {
   grid-area: split;
   align-self: stretch;
   cursor: col-resize;
-  border-left: 1px solid var(--pt-border);
-  margin-left: 3px;
   position: sticky;
   top: var(--pt-bar-h, 44px);
   height: calc(100vh - var(--pt-bar-h, 44px) - 8px);
 }
 
+/* no persistent divider line; a subtle fill only while hovered to resize */
 #pt-splitter:hover {
-  border-left: 2px solid var(--pt-muted);
+  background: var(--pt-border);
 }
 
 #pt-tree {
@@ -1024,6 +1023,12 @@ html.pt-on {
 /* folded = header only, so round all four corners into a complete pill */
 .pt-folded .pt-file-header {
   border-radius: 6px;
+}
+
+/* while pinned, the header's top corners must be square: a rounded corner
+   leaves a transparent notch that reveals the diff scrolling behind it */
+.pt-stuck .pt-file-header {
+  border-radius: 0;
 }
 
 .pt-viewed-file {

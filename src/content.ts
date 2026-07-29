@@ -565,8 +565,11 @@ async function main() {
   // The bar is a sticky top:0 header; publish its measured height so the
   // sticky file headers / tree stick flush under it (no gap that leaks the
   // diff below, no overlap that clips the header) at any font size.
-  const setBarH = () =>
-    document.documentElement.style.setProperty("--pt-bar-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
+  let barHeight = 44;
+  const setBarH = () => {
+    barHeight = Math.round(bar.getBoundingClientRect().height);
+    document.documentElement.style.setProperty("--pt-bar-h", `${barHeight}px`);
+  };
   requestAnimationFrame(setBarH);
   document.fonts?.ready.then(setBarH);
   addEventListener("resize", () => requestAnimationFrame(setBarH));
@@ -778,19 +781,32 @@ async function main() {
   });
 
   // scroll-spy: mark the file whose section sits at the top of the viewport so
-  // the tree can highlight it and follow along
+  // the tree can highlight it and follow along; also flag the file whose sticky
+  // header is currently pinned so its top corners go square — a rounded corner
+  // would leak the diff scrolling behind it (see .pt-stuck in the CSS)
   let spyPending = 0;
+  let stuckSection: HTMLElement | null = null;
   const updateActive = () => {
     spyPending = 0;
     let cur = "";
+    let curSection: HTMLElement | null = null;
     for (const v of views) {
       if (!v.section.offsetParent) continue;
-      if (v.section.getBoundingClientRect().top <= 70) cur = v.path;
-      else break;
+      if (v.section.getBoundingClientRect().top <= 70) {
+        cur = v.path;
+        curSection = v.section;
+      } else break;
     }
     const active = cur || views[0]?.path || "";
     setActiveFile(active);
     saveActive(active);
+
+    const stuck = curSection && curSection.getBoundingClientRect().top < barHeight ? curSection : null;
+    if (stuck !== stuckSection) {
+      stuckSection?.classList.remove("pt-stuck");
+      stuck?.classList.add("pt-stuck");
+      stuckSection = stuck;
+    }
   };
   document.addEventListener(
     "scroll",
