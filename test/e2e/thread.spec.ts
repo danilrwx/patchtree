@@ -42,9 +42,18 @@ test("replying to a thread renders the reply", async ({ context, page }) => {
   });
 });
 
-test("resolving a thread marks its notes resolved", async ({ context, page }) => {
+test("resolving a thread collapses it, and its notes are marked resolved", async ({
+  context,
+  page,
+}) => {
   const thread = await openThread(context, page);
   await thread.locator(".pt-reply-btn", { hasText: "Resolve" }).click();
+
+  // a resolved thread collapses to a one-line summary; expand it to review
+  const collapsed = page.locator(".pt-thread-collapsed").first();
+  await expect(collapsed).toBeVisible({ timeout: 10000 });
+  await collapsed.click();
+
   await expect(page.locator(".pt-reply-btn", { hasText: "Unresolve" }).first()).toBeVisible({
     timeout: 10000,
   });

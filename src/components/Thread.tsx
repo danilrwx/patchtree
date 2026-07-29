@@ -282,13 +282,35 @@ function ThreadActions(props: { thread: ReviewThread }) {
 }
 
 function Thread(props: { thread: ReviewThread }) {
+  // resolved threads start collapsed to a one-line summary; clicking expands
+  const [open, setOpen] = createSignal(false);
+  const collapsed = () => props.thread.resolved && !open();
+  const count = () => props.thread.notes.length;
   return (
-    <>
+    <Show
+      when={!collapsed()}
+      fallback={
+        <button type="button" class="pt-thread-collapsed" onClick={() => setOpen(true)}>
+          <span innerHTML={icons.check || ""} />
+          <span>
+            Resolved · {count()} comment{count() === 1 ? "" : "s"}
+          </span>
+          <span class="pt-thread-show">Show</span>
+        </button>
+      }
+    >
+      <Show when={props.thread.resolved}>
+        <button type="button" class="pt-thread-collapsed pt-thread-hide" onClick={() => setOpen(false)}>
+          <span innerHTML={icons.check || ""} />
+          <span>Resolved</span>
+          <span class="pt-thread-show">Hide</span>
+        </button>
+      </Show>
       <For each={props.thread.notes}>{(n) => <Note note={n} thread={props.thread} />}</For>
       <Show when={rv().token && !props.thread.pending}>
         <ThreadActions thread={props.thread} />
       </Show>
-    </>
+    </Show>
   );
 }
 

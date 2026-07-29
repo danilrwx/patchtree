@@ -1221,6 +1221,41 @@ html.pt-on {
   background: var(--pt-header-bg);
 }
 
+/* one-line summary a resolved thread collapses to */
+.pt-thread-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);
+  padding: 4px 10px;
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  background: var(--pt-header-bg);
+  color: var(--pt-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.pt-thread-collapsed:hover {
+  color: var(--pt-fg);
+}
+
+.pt-thread-collapsed svg {
+  color: #1a7f37;
+  flex-shrink: 0;
+}
+
+.pt-thread-show {
+  margin-left: auto;
+  color: #0969da;
+}
+
+.pt-thread-hide {
+  margin-bottom: 4px;
+}
+
 .pt-note-head {
   display: flex;
   align-items: baseline;
