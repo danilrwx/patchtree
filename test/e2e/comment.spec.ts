@@ -122,3 +122,36 @@ test("the inline form offers a suggestion prefilled with the line", async ({ con
   await expect(ta).toHaveValue(/```suggestion\n/);
   await expect(ta).not.toHaveValue(/suggestion:-/);
 });
+
+async function openForm(context: any, page: any) {
+  await mockGithubStateful(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  const noCell = page.locator(".pt-unified tr.pt-add td.pt-no", { hasText: /\d/ }).first();
+  await noCell.scrollIntoViewIfNeeded();
+  await noCell.click();
+  return page.locator(".pt-comment-form").first();
+}
+
+test("the Bold toolbar button wraps the selection", async ({ context, page }) => {
+  const form = await openForm(context, page);
+  const ta = form.locator("textarea");
+  await ta.fill("abc");
+  await ta.selectText();
+  await form.locator(".pt-md-b").click();
+  await expect(ta).toHaveValue("**abc**");
+});
+
+test("the Preview tab renders the markdown body", async ({ context, page }) => {
+  const form = await openForm(context, page);
+  await form.locator("textarea").fill("hello preview");
+  await form.locator(".pt-form-tabs button", { hasText: "Preview" }).click();
+  // the mocked /markdown endpoint wraps the text in <p>…</p>
+  await expect(form.locator(".pt-form-preview")).toContainText("hello preview");
+});
+
+test("Cancel closes the inline form without posting", async ({ context, page }) => {
+  const form = await openForm(context, page);
+  await form.locator("button", { hasText: "Cancel" }).click();
+  await expect(page.locator(".pt-comment-form")).toHaveCount(0);
+});
