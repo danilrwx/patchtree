@@ -37,12 +37,14 @@ test("the tree toggle is pinned far-left, ahead of the other bar controls", asyn
 
   const bar = (await page.locator("#pt-bar").boundingBox())!;
   const toggle = (await page.locator("#pt-collapse").boundingBox())!;
+  const commits = (await page.locator("#pt-commits").boundingBox())!;
   const seg = (await page.locator("#pt-bar .pt-seg").boundingBox())!;
-  // flush against the bar's left edge, and left of the right-hand controls
+  // toggle flush against the bar's left edge
   expect(toggle.x - bar.x).toBeLessThan(6);
-  expect(toggle.x + toggle.width).toBeLessThan(seg.x);
-  // margin-right:auto leaves a real gap, so the controls really are a right group
-  expect(seg.x - (toggle.x + toggle.width)).toBeGreaterThan(40);
+  // review controls pack immediately after it — no big empty middle
+  expect(commits.x - (toggle.x + toggle.width)).toBeLessThan(16);
+  // only the view-mode switch is pushed to the right
+  expect(seg.x - (commits.x + commits.width)).toBeGreaterThan(40);
 });
 
 test("funnel menu filters the tree by extension", async ({ context, page }) => {

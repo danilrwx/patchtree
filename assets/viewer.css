@@ -290,10 +290,9 @@ html.pt-on {
 #pt-root.pt-tree-hidden #pt-tree,
 #pt-root.pt-tree-hidden #pt-splitter { display: none; }
 
-/* pin the tree toggle to the far left; everything else forms one right group */
+/* tree toggle sits at the far left, review controls pack right after it */
 #pt-collapse {
   order: -1;
-  margin-right: auto;
   padding: 4px 10px;
 }
 #pt-collapse svg {
@@ -317,7 +316,7 @@ html.pt-on {
   display: flex;
   gap: 8px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   padding: 8px 0 10px;
   position: sticky;
   top: 0;
@@ -733,6 +732,7 @@ html.pt-on {
 .pt-seg {
   display: flex;
   align-self: stretch;
+  margin-left: auto;
   border: 1px solid var(--pt-border);
   border-radius: 4px;
   overflow: hidden;
