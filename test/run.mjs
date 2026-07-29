@@ -1,38 +1,27 @@
 // Copyright (c) 2026 Daniil Antoshin. MIT License (see LICENSE).
-// Checks for the pure logic. content.js is a content script (not a module),
-// so it is evaluated in a vm with stubbed browser globals; main() bails on the
-// stub contentType, leaving the top-level function declarations reachable on
-// the sandbox. providers.ts is transpiled with esbuild and run the same way.
+// Checks for the pure logic in src/diff.ts (transpiled with esbuild and loaded
+// as a CommonJS module) plus the changelog script and provider URL routing.
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { createRequire } from "node:module";
 import { transformSync } from "esbuild";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 
 const root = new URL("..", import.meta.url);
-const sandbox = {
-  window: {},
-  document: { contentType: "", addEventListener() {}, documentElement: { classList: { add() {} } } },
-  chrome: {
-    runtime: { getURL: (p) => p, sendMessage: async () => ({}) },
-    storage: {
-      sync: { get: async () => ({}), set() {} },
-      local: { get: async () => ({}), set() {} },
-      onChanged: { addListener() {} },
-    },
-  },
-  CSS: { escape: (s) => s },
-  IntersectionObserver: class {
-    observe() {}
-  },
-  setTimeout,
-  clearTimeout,
-  requestAnimationFrame: () => 0,
-  console,
-};
-vm.createContext(sandbox);
-vm.runInContext(readFileSync(new URL("content.js", root), "utf8"), sandbox);
-const { parseDiff, alignHunk, wordDiff, resolveLang, langFor, renderLineHTML } = sandbox;
+const require = createRequire(import.meta.url);
+
+function loadTs(rel) {
+  const { code } = transformSync(readFileSync(new URL(rel, root), "utf8"), {
+    loader: "ts",
+    format: "cjs",
+  });
+  const module = { exports: {} };
+  new Function("module", "exports", "require", code)(module, module.exports, require);
+  return module.exports;
+}
+
+const { parseDiff, alignHunk, wordDiff, resolveLang, langFor, renderLineHTML } = loadTs("src/diff.ts");
 
 let passed = 0;
 const t = (name, fn) => {
