@@ -88,3 +88,32 @@ test("a plain-diff new file renders full width and counts as added", async ({
   const added = page.locator("section.pt-file", { hasText: "upload_test.go" });
   await expect(added).toHaveClass(/pt-full/);
 });
+
+// after a reload we must land back on the file the user was viewing, not
+// wherever the browser's height-estimate-based scroll restoration guesses
+test("a reload returns to the file the user was on", async ({ context, page }) => {
+  const body = readFileSync(path.join(__dirname, "../fixtures/manyfiles.diff"), "utf8");
+  const url = "https://example.com/manyfiles.diff";
+  await context.route(url, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body })
+  );
+  await page.setViewportSize({ width: 1200, height: 400 });
+  await page.goto(url);
+  await expect(page.locator("section.pt-file")).toHaveCount(10);
+
+  // scroll a middle file to the top so it becomes the active file (and is saved)
+  await page.evaluate(() => {
+    document
+      .querySelectorAll("section.pt-file")
+      [6]?.scrollIntoView();
+  });
+  await expect(page.locator(".pt-tree-file.pt-active")).toHaveAttribute("data-path", /mod07/);
+  await page.waitForTimeout(300); // let the async storage write settle
+
+  await page.reload();
+
+  const target = page.locator("section.pt-file", { hasText: "mod07/file.go" });
+  await expect
+    .poll(async () => (await target.boundingBox())?.y ?? 9999, { timeout: 5000 })
+    .toBeLessThan(150);
+});

@@ -1,0 +1,140 @@
+--- a/pkg/mod01/file.go
++++ b/pkg/mod01/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod02/file.go
++++ b/pkg/mod02/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod03/file.go
++++ b/pkg/mod03/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod04/file.go
++++ b/pkg/mod04/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod05/file.go
++++ b/pkg/mod05/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod06/file.go
++++ b/pkg/mod06/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod07/file.go
++++ b/pkg/mod07/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod08/file.go
++++ b/pkg/mod08/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod09/file.go
++++ b/pkg/mod09/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3
+--- a/pkg/mod10/file.go
++++ b/pkg/mod10/file.go
+@@ -1,8 +1,10 @@
+ package mod
+
+ func A() int {
+-	return 0
++	return 1
+ }
+
++func B() int { return 2 }
+ var x = 1
+ var y = 2
+ var z = 3

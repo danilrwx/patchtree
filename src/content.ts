@@ -367,9 +367,19 @@ async function main() {
   injectFonts();
 
   const viewedKey = `viewed:${location.host}${location.pathname}`;
-  const stored = await chrome.storage.local.get(viewedKey);
+  const scrollKey = `scroll:${location.host}${location.pathname}`;
+  const stored = await chrome.storage.local.get([viewedKey, scrollKey]);
   viewedSet = new Set(stored[viewedKey] || []);
   saveViewed = () => chrome.storage.local.set({ [viewedKey]: [...viewedSet] });
+  // the file the user was on last time this URL was open, to restore on reload
+  const restoreTo: string = stored[scrollKey] || "";
+  let lastActive = "";
+  const saveActive = (p: string) => {
+    if (p && p !== lastActive) {
+      lastActive = p;
+      chrome.storage.local.set({ [scrollKey]: p });
+    }
+  };
 
   const root = document.createElement("div");
   root.id = "pt-root";
@@ -554,22 +564,23 @@ async function main() {
   // scroll restoration lands on the wrong file: we rebuild the body and lazy
   // placeholders mis-estimate heights, so the remembered scrollY points at
   // different content. Drive it ourselves off the last active file instead.
-  const scrollKey = `pt-scroll:${location.pathname}`;
-  let lastActive = "";
   history.scrollRestoration = "manual";
   {
-    const saved = sessionStorage.getItem(scrollKey);
-    const idx = saved ? views.findIndex((v) => v.path === saved) : -1;
+    const idx = restoreTo ? views.findIndex((v) => v.path === restoreTo) : -1;
     if (idx > 0) {
       // give every file above the target its real height so the offset is exact
       for (let i = 0; i <= idx; i++) {
         mountSetters.get(views[i].section)?.();
         mountObserver.unobserve(views[i].section);
       }
-      requestAnimationFrame(() => {
+      const goTo = () => {
         const top = views[idx].section.getBoundingClientRect().top + window.scrollY;
         window.scrollTo({ top: Math.max(0, top - 56) });
-      });
+      };
+      requestAnimationFrame(goTo);
+      // the web font swaps line metrics after it loads, shifting everything —
+      // re-pin once it is ready so we don't drift a few files off
+      document.fonts?.ready.then(() => requestAnimationFrame(goTo));
     }
   }
 
@@ -749,12 +760,7 @@ async function main() {
     }
     const active = cur || views[0]?.path || "";
     setActiveFile(active);
-    if (active && active !== lastActive) {
-      lastActive = active;
-      try {
-        sessionStorage.setItem(scrollKey, active);
-      } catch {}
-    }
+    saveActive(active);
   };
   document.addEventListener(
     "scroll",
