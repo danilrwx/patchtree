@@ -74,6 +74,19 @@ test("file header renders controls and the viewed checkbox folds the file", asyn
   await expect(page.locator("#pt-progress")).toContainText("1/2 viewed");
 });
 
+test("file header shows a non-empty path tooltip on hover", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  const header = page.locator("section.pt-file .pt-file-header").first();
+  await header.scrollIntoViewIfNeeded();
+
+  const tip = header.locator(".pt-tip");
+  await expect(tip).toBeHidden();
+  await header.hover();
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText("dra.go");
+});
+
 test("expander loads hidden context lines", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

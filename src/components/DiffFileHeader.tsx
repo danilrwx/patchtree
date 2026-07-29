@@ -31,8 +31,25 @@ export interface DiffFileHeaderProps {
   onToggleViewed: (checked: boolean) => void;
 }
 
+// split two paths into their shared prefix/suffix and the differing middles,
+// so a rename tooltip can highlight exactly what changed
+function diffParts(a: string, b: string) {
+  const max = Math.min(a.length, b.length);
+  let p = 0;
+  while (p < max && a[p] === b[p]) p++;
+  let s = 0;
+  while (s < max - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+  return {
+    prefix: a.slice(0, p),
+    oldMid: a.slice(p, a.length - s),
+    newMid: b.slice(p, b.length - s),
+    suffix: s ? a.slice(a.length - s) : "",
+  };
+}
+
 export function DiffFileHeader(props: DiffFileHeaderProps) {
   const rename = () => !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
+  const dp = () => (rename() ? diffParts(props.oldPath!, props.newPath!) : null);
   return (
     // biome-ignore lint/a11y/useSemanticElements: the header holds its own interactive controls (copy button, checkboxes) and cannot nest them inside a native <button>; role="button" is the correct pattern
     <div
@@ -46,13 +63,37 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
       onKeyDown={onActivate(() => props.onToggleFold())}
     >
       <span class="pt-fold" innerHTML={icons.chevron} />
-      <span class="pt-path" data-tip={props.path}>
+      <span class="pt-path">
         <span class="pt-path-text">{props.path}</span>
       </span>
       <button type="button" class="pt-hbtn" title="Copy path" innerHTML={icons.copy} onClick={() => props.onCopy()} />
       <Show when={rename()}>
-        <span class="pt-rename" data-tip={`renamed from ${props.oldPath}`}>renamed</span>
+        <span class="pt-rename">renamed</span>
       </Show>
+      <span class="pt-tip">
+        <Show when={dp()} fallback={<div class="pt-tip-path">{props.path}</div>}>
+          {(d) => (
+            <>
+              <div class="pt-tip-path">
+                {d().prefix}
+                <mark>{d().oldMid}</mark>
+                {d().suffix}
+              </div>
+              <div class="pt-tip-path">
+                →&nbsp;{d().prefix}
+                <mark>{d().newMid}</mark>
+                {d().suffix}
+              </div>
+            </>
+          )}
+        </Show>
+        <Show when={props.generated}>
+          <div class="pt-tip-meta">generated</div>
+        </Show>
+        <div class="pt-tip-meta">
+          +{props.adds} −{props.dels}
+        </div>
+      </span>
       <Show when={props.generated}>
         <span class="pt-gen-badge">generated</span>
       </Show>
