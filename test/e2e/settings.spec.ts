@@ -60,16 +60,6 @@ test("gear settings apply to the rendered CSS variables", async ({ context, page
   const before = await html.getAttribute("style");
   await row("Ligatures").locator("input[type=checkbox]").click();
   await expect(html).not.toHaveAttribute("style", before ?? "");
-
-  // wrap toggle: unchecking adds .pt-nowrap and switches code to white-space:pre
-  await ensureOpen();
-  await row("Wrap long lines").locator("input[type=checkbox]").uncheck();
-  await expect(html).toHaveClass(/pt-nowrap/);
-  const ws = await page
-    .locator(".pt-code")
-    .first()
-    .evaluate((el) => getComputedStyle(el).whiteSpace);
-  expect(ws).toBe("pre");
 });
 
 test("picking a theme applies its color variables", async ({ context, page }) => {

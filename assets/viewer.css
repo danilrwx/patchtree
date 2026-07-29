@@ -1169,22 +1169,6 @@ html.pt-on {
   tab-size: var(--pt-tab, 4);
 }
 
-/* vim-style nowrap: long lines keep full length and the file body scrolls
-   horizontally instead of wrapping */
-.pt-nowrap .pt-code {
-  white-space: pre;
-  overflow-wrap: normal;
-}
-.pt-nowrap .pt-file-body {
-  overflow-x: auto;
-}
-/* keep comment/form cells anchored at the left while the code scrolls */
-.pt-nowrap .pt-comments-row td,
-.pt-nowrap .pt-inline-form td {
-  position: sticky;
-  left: 0;
-}
-
 #pt-raw,
 #pt-preamble {
   tab-size: var(--pt-tab, 4);

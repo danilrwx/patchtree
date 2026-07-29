@@ -356,9 +356,6 @@ function applySettings(s: any) {
   st.setProperty("--pt-ui-size", `${s.uiFontSize || 14}px`);
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
   st.setProperty("--pt-liga", s.noLigatures ? '"calt" 0, "liga" 0' : "normal");
-  // nowrap (vim-style): long lines keep full length and the file scrolls
-  // horizontally instead of wrapping
-  document.documentElement.classList.toggle("pt-nowrap", !!s.noWrap);
 
   const palette = BASE16[s.theme] || customThemes[s.theme] || s.themePalette;
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;
