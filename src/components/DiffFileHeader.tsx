@@ -46,10 +46,10 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
       onKeyDown={onActivate(() => props.onToggleFold())}
     >
       <span class="pt-fold" innerHTML={icons.chevron} />
-      <span class="pt-path">{props.path}</span>
+      <span class="pt-path" title={props.path}>{props.path}</span>
       <button type="button" class="pt-hbtn" title="Copy path" innerHTML={icons.copy} onClick={() => props.onCopy()} />
       <Show when={rename()}>
-        <span class="pt-rename">← {props.oldPath}</span>
+        <span class="pt-rename" title={`renamed from ${props.oldPath}`}>renamed</span>
       </Show>
       <Show when={props.generated}>
         <span class="pt-gen-badge">generated</span>

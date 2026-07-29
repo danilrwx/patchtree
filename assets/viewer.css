@@ -837,12 +837,23 @@ html.pt-on {
   top: 50px;
   z-index: 2;
   display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
   align-items: baseline;
   background: var(--pt-header-bg);
   border-bottom: 1px solid var(--pt-border);
   padding: 8px 12px;
   font-weight: 600;
+}
+
+/* keep the header on one line: the path truncates with an ellipsis (full path
+   on hover via title); a rename shows a compact badge, not the old path */
+.pt-path {
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .pt-file-header {
@@ -886,8 +897,15 @@ html.pt-on {
 }
 
 .pt-rename {
+  flex-shrink: 0;
+  white-space: nowrap;
   color: var(--pt-muted);
   font-weight: 400;
+  font-size: calc(var(--pt-ui-size, 14px) - 2px);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  padding: 0 6px;
+  cursor: help;
 }
 
 .pt-stats {
