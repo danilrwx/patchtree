@@ -110,6 +110,11 @@ html.pt-on body {
 #pt-main {
   grid-area: main;
   min-width: 0;
+  /* gap instead of per-file margins: content-visibility puts each file in its
+     own formatting context, so sibling margins don't collapse and would double */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 #pt-tree {
@@ -929,7 +934,6 @@ html.pt-on {
 }
 
 .pt-file {
-  margin: 8px 0;
   /* render only sections near the viewport — resize/reflow cost stops
      scaling with the whole diff */
   content-visibility: auto;
@@ -945,13 +949,6 @@ html.pt-on {
   border-top: none;
   border-radius: 0 0 6px 6px;
   overflow: hidden;
-}
-
-/* the first file aligns to the top of the column (like the tree's filter),
-   instead of sitting 16px lower than the file list beside it */
-#pt-main > .pt-file:first-of-type,
-#pt-preamble {
-  margin-top: 0;
 }
 
 .pt-file-header {
