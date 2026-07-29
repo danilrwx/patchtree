@@ -361,3 +361,46 @@ export async function mockGithub(context: BrowserContext): Promise<void> {
     return json([]);
   });
 }
+
+// body of the seeded general (issue) discussion comment
+export const DISCUSSION_BODY = "patchtree-e2e: general PR discussion note";
+
+// a PR with one general (issue) discussion comment and a reply endpoint, for the
+// #pt-mr-threads block that renders non-line discussion.
+export async function mockGithubDiscussion(context: BrowserContext): Promise<void> {
+  const issues = [
+    {
+      id: 5001,
+      body: DISCUSSION_BODY,
+      user: { login: "reviewer", id: 42 },
+      created_at: "2026-01-01T00:00:00Z",
+    },
+  ];
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const req = route.request();
+    const p = new URL(req.url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === `/repos/${OWNER}/${REPO}/issues/${NUM}/comments`) {
+      if (req.method() === "POST") {
+        const b = (req.postDataJSON?.() ?? {}) as { body: string };
+        return json({ id: 5002, body: b.body, user: { login: "me", id: 9 }, created_at: "t" });
+      }
+      return json(issues);
+    }
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p === "/markdown") {
+      const b = (req.postDataJSON?.() ?? {}) as { text?: string };
+      return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
+    }
+    return json([]);
+  });
+}
