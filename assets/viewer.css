@@ -846,14 +846,44 @@ html.pt-on {
   font-weight: 600;
 }
 
-/* keep the header on one line: the path truncates with an ellipsis (full path
-   on hover via title); a rename shows a compact badge, not the old path */
+/* keep the header on one line: the path truncates on the LEFT (direction:rtl)
+   so the filename stays visible; the full path shows in a hover tooltip. A
+   rename shows a compact badge, not the wrapping old path. */
 .pt-path {
+  display: flex;
   min-width: 0;
   flex-shrink: 1;
+}
+.pt-path-text {
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+/* instant, styled hover tooltip (native title was easy to miss) */
+[data-tip] {
+  position: relative;
+}
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  max-width: 70vw;
+  white-space: normal;
+  word-break: break-all;
+  font: 400 12px/1.4 var(--pt-ui);
+  color: var(--pt-fg);
+  background: var(--pt-header-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 
 .pt-file-header {
