@@ -19,23 +19,25 @@
 const { setReviewThreads, setComposing, composing } = window.ptStore;
 
 (() => {
-  const P = window.ptProvider;
+  const P = window.ptProvider!;
   if (!P) return;
 
-  let me = null;
-  let refs = null;
+  // ponytail: provider threads/drafts are normalized to the store shape; typed
+  // any here to avoid fighting the provider-Thread vs ReviewThread mismatch
+  let me: { id: any; name: string } | null = null;
+  let refs: any = null;
   let currentCommit = "";
   let approvedByMe = false;
-  let approveEls = null;
-  let drafts = [];
-  let unresolvedEl = null;
-  let reviewSum = null;
+  let approveEls: { b: HTMLElement | null; small: HTMLElement | null } | null = null;
+  let drafts: any[] = [];
+  let unresolvedEl: any = null;
+  let reviewSum: HTMLElement | null = null;
 
-  function esc(s) {
+  function esc(s: string) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  function status(text, isError) {
+  function status(text: string, isError?: boolean) {
     const el = document.getElementById("pt-status");
     if (!el) return;
     el.textContent = text;
@@ -51,9 +53,9 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
   // real (loaded) threads incl. general discussion; drafts are pending
   // pseudo-threads. Both feed one reactive store the diff renders from, so
   // there is no imperative row insertion or refreshThreads() full rebuild.
-  let realThreads = [];
+  let realThreads: any[] = [];
 
-  function draftToThread(d) {
+  function draftToThread(d: any) {
     return {
       id: `draft:${d.id}`,
       _draft: d,
@@ -80,7 +82,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     setReviewThreads([...realThreads, ...drafts.filter((d) => d.pos).map(draftToThread)]);
   }
 
-  function replaceThread(id, fn) {
+  function replaceThread(id: unknown, fn: (t: any) => any[]) {
     realThreads = realThreads.flatMap((t) => (t.id === id ? fn(t) : [t]));
     publishThreads();
   }
@@ -108,7 +110,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     }
   }
 
-  function scrollToThread(t) {
+  function scrollToThread(t: any) {
     if (!t.pos) return;
     const sel = t.pos.newLine
       ? `tr[data-path="${CSS.escape(t.pos.path)}"][data-new="${t.pos.newLine}"]`
@@ -121,11 +123,11 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     setTimeout(() => target?.classList.remove("pt-flash"), 1200);
   }
 
-  const mdCache = new Map();
-  async function renderMarkdown(text) {
+  const mdCache = new Map<string, string>();
+  async function renderMarkdown(text: string) {
     if (!text.trim()) return "";
-    if (mdCache.has(text)) return mdCache.get(text);
-    let html;
+    if (mdCache.has(text)) return mdCache.get(text)!;
+    let html: string;
     try {
       html = await P.markdown(text);
     } catch {
@@ -137,10 +139,10 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
   }
 
   async function loadThreads() {
-    realThreads = (await P.threads()).filter((t) => t.general || t.pos);
+    realThreads = (await P.threads()).filter((t: any) => t.general || t.pos);
     publishThreads();
     updateUnresolved();
-    const counts = new Map();
+    const counts = new Map<string, number>();
     for (const t of realThreads)
       if (t.pos) counts.set(t.pos.path, (counts.get(t.pos.path) || 0) + 1);
     window.ptView.markCommented?.(counts);
@@ -149,7 +151,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
   async function loadDrafts() {
     if (!P.can.drafts || !P.token) return;
     try {
-      drafts = await P.drafts();
+      drafts = await P.drafts!();
       updateReviewSummary();
       publishThreads();
     } catch {
@@ -175,75 +177,75 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     can: P.can,
     renderMarkdown,
     status,
-    reply: async (t, body) => {
+    reply: async (t: any, body: string) => {
       const note = await P.reply(t, body);
       replaceThread(t.id, (x) => [{ ...x, notes: [...x.notes, note] }]);
       status("reply posted");
     },
-    draftReply: async (t, body) => {
-      const d = await P.postDraft(null, body, t.id);
-      drafts.push({ ...d, pos: d.pos || t.pos });
+    draftReply: async (t: any, body: string) => {
+      const d = await P.postDraft!(null as any, body, t.id);
+      drafts.push({ ...d, pos: (d as any).pos || t.pos });
       updateReviewSummary();
       publishThreads();
       status("added to review");
     },
-    resolve: async (t, value) => {
+    resolve: async (t: any, value: boolean) => {
       try {
         await P.resolveThread(t, value);
         replaceThread(t.id, (x) => [
-          { ...x, resolved: value, notes: x.notes.map((n) => ({ ...n, resolved: value })) },
+          { ...x, resolved: value, notes: x.notes.map((n: any) => ({ ...n, resolved: value })) },
         ]);
         updateUnresolved();
         status(value ? "thread resolved" : "thread unresolved");
-      } catch (e) {
+      } catch (e: any) {
         status(`resolve failed: ${e.message}`, true);
       }
     },
-    editNote: async (t, note, body) => {
+    editNote: async (t: any, note: any, body: string) => {
       const nb = await P.editNote(note, body);
       replaceThread(t.id, (x) => [
-        { ...x, notes: x.notes.map((n) => (n.id === note.id ? { ...n, body: nb } : n)) },
+        { ...x, notes: x.notes.map((n: any) => (n.id === note.id ? { ...n, body: nb } : n)) },
       ]);
       status("comment updated");
     },
-    deleteNote: async (t, note) => {
+    deleteNote: async (t: any, note: any) => {
       try {
         await P.deleteNote(note);
         replaceThread(t.id, (x) => {
-          const notes = x.notes.filter((n) => n.id !== note.id);
+          const notes = x.notes.filter((n: any) => n.id !== note.id);
           return notes.length ? [{ ...x, notes }] : [];
         });
         status("comment deleted");
-      } catch (e) {
+      } catch (e: any) {
         status(`delete failed: ${e.message}`, true);
       }
     },
-    discardDraft: async (t) => {
+    discardDraft: async (t: any) => {
       try {
-        await P.deleteDraft(t._draft);
+        await P.deleteDraft!(t._draft);
         drafts = drafts.filter((x) => x.id !== t._draft.id);
         updateReviewSummary();
         publishThreads();
         status("draft discarded");
-      } catch (e) {
+      } catch (e: any) {
         status(`discard failed: ${e.message}`, true);
       }
     },
-    submitComment: async (pos, body) => {
+    submitComment: async (pos: any, body: string) => {
       await P.postThread(pos.desc, body);
       setComposing(null);
       await loadThreads();
       status("comment posted");
     },
-    draftComment: async (pos, body) => {
-      const d = await P.postDraft(pos.desc, body);
+    draftComment: async (pos: any, body: string) => {
+      const d = await P.postDraft!(pos.desc, body);
       drafts.push(d);
       updateReviewSummary();
       setComposing(null);
       publishThreads();
       status("added to review");
     },
-    applySuggestion: async (t, part, line, meta) => {
+    applySuggestion: async (t: any, part: any, line: number, meta: any) => {
       try {
         await P.applySuggestion({
           id: meta?.id,
@@ -253,38 +255,38 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
           text: part.sug,
         });
         status("suggestion applied");
-      } catch (e) {
+      } catch (e: any) {
         status(`apply failed: ${e.message}`, true);
         throw e;
       }
     },
-    dismissSuggestion: async (t) => {
+    dismissSuggestion: async (t: any) => {
       try {
         await P.resolveThread(t, true);
         replaceThread(t.id, (x) => [{ ...x, resolved: true }]);
         updateUnresolved();
         status("suggestion dismissed");
-      } catch (e) {
+      } catch (e: any) {
         status(`dismiss failed: ${e.message}`, true);
         throw e;
       }
     },
   };
 
-  function setApproved(v) {
+  function setApproved(v: boolean) {
     approvedByMe = v;
     const badge = document.getElementById("pt-approved");
-    if (badge) badge.hidden = !v;
+    if (badge) (badge as HTMLElement).hidden = !v;
     if (approveEls) {
-      approveEls.b.textContent = v ? "Unapprove" : "Approve";
-      approveEls.small.textContent = v
+      approveEls.b!.textContent = v ? "Unapprove" : "Approve";
+      approveEls.small!.textContent = v
         ? "Revoke your approval of these changes."
         : "Submit feedback and approve these changes.";
     }
   }
 
   // still used by the inline note editor and the review-summary textarea
-  function surround(ta, before, after = before) {
+  function surround(ta: HTMLTextAreaElement, before: string, after: string = before) {
     const s = ta.selectionStart;
     const e = ta.selectionEnd;
     const sel = ta.value.slice(s, e) || "text";
@@ -294,7 +296,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     ta.selectionEnd = s + before.length + sel.length;
   }
 
-  function prefixLines(ta, prefixFor) {
+  function prefixLines(ta: HTMLTextAreaElement, prefixFor: (i: number) => string) {
     const v = ta.value;
     const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
     let end = v.indexOf("\n", ta.selectionEnd);
@@ -310,11 +312,11 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     ta.selectionEnd = start + block.length;
   }
 
-  function mdToolbar(ta, suggestionText) {
+  function mdToolbar(ta: HTMLTextAreaElement, suggestionText?: string | null) {
     const bar = document.createElement("div");
     bar.className = "pt-md-bar";
     const icons = window.ptIcons || {};
-    const add = (icon, title, cls, fn) => {
+    const add = (icon: string, title: string, cls: string, fn: () => void) => {
       const b = document.createElement("button");
       b.type = "button";
       b.innerHTML = icons[icon] || icon;
@@ -348,15 +350,15 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
 
   // thin adapter: mount the Solid <CommentForm> into a host the callers append
 
-  function buildCommitSelect(bar) {
+  function buildCommitSelect(bar: HTMLElement) {
     const { dd, sum, menu } = window.ptView.makeDropdown(
       `${window.ptIcons?.commit || ""}<span class="pt-dd-label">All commits</span>`
     );
     dd.id = "pt-commits";
     bar.prepend(dd);
-    const items = [];
+    const items: any[] = [];
 
-    const choose = async (sha, label, item) => {
+    const choose = async (sha: string, label: string, item: any) => {
       dd.open = false;
       if (sha === currentCommit) return;
       currentCommit = sha;
@@ -368,20 +370,20 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
         if (sha) text = await P.commitDiff(sha);
         window.ptView.renderDiff(text);
         if (!sha) refreshThreads();
-      } catch (e) {
+      } catch (e: any) {
         status(`commit diff failed: ${e.message}`, true);
       }
     };
 
-    const addItem = (sha, html, label) => {
-      const item = window.ptView.menuItem(menu, html, (it) => choose(sha, label, it));
+    const addItem = (sha: string, html: string, label: string) => {
+      const item = window.ptView.menuItem(menu, html, (it: any) => choose(sha, label, it));
       items.push(item);
       return item;
     };
 
     addItem("", "All commits", "All commits").classList.add("pt-active");
     P.commits()
-      .then((commits) => {
+      .then((commits: any[]) => {
         for (const c of commits)
           addItem(
             c.sha,
@@ -389,11 +391,11 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
             c.title
           );
       })
-      .catch((e) => status(`commits unavailable: ${e.message}`, true));
+      .catch((e: any) => status(`commits unavailable: ${e.message}`, true));
     return dd;
   }
 
-  function buildReviewDropdown(bar) {
+  function buildReviewDropdown(bar: HTMLElement) {
     const dd = document.createElement("details");
     dd.id = "pt-review";
     const sum = document.createElement("summary");
@@ -442,16 +444,16 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
       submit.disabled = true;
       try {
         if (drafts.length && P.can.drafts) {
-          await P.publishDrafts();
+          await P.publishDrafts!();
           drafts = [];
           updateReviewSummary();
           refreshThreads();
         }
         const wasApproved = approvedByMe;
         const body = ta.value.trim();
-        const mode = panel.querySelector("input[name=pt-review-action]:checked").value;
+        const mode = (panel.querySelector("input[name=pt-review-action]:checked") as HTMLInputElement).value;
         const action = mode === "approve" ? (wasApproved ? "unapprove" : "approve") : mode;
-        await P.review({ body, action });
+        await P.review({ body, action: action as any });
         if (mode === "approve") setApproved(!wasApproved);
         ta.value = "";
         dd.open = false;
@@ -464,7 +466,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
               ? "changes requested"
               : "comment posted"
         );
-      } catch (err) {
+      } catch (err: any) {
         status(`review failed: ${err.message}`, true);
       } finally {
         submit.disabled = false;
@@ -474,20 +476,20 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     bar.appendChild(dd);
   }
 
-  function lineNo(tr, side) {
-    return +(side === "old" ? tr.dataset.old : tr.dataset.new) || 0;
+  function lineNo(tr: HTMLElement, side: string) {
+    return +((side === "old" ? tr.dataset.old : tr.dataset.new) as any) || 0;
   }
 
-  function clickSide(td, tr) {
-    if (tr.closest("table").classList.contains("pt-split"))
+  function clickSide(td: HTMLTableCellElement, tr: HTMLElement) {
+    if (tr.closest("table")!.classList.contains("pt-split"))
       return td.cellIndex === 0 ? "old" : "new";
     return tr.classList.contains("pt-del") ? "old" : "new";
   }
 
-  function buildPosDesc(f) {
-    const row = (tr) => ({
-      old: +tr.dataset.old || null,
-      new: +tr.dataset.new || null,
+  function buildPosDesc(f: any) {
+    const row = (tr: HTMLElement) => ({
+      old: +(tr.dataset.old as any) || null,
+      new: +(tr.dataset.new as any) || null,
       codeOld: tr.dataset.codeOld,
       codeNew: tr.dataset.codeNew,
       ctx: tr.dataset.ctx === "1",
@@ -506,10 +508,10 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     };
   }
 
-  function onLineClick(e) {
-    const td = e.target.closest(".pt-no");
+  function onLineClick(e: MouseEvent) {
+    const td = (e.target as HTMLElement).closest(".pt-no") as HTMLTableCellElement | null;
     if (!td || td.classList.contains("pt-void")) return;
-    const tr = td.closest("tr");
+    const tr = td.closest("tr") as HTMLElement | null;
     if (!tr?.dataset.path) return;
     if (e.altKey) {
       const side0 = clickSide(td, tr);
@@ -541,17 +543,17 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
       start = Math.min(cur.startLine, line);
       end = Math.max(cur.endLine, line);
     }
-    const rowFor = (n) =>
-      document.querySelector(
-        `tr[data-path="${CSS.escape(tr.dataset.path)}"][data-${side === "old" ? "old" : "new"}="${n}"]`
+    const rowFor = (n: number) =>
+      document.querySelector<HTMLElement>(
+        `tr[data-path="${CSS.escape(tr.dataset.path!)}"][data-${side === "old" ? "old" : "new"}="${n}"]`
       );
     const endTr = rowFor(end) || tr;
 
     // <DiffFile> renders the form after endLine and marks the range; the
     // descriptor carries the rows' data-* so the provider can build the position.
     setComposing({
-      path: tr.dataset.path,
-      oldPath: endTr.dataset.oldPath || endTr.dataset.path,
+      path: tr.dataset.path!,
+      oldPath: endTr.dataset.oldPath || endTr.dataset.path!,
       side,
       startLine: start,
       endLine: end,
@@ -586,10 +588,10 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
       window.ptView.addSettingRow?.("Ignore whitespace", wsCb);
       wsCb.addEventListener("change", async () => {
         try {
-          const text = wsCb.checked ? await P.whitespaceDiff() : window.ptView.initialRaw;
+          const text = wsCb.checked ? await P.whitespaceDiff!() : window.ptView.initialRaw;
           window.ptView.renderDiff(text);
           refreshThreads();
-        } catch (e) {
+        } catch (e: any) {
           status(`whitespace toggle failed: ${e.message}`, true);
         }
       });
@@ -607,7 +609,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     try {
       const info = await P.info();
       refs = info;
-      P.setRefs(info);
+      P.setRefs(info as any);
       document.title = info.title;
       if (info.ci) {
         const ci = document.createElement("a");
@@ -625,7 +627,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
         cf.textContent = "⚠ has conflicts";
         unresolvedEl.dd.after(cf);
       }
-    } catch (e) {
+    } catch (e: any) {
       status(`info unavailable: ${e.message}`, true);
     }
 
@@ -633,7 +635,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
       if (!refs) return;
       for (const sec of document.querySelectorAll(".pt-file")) {
         if (sec.querySelector(".pt-blob-link")) continue;
-        const url = P.blobUrl(sec.dataset.path);
+        const url = P.blobUrl((sec as HTMLElement).dataset.path!);
         if (!url) continue;
         const a = document.createElement("a");
         a.className = "pt-hbtn pt-blob-link";
@@ -647,7 +649,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
     };
     decorateHeaders();
     const origRender = window.ptView.renderDiff;
-    window.ptView.renderDiff = (t) => {
+    window.ptView.renderDiff = (t: string) => {
       origRender(t);
       decorateHeaders();
     };
@@ -656,7 +658,7 @@ const { setReviewThreads, setComposing, composing } = window.ptStore;
 
     try {
       me = await P.me();
-      setApproved(await P.approvedByMe(me.id));
+      setApproved(await P.approvedByMe(me!.id));
     } catch {
       // approval state is cosmetic; token may be missing
     }

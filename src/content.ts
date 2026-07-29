@@ -14,16 +14,16 @@
 
 "use strict";
 
-import { resolveLang, parseDiff, esc, buildFileModel } from "./src/diff";
+import { resolveLang, parseDiff, esc, buildFileModel } from "./diff";
 import { render } from "solid-js/web";
 import { unwrap, reconcile } from "solid-js/store";
-import { FileTree } from "./src/components/FileTree";
-import { DiffFile } from "./src/components/DiffFile";
-import { Toolbar } from "./src/components/Toolbar";
-import { Settings } from "./src/components/Settings";
-import { GeneralThreads } from "./src/components/Thread";
-import { TokensDialog } from "./src/components/TokensDialog";
-import { ThemeGallery } from "./src/components/ThemeGallery";
+import { FileTree } from "./components/FileTree";
+import { DiffFile } from "./components/DiffFile";
+import { Toolbar } from "./components/Toolbar";
+import { Settings } from "./components/Settings";
+import { GeneralThreads } from "./components/Thread";
+import { TokensDialog } from "./components/TokensDialog";
+import { ThemeGallery } from "./components/ThemeGallery";
 import {
   setTreeFiles,
   setFilter,
@@ -49,7 +49,7 @@ import {
   setComposing,
   composing,
   setFileLines,
-} from "./src/store";
+} from "./store";
 
 // review.js is a separate bundle with its own module state, so the threads
 // store lives here (where <DiffFile> reads it) and review.js writes through
@@ -59,20 +59,20 @@ window.ptStore = { setReviewThreads, setComposing, composing };
 // Highlighting is skipped for sides bigger than this to keep the page responsive.
 const MAX_HIGHLIGHT_CHARS = 300 * 1024;
 
-let viewedSet = new Set();
+let viewedSet = new Set<string>();
 let saveViewed = () => {};
 
 // Fetch the hidden lines a gap hides and publish them (plus their highlight)
 // to the store; <DiffFile> renders the context rows and hides the now-redundant
 // following hunk header when the gap is fully filled.
-async function expandGap(view, gap) {
+async function expandGap(view: any, gap: any) {
   if (gap.busy || gap.newTo == null) return;
   gap.busy = true;
   try {
     if (!window.ptView?.fetchFile) throw new Error("file contents unavailable here");
     const lines = await window.ptView.fetchFile(view.path);
     const to = Math.min(gap.newTo, lines.length);
-    const arr = [];
+    const arr: { o: number; n: number; text: string }[] = [];
     for (let n = gap.newFrom; n <= to; n++) {
       const o = gap.oldFrom + (n - gap.newFrom);
       arr.push({ o, n, text: lines[n - 1] ?? "" });
@@ -81,13 +81,13 @@ async function expandGap(view, gap) {
     // a fully expanded inter-hunk gap makes the following @@ header redundant
     if (to === gap.newTo) setGapFull(gap.id, true);
     if (view.lang && arr.length) {
-      const resp = await chrome.runtime
+      const resp: any = await chrome.runtime
         .sendMessage({ type: "highlight", lang: view.lang, text: arr.map((c) => c.text).join("\n") })
         .catch(() => null);
       if (resp?.rows)
-        for (const [row, ranges] of Object.entries(resp.rows)) setCtxHl(ctxKey(gap.id, +row), ranges);
+        for (const [row, ranges] of Object.entries(resp.rows)) setCtxHl(ctxKey(gap.id, +row), ranges as any);
     }
-  } catch (e) {
+  } catch (e: any) {
     gap.busy = false;
     setGapErr(gap.id, e.message);
   }
@@ -127,7 +127,7 @@ function injectFonts() {
 const GENERATED_RE =
   /(^|\/)(go\.sum|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|composer\.lock|Gemfile\.lock|poetry\.lock)$|\.pb\.go$|zz_generated|\.generated\.|\.min\.(js|css)$|\.map$|(^|\/)vendor\//;
 
-function buildFileView(file) {
+function buildFileView(file: any) {
   const section = document.createElement("section");
   section.className = "pt-file";
 
@@ -154,7 +154,7 @@ function buildFileView(file) {
     lang: resolveLang(path, `${model.newText}\n${model.oldText}`),
   };
 
-  const setFolded = (f) => section.classList.toggle("pt-folded", f);
+  const setFolded = (f: boolean) => section.classList.toggle("pt-folded", f);
   const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter(Boolean);
 
   const initiallyViewed = viewedSet.has(path);
@@ -192,26 +192,26 @@ function buildFileView(file) {
   return view;
 }
 
-async function highlightSide(lang, text, path, side) {
+async function highlightSide(lang: string | null, text: string, path: string, side: string) {
   if (!lang || !text || text.length > MAX_HIGHLIGHT_CHARS) return;
-  let resp;
+  let resp: any;
   try {
     resp = await chrome.runtime.sendMessage({ type: "highlight", lang, text });
   } catch {
     return;
   }
   if (!resp?.rows) return;
-  for (const [row, ranges] of Object.entries(resp.rows)) setHighlights(hlKey(path, side, +row), ranges);
+  for (const [row, ranges] of Object.entries(resp.rows)) setHighlights(hlKey(path, side, +row), ranges as any);
 }
 
-function looksLikeDiff(text) {
+function looksLikeDiff(text: string) {
   return /^(diff --git |From [0-9a-f]{40} |--- )/m.test(text.slice(0, 4096));
 }
 
 const SVG_GEAR =
   '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0a8.2 8.2 0 0 1 .701.031C9.444.095 9.99.645 10.16 1.29l.288 1.107c.018.066.079.158.212.224.231.114.454.243.668.386.123.082.233.09.299.071l1.103-.303c.644-.176 1.392.021 1.82.63.27.385.506.792.704 1.218.315.675.111 1.422-.364 1.891l-.814.806c-.049.048-.098.147-.088.294.016.257.016.515 0 .772-.01.147.038.246.088.294l.814.806c.475.469.679 1.216.364 1.891a7.977 7.977 0 0 1-.704 1.217c-.428.61-1.176.807-1.82.63l-1.102-.302c-.067-.019-.177-.011-.3.071a5.909 5.909 0 0 1-.668.386c-.133.066-.194.158-.211.224l-.29 1.106c-.168.646-.715 1.196-1.458 1.26a8.006 8.006 0 0 1-1.402 0c-.743-.064-1.289-.614-1.458-1.26l-.289-1.106c-.018-.066-.079-.158-.212-.224a5.738 5.738 0 0 1-.668-.386c-.123-.082-.233-.09-.299-.071l-1.103.303c-.644.176-1.392-.021-1.82-.63a8.12 8.12 0 0 1-.704-1.218c-.315-.675-.111-1.422.363-1.891l.815-.806c.05-.048.098-.147.088-.294a6.214 6.214 0 0 1 0-.772c.01-.147-.038-.246-.088-.294l-.815-.806C.635 6.045.431 5.298.746 4.623a7.92 7.92 0 0 1 .704-1.217c.428-.61 1.176-.807 1.82-.63l1.102.302c.067.019.177.011.3-.071.214-.143.437-.272.668-.386.133-.066.194-.158.211-.224l.29-1.106C6.009.645 6.556.095 7.299.03 7.53.01 7.764 0 8 0Zm-.571 1.525c-.036.003-.108.036-.137.146l-.289 1.105c-.147.561-.549.967-.998 1.189-.173.086-.34.183-.5.29-.417.278-.97.423-1.529.27l-1.103-.303c-.109-.03-.175.016-.195.045-.22.312-.412.644-.573.99-.014.031-.021.11.059.19l.815.806c.411.406.562.957.53 1.456a4.709 4.709 0 0 0 0 .582c.032.499-.119 1.05-.53 1.456l-.815.806c-.081.08-.073.159-.059.19.162.346.353.677.573.989.02.03.085.076.195.046l1.102-.303c.56-.153 1.113-.008 1.53.27.161.107.328.204.501.29.447.222.85.629.997 1.189l.289 1.105c.029.109.101.143.137.146a6.6 6.6 0 0 0 1.142 0c.036-.003.108-.036.137-.146l.289-1.105c.147-.561.549-.967.998-1.189.173-.086.34-.183.5-.29.417-.278.97-.423 1.529-.27l1.103.303c.109.029.175-.016.195-.045.22-.313.411-.644.573-.99.014-.031.021-.11-.059-.19l-.815-.806c-.411-.406-.562-.957-.53-1.456a4.709 4.709 0 0 0 0-.582c-.032-.499.119-1.05.53-1.456l.815-.806c.081-.08.073-.159.059-.19a6.464 6.464 0 0 0-.573-.989c-.02-.03-.085-.076-.195-.046l-1.102.303c-.56.153-1.113.008-1.53-.27a4.44 4.44 0 0 0-.501-.29c-.447-.222-.85-.629-.997-1.189l-.289-1.105c-.029-.11-.101-.143-.137-.146a6.6 6.6 0 0 0-1.142 0ZM11 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9.5 8a1.5 1.5 0 1 0-3.001.001A1.5 1.5 0 0 0 9.5 8Z"/></svg>';
 
-const octicon = (path, size = 14) =>
+const octicon = (path: string, size = 14) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="${path}"/></svg>`;
 
 window.ptIcons = {
@@ -266,7 +266,7 @@ window.ptIcons.copy =
 window.ptIcons.external =
   '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"/></svg>';
 
-function makeDropdown(labelHTML) {
+function makeDropdown(labelHTML: string) {
   const dd = document.createElement("details");
   dd.className = "pt-dd";
   const sum = document.createElement("summary");
@@ -277,7 +277,7 @@ function makeDropdown(labelHTML) {
   return { dd, sum, menu };
 }
 
-function menuItem(menu, html, onClick) {
+function menuItem(menu: HTMLElement, html: string, onClick: (item: HTMLElement) => void) {
   const item = document.createElement("div");
   item.className = "pt-dd-item";
   item.innerHTML = html;
@@ -287,7 +287,7 @@ function menuItem(menu, html, onClick) {
 }
 
 // base16 palettes, base00..base0F
-const BASE16 = {
+const BASE16: Record<string, string> = {
   "Gruvbox Dark": "1d2021 3c3836 504945 665c54 bdae93 d5c4a1 ebdbb2 fbf1c7 fb4934 fe8019 fabd2f b8bb26 8ec07c 83a598 d3869b d65d0e",
   Nord: "2e3440 3b4252 434c5e 4c566a d8dee9 e5e9f0 eceff4 8fbcbb bf616a d08770 ebcb8b a3be8c 88c0d0 81a1c1 b48ead 5e81ac",
   Dracula: "282a36 363948 44475a 6272a4 9ea8c7 f8f8f2 f8f8f2 ffffff ff5555 ffb86c f1fa8c 50fa7b 8be9fd 61bfff bd93f9 ff79c6",
@@ -298,12 +298,12 @@ const BASE16 = {
   "Default Dark": "181818 282828 383838 585858 b8b8b8 d8d8d8 e8e8e8 f8f8f8 ab4642 dc9656 f7ca88 a1b56c 86c1b9 7cafc2 ba8baf a16946",
 };
 
-function hexRgba(hex, a) {
+function hexRgba(hex: string, a: number) {
   const n = parseInt(hex, 16);
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-const THEME_VARS = (c) => ({
+const THEME_VARS = (c: string[]): Record<string, string> => ({
   bg: `#${c[0]}`,
   fg: `#${c[5]}`,
   muted: `#${c[4]}`,
@@ -336,7 +336,7 @@ const THEME_VARS = (c) => ({
   module: `#${c[10]}`,
 });
 
-function applySettings(s) {
+function applySettings(s: any) {
   const st = document.documentElement.style;
   if (s.uiFont) st.setProperty("--pt-ui", `"${s.uiFont}", system-ui, sans-serif`);
   else st.removeProperty("--pt-ui");
@@ -404,7 +404,7 @@ async function main() {
     const left = tree.getBoundingClientRect().left;
     document.body.style.userSelect = "none";
     let pending = 0;
-    const move = (ev) => {
+    const move = (ev: MouseEvent) => {
       const w = Math.max(160, Math.min(800, ev.clientX - left));
       if (pending) return;
       pending = requestAnimationFrame(() => {
@@ -426,14 +426,14 @@ async function main() {
   rawPre.id = "pt-raw";
   rawPre.style.display = "none";
 
-  let views = [];
+  let views: any[] = [];
 
   // general (non-line) discussion, rendered reactively from the threads store;
   // review.js fills the store. The box survives renderDiff, which clears main.
   const gthreadsBox = document.createElement("div");
   render(GeneralThreads, gthreadsBox);
 
-  function renderDiff(text) {
+  function renderDiff(text: string) {
     const parsed = parseDiff(text);
     rawPre.textContent = text;
     main.textContent = "";
@@ -450,10 +450,10 @@ async function main() {
     views = parsed.files.map(buildFileView);
 
     // new-side line text by number, for <Suggestion> to show replaced lines
-    const fl = {};
+    const fl: Record<string, Record<number, string>> = {};
     for (const f of parsed.files) {
       const p = f.newPath || f.oldPath || "(unknown)";
-      const map = {};
+      const map: Record<number, string> = {};
       for (const h of f.hunks) {
         let n = h.newStart;
         for (const l of h.lines)
@@ -470,7 +470,7 @@ async function main() {
         dels: v.dels,
         select: () => v.section.scrollIntoView(),
         selectComment: () => {
-          const row = [...v.section.querySelectorAll(".pt-comments-row")].find((r) => r.offsetParent);
+          const row = [...v.section.querySelectorAll(".pt-comments-row")].find((r) => (r as HTMLElement).offsetParent);
           if (row) {
             row.scrollIntoView({ block: "center" });
             row.classList.add("pt-flash");
@@ -498,8 +498,8 @@ async function main() {
     setViewedTotal(views.length);
   };
 
-  const applyMode = (mode) => {
-    setViewMode(mode);
+  const applyMode = (mode: string) => {
+    setViewMode(mode as "unified" | "split");
     root.classList.toggle("pt-mode-split", mode === "split");
     root.classList.toggle("pt-mode-unified", mode !== "split");
   };
@@ -548,7 +548,7 @@ async function main() {
     }
   });
 
-  const buildRow = (labelText, control) => {
+  const buildRow = (labelText: string, control: HTMLElement) => {
     const row = document.createElement("label");
     row.className = "pt-set-row";
     const span = document.createElement("span");
@@ -565,14 +565,14 @@ async function main() {
   };
   setThemeOptions(computeThemeOptions());
 
-  const patch = (key, value) => {
+  const patch = (key: string, value: unknown) => {
     setSettings(key, value);
     applySettings(unwrap(settings));
     saveSettings();
   };
 
   // tinted-theming base16 yaml: base00..base0F hex values + scheme/name field
-  const parseBase16Yaml = (text) => {
+  const parseBase16Yaml = (text: string) => {
     const colors = [];
     for (let i = 0; i < 16; i++) {
       const key = `base0${i.toString(16).toUpperCase()}`;
@@ -585,7 +585,7 @@ async function main() {
     return { name, colors: colors.join(" ") };
   };
 
-  const applyTheme = (name, palette) => {
+  const applyTheme = (name: string, palette: string) => {
     setSettings("theme", name);
     setSettings("themePalette", palette);
     applySettings(unwrap(settings));
@@ -653,7 +653,7 @@ async function main() {
   menuItem(gear.menu, "Clear viewed", () => {
     gear.dd.open = false;
     for (const cb of document.querySelectorAll(".pt-viewed:not(.pt-fullfile) input:checked")) {
-      cb.checked = false;
+      (cb as HTMLInputElement).checked = false;
       cb.dispatchEvent(new Event("change"));
     }
     window.ptUpdateProgress?.();
@@ -694,22 +694,22 @@ async function main() {
 
   document.addEventListener("click", (e) => {
     for (const d of document.querySelectorAll("details.pt-dd[open], details#pt-review[open]"))
-      if (!d.contains(e.target)) d.open = false;
+      if (!d.contains(e.target as Node)) (d as HTMLDetailsElement).open = false;
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+    if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) return;
     const sections = views.map((v) => v.section).filter((s) => s.offsetParent);
-    const threads = [...document.querySelectorAll(".pt-comments-row")].filter((r) => r.offsetParent);
-    const top = (el) => el.getBoundingClientRect().top;
-    const currentIdx = (els, limit = 61) => {
+    const threads = [...document.querySelectorAll(".pt-comments-row")].filter((r) => (r as HTMLElement).offsetParent);
+    const top = (el: any) => el.getBoundingClientRect().top;
+    const currentIdx = (els: any[], limit = 61) => {
       let idx = -1;
       for (let i = 0; i < els.length; i++) if (top(els[i]) <= limit) idx = i;
       return idx;
     };
-    const go = (el) => el && window.scrollTo({ top: window.scrollY + top(el) - 56 });
-    const goCenter = (el) => {
+    const go = (el: any) => el && window.scrollTo({ top: window.scrollY + top(el) - 56 });
+    const goCenter = (el: any) => {
       if (!el) return;
       el.scrollIntoView({ block: "center" });
       el.classList.add("pt-flash");
@@ -751,14 +751,14 @@ async function main() {
     makeDropdown,
     menuItem,
     esc,
-    addSettingRow: (labelText, control) => {
+    addSettingRow: (labelText: string, control: HTMLElement) => {
       const row = buildRow(labelText, control);
       const sep = gear.menu.querySelector(".pt-dd-sep");
       if (sep) gear.menu.insertBefore(row, sep);
       else gear.menu.appendChild(row);
     },
-    addMenuItem: (html, fn) => menuItem(gear.menu, html, fn),
-    markCommented: (counts) => {
+    addMenuItem: (html: string, fn: (item: HTMLElement) => void) => menuItem(gear.menu, html, fn),
+    markCommented: (counts: Map<string, number>) => {
       for (const v of views) setCounts(v.path, counts.get(v.path) || 0);
     },
   };

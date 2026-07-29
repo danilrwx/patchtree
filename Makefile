@@ -53,9 +53,9 @@ hooks:
 	git config core.hooksPath scripts/git-hooks
 	@echo "git hooks installed (core.hooksPath=scripts/git-hooks)"
 
+# content/review/options are TypeScript (covered by typecheck); only the
+# unbundled background script and the manifest JSON are checked here
 check:
-	cp content.js .cnt.mjs && node --check .cnt.mjs && rm -f .cnt.mjs
-	cp review.js .rev.mjs && node --check .rev.mjs && rm -f .rev.mjs
 	cp background.js .bg.mjs && node --check .bg.mjs && rm -f .bg.mjs
 	node -e "JSON.parse(require('fs').readFileSync('manifest.json'))"
 
