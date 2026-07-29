@@ -22,6 +22,8 @@ import { DiffFile } from "./src/components/DiffFile";
 import { Toolbar } from "./src/components/Toolbar";
 import { Settings } from "./src/components/Settings";
 import { GeneralThreads } from "./src/components/Thread";
+import { TokensDialog } from "./src/components/TokensDialog";
+import { ThemeGallery } from "./src/components/ThemeGallery";
 import {
   setTreeFiles,
   setFilter,
@@ -282,84 +284,6 @@ function menuItem(menu, html, onClick) {
   item.addEventListener("click", () => onClick(item));
   menu.appendChild(item);
   return item;
-}
-
-// styled replacement for a native <select>. options: [{value,label}].
-// The menu is positioned fixed on open so it isn't clipped by scrolling
-// parents (e.g. the settings menu). Returns the element plus ptValue()/ptSet().
-function makeSelect(options, value, onChange, cfg = {}) {
-  const { dd, sum, menu } = makeDropdown(`<span class="pt-dd-label"></span>`);
-  dd.classList.add("pt-select");
-  const label = sum.querySelector(".pt-dd-label");
-  let current = value;
-  let opts = options;
-  let items = [];
-
-  const render = () => {
-    menu.textContent = "";
-    items = [];
-    const cur = opts.find((o) => o.value === current) || opts[0];
-    label.textContent = cur ? cur.label : "";
-    if (cfg.styleFont) sum.style.fontFamily = cur?.value ? `"${cur.value}"` : "";
-    for (const o of opts) {
-      const item = menuItem(menu, esc(o.label), () => {
-        current = o.value;
-        dd.open = false;
-        render();
-        onChange(o.value);
-      });
-      if (cfg.styleFont && o.value) item.style.fontFamily = `"${o.value}"`;
-      if (o.value === current) item.classList.add("pt-active");
-      items.push(item);
-    }
-  };
-  render();
-
-  const setKbd = (idx) => {
-    for (const it of items) it.classList.remove("pt-kbd");
-    const el = items[idx];
-    if (el) {
-      el.classList.add("pt-kbd");
-      el.scrollIntoView({ block: "nearest" });
-    }
-  };
-
-  sum.addEventListener("keydown", (e) => {
-    if (!dd.open) return; // native summary handles Enter/Space to open
-    let idx = items.findIndex((it) => it.classList.contains("pt-kbd"));
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      if (idx < 0) idx = items.findIndex((it) => it.classList.contains("pt-active"));
-      idx = e.key === "ArrowDown" ? Math.min(items.length - 1, idx + 1) : Math.max(0, idx - 1);
-      setKbd(idx);
-    } else if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      (items[idx] || items.find((it) => it.classList.contains("pt-active")))?.click();
-    } else if (e.key === "Escape") {
-      dd.open = false;
-    }
-  });
-
-  dd.addEventListener("toggle", () => {
-    if (!dd.open) {
-      menu.style.cssText = "";
-      return;
-    }
-    const r = sum.getBoundingClientRect();
-    menu.style.position = "fixed";
-    menu.style.left = `${r.left}px`;
-    menu.style.top = `${r.bottom + 4}px`;
-    menu.style.minWidth = `${r.width}px`;
-    setKbd(items.findIndex((it) => it.classList.contains("pt-active")));
-  });
-
-  dd.ptValue = () => current;
-  dd.ptSet = (newOpts, v) => {
-    if (newOpts) opts = newOpts;
-    if (v !== undefined) current = v;
-    render();
-  };
-  return dd;
 }
 
 // base16 palettes, base00..base0F
@@ -669,134 +593,31 @@ async function main() {
     setThemeOptions(computeThemeOptions());
   };
 
-  const themeCard = (t) => {
-    const c = t.palette.split(" ");
-    const card = document.createElement("div");
-    card.className = "pt-theme-card";
-    card.dataset.name = t.name.toLowerCase();
-    card.dataset.variant = t.variant;
-    const span = (color, text) => `<span style="color:#${color}">${esc(text)}</span>`;
-    card.innerHTML =
-      `<pre class="pt-theme-sample" style="background:#${c[0]};color:#${c[5]}">` +
-      `${span(c[3], "// load and apply a scheme")}\n` +
-      `${span(c[14], "fn")} ${span(c[13], "apply")}(${span(c[8], "name")}: ${span(c[10], "&str")}) {\n` +
-      `  ${span(c[14], "let")} theme = scheme.${span(c[13], "with_base")}(${span(c[9], "16")});\n` +
-      `  ${span(c[13], "println!")}(${span(c[11], '"applied: {}"')}, name);\n` +
-      `}</pre>` +
-      `<div class="pt-theme-meta"><b>${esc(t.name)}</b>` +
-      `<span class="pt-theme-badges">${t.system === "base24" ? "<i>BASE24</i>" : ""}<i>${t.variant.toUpperCase()}</i></span></div>`;
-    if (settings.theme === t.name) card.classList.add("pt-active");
-    card.addEventListener("click", () => {
-      applyTheme(t.name, t.palette);
-      for (const el of card.parentNode.querySelectorAll(".pt-theme-card.pt-active"))
-        el.classList.remove("pt-active");
-      card.classList.add("pt-active");
-    });
-    return card;
-  };
-
-  const openThemesDialog = async () => {
-    document.getElementById("pt-themes-dialog")?.remove();
-    const overlay = document.createElement("div");
-    overlay.id = "pt-themes-dialog";
-    const panel = document.createElement("div");
-    panel.className = "pt-dialog pt-gallery";
-
-    const head = document.createElement("div");
-    head.className = "pt-gallery-head";
-    head.innerHTML = `<h3>Theme gallery</h3>`;
-    const search = document.createElement("input");
-    search.type = "search";
-    search.placeholder = "Search themes…";
-    const variantSel = makeSelect(
-      ["all", "dark", "light"].map((v) => ({ value: v, label: v })),
-      "all",
-      () => applyFilter()
+  const openThemesDialog = () => {
+    document.getElementById("pt-themes-host")?.remove();
+    const host = document.createElement("div");
+    host.id = "pt-themes-host";
+    const dispose = render(
+      () =>
+        ThemeGallery({
+          current: () => settings.theme || "",
+          onApply: (name, palette) => applyTheme(name, palette),
+          onAddCustom: async (yaml) => {
+            const parsed = parseBase16Yaml(yaml);
+            if (!parsed) return "could not find all base00…base0F colors";
+            customThemes[parsed.name] = parsed.colors;
+            await chrome.storage.sync.set({ customThemes });
+            applyTheme(parsed.name, parsed.colors);
+            return null;
+          },
+          onClose: () => {
+            dispose();
+            host.remove();
+          },
+        }),
+      host
     );
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "Close";
-    closeBtn.addEventListener("click", () => overlay.remove());
-    head.append(search, variantSel, closeBtn);
-    panel.appendChild(head);
-
-    const grid = document.createElement("div");
-    grid.className = "pt-theme-grid";
-    panel.appendChild(grid);
-
-    const all = ((await chrome.runtime.sendMessage({ type: "themes" })) || []).filter(
-      (t) => t?.palette && t?.name
-    );
-    if (!all.length) grid.textContent = "themes.json missing — run make themes and reload";
-
-    // 500+ cards of styled <pre> freeze layout if rendered at once —
-    // render in batches as the grid scrolls
-    const BATCH = 48;
-    let filtered = all;
-    let rendered = 0;
-    const sentinel = document.createElement("div");
-    sentinel.className = "pt-gallery-sentinel";
-    grid.appendChild(sentinel);
-    const renderBatch = () => {
-      const frag = document.createDocumentFragment();
-      for (const t of filtered.slice(rendered, rendered + BATCH)) frag.appendChild(themeCard(t));
-      rendered = Math.min(rendered + BATCH, filtered.length);
-      grid.insertBefore(frag, sentinel);
-    };
-    new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting) && rendered < filtered.length) renderBatch();
-      },
-      { root: grid, rootMargin: "300px" }
-    ).observe(sentinel);
-    renderBatch();
-
-    const applyFilter = () => {
-      const q = search.value.trim().toLowerCase();
-      const v = variantSel.ptValue();
-      filtered = all.filter(
-        (t) =>
-          (!q || t.name.toLowerCase().includes(q)) && (v === "all" || t.variant === v)
-      );
-      for (const c of grid.querySelectorAll(".pt-theme-card")) c.remove();
-      rendered = 0;
-      renderBatch();
-    };
-    search.addEventListener("input", applyFilter);
-
-    const foot = document.createElement("details");
-    foot.className = "pt-gallery-custom";
-    foot.innerHTML =
-      `<summary>Paste a custom scheme yaml (base16/base24)</summary>` +
-      `<p>Any <a href="https://github.com/tinted-theming/schemes" target="_blank" rel="noopener">tinted-theming</a>-format scheme works.</p>`;
-    const ta = document.createElement("textarea");
-    ta.rows = 6;
-    ta.placeholder = 'name: "My Scheme"\nbase00: "131513"\n…';
-    const err = document.createElement("p");
-    err.className = "pt-dialog-err";
-    const addBtn = document.createElement("button");
-    addBtn.textContent = "Add and apply";
-    addBtn.className = "pt-primary";
-    addBtn.addEventListener("click", async () => {
-      const parsed = parseBase16Yaml(ta.value);
-      if (!parsed) {
-        err.textContent = "could not find all base00…base0F colors";
-        return;
-      }
-      err.textContent = "";
-      customThemes[parsed.name] = parsed.colors;
-      await chrome.storage.sync.set({ customThemes });
-      applyTheme(parsed.name, parsed.colors);
-      ta.value = "";
-    });
-    foot.append(ta, err, addBtn);
-    panel.appendChild(foot);
-
-    overlay.appendChild(panel);
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.remove();
-    });
-    document.body.appendChild(overlay);
-    search.focus();
+    document.body.appendChild(host);
   };
 
   render(
@@ -837,104 +658,21 @@ async function main() {
     }
     window.ptUpdateProgress?.();
   });
-  const openTokensDialog = async () => {
-    document.getElementById("pt-tokens-dialog")?.remove();
-    let { gitlabs } = await chrome.storage.local.get("gitlabs");
-    if (!gitlabs) ({ gitlabs = {} } = await chrome.storage.sync.get("gitlabs"));
-
-    const overlay = document.createElement("div");
-    overlay.id = "pt-themes-dialog";
-    const panel = document.createElement("div");
-    panel.className = "pt-dialog pt-tokens";
-    panel.innerHTML =
-      `<div class="pt-gallery-head"><h3>Access tokens</h3></div>` +
-      `<p>Tokens enable review actions; they are stored locally and never leave the browser except to their own host. Changes apply after reloading the diff page.</p>`;
-
-    const glSection = document.createElement("div");
-    glSection.innerHTML =
-      `<h4>GitLab instances</h4><p>Personal access token with the <code>api</code> scope.</p>`;
-    const rows = document.createElement("table");
-    rows.className = "pt-tokens-table";
-    glSection.appendChild(rows);
-
-    const ghInput = document.createElement("input");
-    ghInput.type = "password";
-    ghInput.placeholder = "ghp_… or github_pat_…";
-    ghInput.value = gitlabs["github.com"]?.token || "";
-
-    const save = () => {
-      const m = {};
-      for (const tr of rows.querySelectorAll("tr")) {
-        const [h, t] = tr.querySelectorAll("input");
-        const host = h.value.trim();
-        if (host && host !== "github.com") m[host] = { token: t.value.trim() };
-      }
-      if (ghInput.value.trim()) m["github.com"] = { token: ghInput.value.trim() };
-      chrome.storage.local.set({ gitlabs: m });
-    };
-
-    const addRow = (host = "", tok = "") => {
-      const tr = rows.insertRow();
-      const c1 = tr.insertCell();
-      const c2 = tr.insertCell();
-      const c3 = tr.insertCell();
-      const hi = document.createElement("input");
-      hi.placeholder = "gitlab.example.com";
-      hi.value = host;
-      const ti = document.createElement("input");
-      ti.type = "password";
-      ti.placeholder = "glpat-…";
-      ti.value = tok;
-      const rm = document.createElement("button");
-      rm.textContent = "✕";
-      rm.addEventListener("click", () => {
-        tr.remove();
-        save();
-      });
-      c1.appendChild(hi);
-      c2.appendChild(ti);
-      c3.appendChild(rm);
-      hi.addEventListener("change", save);
-      ti.addEventListener("change", save);
-    };
-    for (const [host, v] of Object.entries(gitlabs))
-      if (host !== "github.com") addRow(host, v.token || "");
-    if (!rows.rows.length) addRow();
-
-    const addBtn = document.createElement("button");
-    addBtn.textContent = "Add instance";
-    addBtn.className = "pt-token-add";
-    addBtn.addEventListener("click", () => addRow());
-    glSection.appendChild(addBtn);
-    panel.appendChild(glSection);
-
-    const ghSection = document.createElement("div");
-    ghSection.innerHTML =
-      `<h4>GitHub</h4><p>Classic token (<code>repo</code> scope) or a fine-grained token with Pull requests read &amp; write. Used on github.com and patch-diff.githubusercontent.com.</p>`;
-    ghInput.addEventListener("change", save);
-    ghSection.appendChild(ghInput);
-    panel.appendChild(ghSection);
-
-    const actions = document.createElement("div");
-    actions.className = "pt-form-actions";
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "Done";
-    closeBtn.className = "pt-primary";
-    closeBtn.addEventListener("click", () => {
-      save();
-      overlay.remove();
-    });
-    actions.appendChild(closeBtn);
-    panel.appendChild(actions);
-
-    overlay.appendChild(panel);
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) {
-        save();
-        overlay.remove();
-      }
-    });
-    document.body.appendChild(overlay);
+  const openTokensDialog = () => {
+    document.getElementById("pt-tokens-host")?.remove();
+    const host = document.createElement("div");
+    host.id = "pt-tokens-host";
+    const dispose = render(
+      () =>
+        TokensDialog({
+          onClose: () => {
+            dispose();
+            host.remove();
+          },
+        }),
+      host
+    );
+    document.body.appendChild(host);
   };
 
   menuItem(gear.menu, "Access tokens…", () => {
