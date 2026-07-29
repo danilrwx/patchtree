@@ -15,29 +15,24 @@
 // Adapter unit tests: load providers.ts with a mocked fetch and a mocked
 // storage token, then drive every Provider method and assert the request it
 // issues (url, method, auth header, body) and how it normalizes the response.
-import { readFileSync } from "node:fs";
-import { transformSync } from "esbuild";
+import { fileURLToPath } from "node:url";
+import { buildSync } from "esbuild";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 
 const root = new URL("..", import.meta.url);
-const { code } = transformSync(readFileSync(new URL("src/providers.ts", root), "utf8"), {
-  loader: "ts",
+// bundle the providers entry (it now spans index/gitlab/github/shared/diff) into
+// a single cjs module we can run in the sandbox
+const { outputFiles } = buildSync({
+  entryPoints: [fileURLToPath(new URL("src/providers/index.ts", root))],
+  bundle: true,
   format: "cjs",
+  platform: "browser",
+  write: false,
+  logLevel: "silent",
 });
-
-// providers.ts imports { imageMime } from "./diff"; provide it to the sandbox's
-// require so the cjs-transpiled module can resolve it
-const diffMod = { exports: {} };
-new Function(
-  "module",
-  "exports",
-  "require",
-  transformSync(readFileSync(new URL("src/diff.ts", root), "utf8"), { loader: "ts", format: "cjs" })
-    .code
-)(diffMod, diffMod.exports, () => ({}));
+const code = outputFiles[0].text;
 const sandboxRequire = (id) => {
-  if (id === "./diff") return diffMod.exports;
   throw new Error(`unexpected require: ${id}`);
 };
 
