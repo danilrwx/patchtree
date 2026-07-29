@@ -118,7 +118,6 @@ html.pt-on body {
   top: 54px;
   max-height: calc(100vh - 64px);
   overflow: auto;
-  padding-right: 4px;
   width: 280px;
   min-width: 160px;
   max-width: 800px;
