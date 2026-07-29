@@ -59,6 +59,34 @@ export function menuItem(
   return item;
 }
 
+// Wrap the textarea's selection in `before`/`after` (a Markdown toolbar action).
+export function surround(ta: HTMLTextAreaElement, before: string, after: string = before) {
+  const s = ta.selectionStart;
+  const e = ta.selectionEnd;
+  const sel = ta.value.slice(s, e) || "text";
+  ta.setRangeText(before + sel + after, s, e);
+  ta.focus();
+  ta.selectionStart = s + before.length;
+  ta.selectionEnd = s + before.length + sel.length;
+}
+
+// Prefix each selected line via `prefixFor(index)` (list/heading toolbar actions).
+export function prefixLines(ta: HTMLTextAreaElement, prefixFor: (i: number) => string) {
+  const v = ta.value;
+  const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
+  let end = v.indexOf("\n", ta.selectionEnd);
+  if (end === -1) end = v.length;
+  const block = v
+    .slice(start, end)
+    .split("\n")
+    .map((line, i) => prefixFor(i) + line)
+    .join("\n");
+  ta.setRangeText(block, start, end);
+  ta.focus();
+  ta.selectionStart = start;
+  ta.selectionEnd = start + block.length;
+}
+
 // Scroll an element to the viewport center and briefly flash it.
 export function flashCenter(el: Element | null | undefined) {
   if (!el) return;

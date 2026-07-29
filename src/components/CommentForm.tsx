@@ -14,6 +14,7 @@
 
 import { createSignal, onMount, Show, } from "solid-js";
 import { icons } from "../icons";
+import { surround, prefixLines } from "../ui";
 
 export interface CommentFormProps {
   placeholder: string;
@@ -33,33 +34,6 @@ export interface CommentFormProps {
   onDraft?: ((body: string) => Promise<void>) | null;
   // prefill (used by the inline note editor)
   initial?: string;
-}
-
-// textarea helpers, ported from review.js surround/prefixLines
-function surround(ta: HTMLTextAreaElement, before: string, after = before) {
-  const s = ta.selectionStart;
-  const e = ta.selectionEnd;
-  const sel = ta.value.slice(s, e) || "text";
-  ta.setRangeText(before + sel + after, s, e);
-  ta.focus();
-  ta.selectionStart = s + before.length;
-  ta.selectionEnd = s + before.length + sel.length;
-}
-
-function prefixLines(ta: HTMLTextAreaElement, prefixFor: (i: number) => string) {
-  const v = ta.value;
-  const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
-  let end = v.indexOf("\n", ta.selectionEnd);
-  if (end === -1) end = v.length;
-  const block = v
-    .slice(start, end)
-    .split("\n")
-    .map((line, i) => prefixFor(i) + line)
-    .join("\n");
-  ta.setRangeText(block, start, end);
-  ta.focus();
-  ta.selectionStart = start;
-  ta.selectionEnd = start + block.length;
 }
 
 export function CommentForm(props: CommentFormProps) {
