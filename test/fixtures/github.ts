@@ -240,6 +240,12 @@ export async function mockGithubSuggestion(context: BrowserContext): Promise<voi
     if (p === "/user") return json({ id: 9, login: "me" });
     if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
     if (p === "/markdown") return route.fulfill({ contentType: "text/html", body: "<p></p>" });
+    // apply-suggestion commits to the head branch: read the file, then PUT it back
+    if (p.includes("/contents/")) {
+      if (route.request().method() === "PUT") return json({ commit: {} });
+      const text = Array.from({ length: 80 }, (_, i) => `line ${i + 1}`).join("\n");
+      return json({ content: Buffer.from(text).toString("base64"), sha: "filesha" });
+    }
     return json([]);
   });
 }

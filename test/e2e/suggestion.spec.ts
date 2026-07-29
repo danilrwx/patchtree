@@ -78,3 +78,31 @@ test("a GitHub multi-line suggestion replaces the whole comment range", async ({
   await expect(sug.locator(".pt-sug-table tr.pt-del")).toHaveCount(2);
   await expect(sug.locator(".pt-sug-table tr.pt-add")).toHaveCount(2);
 });
+
+test("applying a suggestion commits it and marks the button Applied", async ({ context, page }) => {
+  await mockGithubSuggestion(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const sug = page.locator(".pt-sug").first();
+  await expect(sug).toBeAttached({ timeout: 20000 });
+  await sug.scrollIntoViewIfNeeded();
+  await sug.locator("button", { hasText: "Apply suggestion" }).click();
+
+  await expect(sug.locator("button", { hasText: "Applied" })).toBeVisible();
+  await expect(page.locator("#pt-status")).toContainText("suggestion applied");
+});
+
+test("dismissing a suggestion resolves the thread", async ({ context, page }) => {
+  await mockGithubSuggestion(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const sug = page.locator(".pt-sug").first();
+  await expect(sug).toBeAttached({ timeout: 20000 });
+  await sug.scrollIntoViewIfNeeded();
+  await sug.locator("button", { hasText: "Dismiss" }).click();
+
+  await expect(page.locator("#pt-status")).toContainText("suggestion dismissed");
+  await expect(sug.locator("button", { hasText: "Dismiss" })).toHaveCount(0);
+});
