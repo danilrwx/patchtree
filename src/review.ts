@@ -14,7 +14,8 @@
 
 import { setReviewThreads, setComposing, composing, setReviewApi } from "./store";
 import { icons } from "./icons";
-import { flashCenter, makeDropdown, menuItem } from "./ui";
+import { esc } from "./diff";
+import { flashCenter, makeDropdown, menuItem, surround, prefixLines } from "./ui";
 import type { Provider } from "./types";
 
 // The imperative surface content.ts builds and hands to the review controller.
@@ -41,10 +42,6 @@ export function initReview(P: Provider, view: PtView) {
   let drafts: any[] = [];
   let unresolvedEl: any = null;
   let reviewSum: HTMLElement | null = null;
-
-  function esc(s: string) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
 
   function status(text: string, isError?: boolean) {
     const el = document.getElementById("pt-status");
@@ -297,34 +294,8 @@ export function initReview(P: Provider, view: PtView) {
     }
   }
 
-  // still used by the inline note editor and the review-summary textarea
-  function surround(ta: HTMLTextAreaElement, before: string, after: string = before) {
-    const s = ta.selectionStart;
-    const e = ta.selectionEnd;
-    const sel = ta.value.slice(s, e) || "text";
-    ta.setRangeText(before + sel + after, s, e);
-    ta.focus();
-    ta.selectionStart = s + before.length;
-    ta.selectionEnd = s + before.length + sel.length;
-  }
-
-  function prefixLines(ta: HTMLTextAreaElement, prefixFor: (i: number) => string) {
-    const v = ta.value;
-    const start = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
-    let end = v.indexOf("\n", ta.selectionEnd);
-    if (end === -1) end = v.length;
-    const block = v
-      .slice(start, end)
-      .split("\n")
-      .map((line, i) => prefixFor(i) + line)
-      .join("\n");
-    ta.setRangeText(block, start, end);
-    ta.focus();
-    ta.selectionStart = start;
-    ta.selectionEnd = start + block.length;
-  }
-
-  function mdToolbar(ta: HTMLTextAreaElement, suggestionText?: string | null) {
+  // Markdown toolbar for the review-summary textarea (bold/italic/list/…).
+  function mdToolbar(ta: HTMLTextAreaElement) {
     const bar = document.createElement("div");
     bar.className = "pt-md-bar";
     const add = (icon: string, title: string, cls: string, fn: () => void) => {
@@ -346,16 +317,6 @@ export function initReview(P: Provider, view: PtView) {
     });
     add("ul", "Bulleted list", "pt-md-ul", () => prefixLines(ta, () => "- "));
     add("ol", "Numbered list", "pt-md-ol", () => prefixLines(ta, (i) => `${i + 1}. `));
-    if (suggestionText != null)
-      add("diff", "Insert suggestion", "pt-md-sug", () => {
-        const s = ta.selectionStart;
-        const block = `\`\`\`suggestion:-0+0\n${suggestionText}\n\`\`\`\n`;
-        ta.setRangeText(block, s, ta.selectionEnd);
-        ta.focus();
-        const lineStart = s + block.indexOf("\n") + 1;
-        ta.selectionStart = lineStart;
-        ta.selectionEnd = lineStart + suggestionText.length;
-      });
     return bar;
   }
 
@@ -528,7 +489,7 @@ export function initReview(P: Provider, view: PtView) {
 
   const rowFor = (path: string, side: string, n: number) =>
     document.querySelector<HTMLElement>(
-      `tr[data-path="${CSS.escape(path)}"][data-${side === "old" ? "old" : "new"}="${n}"]`
+      `tr[data-path="${CSS.escape(path)}"][data-${side}="${n}"]`
     );
 
   function onLineMouseDown(e: MouseEvent) {
@@ -733,8 +694,7 @@ export function initReview(P: Provider, view: PtView) {
       // approval state is cosmetic; token may be missing
     }
 
-    loadThreads().catch((e) => status(`discussions unavailable: ${e.message}`, true));
-    loadDrafts();
+    refreshThreads();
 
     view.root.addEventListener("click", onLineClick);
     view.root.addEventListener("mousedown", onLineMouseDown);
