@@ -117,3 +117,42 @@ test("a reload returns to the file the user was on", async ({ context, page }) =
     .poll(async () => (await target.boundingBox())?.y ?? 9999, { timeout: 5000 })
     .toBeLessThan(150);
 });
+
+// misc.diff bundles a format-patch preamble, a modified file, a deleted file,
+// and a generated file (go.sum) — all rendered locally, no provider.
+async function openMisc(context: any, page: any) {
+  const body = readFileSync(path.join(__dirname, "../fixtures/misc.diff"), "utf8");
+  const url = "https://example.com/misc.diff";
+  await context.route(url, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body })
+  );
+  await page.goto(url);
+  await expect(page.locator("section.pt-file")).toHaveCount(3);
+}
+
+test("a format-patch preamble renders above the files", async ({ context, page }) => {
+  await openMisc(context, page);
+  await expect(page.locator("#pt-preamble")).toContainText("rework the app and drop the legacy");
+});
+
+test("a generated file gets a badge and starts folded", async ({ context, page }) => {
+  await openMisc(context, page);
+  const gen = page.locator("section.pt-file", { hasText: "go.sum" });
+  await expect(gen.locator(".pt-gen-badge")).toBeVisible();
+  await expect(gen).toHaveClass(/pt-folded/);
+});
+
+test("the funnel can hide deleted files", async ({ context, page }) => {
+  await openMisc(context, page);
+  await expect(page.locator(".pt-tree-file.pt-st-deleted")).toHaveCount(1);
+
+  await page.locator(".pt-filter-dd > summary").click();
+  await page
+    .locator(".pt-filter-row", { hasText: "Deleted files" })
+    .locator("input")
+    .evaluate((el: HTMLInputElement) => {
+      el.checked = false;
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  await expect(page.locator(".pt-tree-file.pt-st-deleted:visible")).toHaveCount(0);
+});

@@ -1,0 +1,35 @@
+From 9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b Mon Sep 17 00:00:00 2001
+From: Jane Doe <jane@example.com>
+Date: Thu, 30 Jul 2026 00:00:00 +0000
+Subject: [PATCH] rework the app and drop the legacy helper
+
+This patch reworks run(), removes the legacy helper, and refreshes go.sum.
+---
+diff --git a/pkg/app/main.go b/pkg/app/main.go
+index aaaaaaa..bbbbbbb 100644
+--- a/pkg/app/main.go
++++ b/pkg/app/main.go
+@@ -1,4 +1,5 @@
+ package app
+
+-func run() {}
++func run() error {
++	return nil
++}
+diff --git a/pkg/old/legacy.go b/pkg/old/legacy.go
+deleted file mode 100644
+index ccccccc..0000000
+--- a/pkg/old/legacy.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package old
+-
+-func Legacy() {}
+diff --git a/go.sum b/go.sum
+index ddddddd..eeeeeee 100644
+--- a/go.sum
++++ b/go.sum
+@@ -1,2 +1,3 @@
+ example.com/a v1.0.0 h1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=
++example.com/b v1.2.0 h1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb=
+ example.com/c v1.0.0 h1:ccccccccccccccccccccccccccccccccccccccccccc=
