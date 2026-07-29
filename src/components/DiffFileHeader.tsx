@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Show, type Accessor } from "solid-js";
+import { Show, For, type Accessor } from "solid-js";
 import { icons } from "../icons";
 import { onActivate } from "../a11y";
 import { canExpand } from "../store";
+import { wordDiff, type Range } from "../diff";
 
 export interface DiffFileHeaderProps {
   path: string;
@@ -31,25 +32,30 @@ export interface DiffFileHeaderProps {
   onToggleViewed: (checked: boolean) => void;
 }
 
-// split two paths into their shared prefix/suffix and the differing middles,
-// so a rename tooltip can highlight exactly what changed
-function diffParts(a: string, b: string) {
-  const max = Math.min(a.length, b.length);
-  let p = 0;
-  while (p < max && a[p] === b[p]) p++;
-  let s = 0;
-  while (s < max - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
-  return {
-    prefix: a.slice(0, p),
-    oldMid: a.slice(p, a.length - s),
-    newMid: b.slice(p, b.length - s),
-    suffix: s ? a.slice(a.length - s) : "",
-  };
+// split a path into segments, marking the token ranges that changed (from
+// wordDiff), so the rename tooltip highlights exactly what differs
+function markup(text: string, ranges: Range[]) {
+  const out: { t: string; hi: boolean }[] = [];
+  let pos = 0;
+  for (const r of ranges) {
+    if (r.s > pos) out.push({ t: text.slice(pos, r.s), hi: false });
+    out.push({ t: text.slice(r.s, r.e), hi: true });
+    pos = r.e;
+  }
+  if (pos < text.length) out.push({ t: text.slice(pos), hi: false });
+  return out;
 }
 
 export function DiffFileHeader(props: DiffFileHeaderProps) {
   const rename = () => !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
-  const dp = () => (rename() ? diffParts(props.oldPath!, props.newPath!) : null);
+  const rn = () => {
+    if (!rename()) return null;
+    const wd = wordDiff(props.oldPath!, props.newPath!);
+    return {
+      old: markup(props.oldPath!, wd?.a ?? []),
+      new: markup(props.newPath!, wd?.b ?? []),
+    };
+  };
   return (
     // biome-ignore lint/a11y/useSemanticElements: the header holds its own interactive controls (copy button, checkboxes) and cannot nest them inside a native <button>; role="button" is the correct pattern
     <div
@@ -71,18 +77,15 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
         <span class="pt-rename">renamed</span>
       </Show>
       <span class="pt-tip">
-        <Show when={dp()} fallback={<div class="pt-tip-path">{props.path}</div>}>
-          {(d) => (
+        <Show when={rn()} fallback={<div class="pt-tip-path">{props.path}</div>}>
+          {(r) => (
             <>
               <div class="pt-tip-path">
-                {d().prefix}
-                <mark>{d().oldMid}</mark>
-                {d().suffix}
+                <For each={r().old}>{(s) => (s.hi ? <mark>{s.t}</mark> : s.t)}</For>
               </div>
               <div class="pt-tip-path">
-                →&nbsp;{d().prefix}
-                <mark>{d().newMid}</mark>
-                {d().suffix}
+                →&nbsp;
+                <For each={r().new}>{(s) => (s.hi ? <mark>{s.t}</mark> : s.t)}</For>
               </div>
             </>
           )}
