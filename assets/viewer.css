@@ -103,7 +103,7 @@ html.pt-on body {
   display: grid;
   grid-template-columns: auto 8px minmax(0, 1fr);
   grid-template-areas: "bar bar bar" "tree split main";
-  gap: 0 4px;
+  gap: 0;
   align-items: start;
 }
 
