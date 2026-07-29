@@ -597,13 +597,16 @@ async function main() {
         mountSetters.get(views[i].section)?.();
         mountObserver.unobserve(views[i].section);
       }
+      // Converge over a few frames: scrolling reveals more sections whose
+      // content-visibility height then resolves (and the web font swaps line
+      // metrics), each shifting the target. Re-pin until it stops moving.
+      let tries = 0;
       const goTo = () => {
-        const top = views[idx].section.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({ top: Math.max(0, top - 56) });
+        const want = Math.max(0, views[idx].section.getBoundingClientRect().top + window.scrollY - 52);
+        if (Math.abs(window.scrollY - want) > 1) window.scrollTo({ top: want });
+        if (tries++ < 20) requestAnimationFrame(goTo);
       };
       requestAnimationFrame(goTo);
-      // the web font swaps line metrics after it loads, shifting everything —
-      // re-pin once it is ready so we don't drift a few files off
       document.fonts?.ready.then(() => requestAnimationFrame(goTo));
     }
   }
