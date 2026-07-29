@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { For, createMemo } from "solid-js";
+import { icons } from "../icons";
 import { treeFiles, filter, viewed, counts, type TreeFile } from "../store";
 
 interface Node {
@@ -98,7 +99,7 @@ function TreeNode(props: { node: Node }) {
               class="pt-tree-cmt"
               innerHTML={
                 counts[f.path]
-                  ? ((window as any).ptIcons?.comment ?? "") + counts[f.path]
+                  ? (icons.comment ?? "") + counts[f.path]
                   : ""
               }
             />

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { Show, type Accessor } from "solid-js";
+import { icons } from "../icons";
 import { onActivate } from "../a11y";
 import { canExpand } from "../store";
 
@@ -31,7 +32,6 @@ export interface DiffFileHeaderProps {
 }
 
 export function DiffFileHeader(props: DiffFileHeaderProps) {
-  const icons = () => (window as any).ptIcons ?? {};
   const rename = () => !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
   return (
     // biome-ignore lint/a11y/useSemanticElements: the header holds its own interactive controls (copy button, checkboxes) and cannot nest them inside a native <button>; role="button" is the correct pattern
@@ -45,9 +45,9 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
       }}
       onKeyDown={onActivate(() => props.onToggleFold())}
     >
-      <span class="pt-fold" innerHTML={icons().chevron} />
+      <span class="pt-fold" innerHTML={icons.chevron} />
       <span class="pt-path">{props.path}</span>
-      <button type="button" class="pt-hbtn" title="Copy path" innerHTML={icons().copy} onClick={() => props.onCopy()} />
+      <button type="button" class="pt-hbtn" title="Copy path" innerHTML={icons.copy} onClick={() => props.onCopy()} />
       <Show when={rename()}>
         <span class="pt-rename">← {props.oldPath}</span>
       </Show>

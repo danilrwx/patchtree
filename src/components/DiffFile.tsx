@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { For, Show, type Accessor } from "solid-js";
+import { icons } from "../icons";
 import { clickable } from "../a11y";
 import { renderLineHTML, rowMeta, type FileModel, type Gap, type RowMeta, type AlignSide } from "../diff";
 import {
@@ -58,7 +59,6 @@ function metaAttrs(m: RowMeta): Record<string, string> {
   return a;
 }
 
-const icons = () => (window as any).ptIcons ?? {};
 
 export function DiffFile(props: DiffFileProps) {
   const m = props.model;
@@ -85,7 +85,7 @@ export function DiffFile(props: DiffFileProps) {
         <tr class="pt-expander">
           <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
             <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
-              <span innerHTML={icons().unfold} /> <span>expand hidden lines</span>
+              <span innerHTML={icons.unfold} /> <span>expand hidden lines</span>
             </Show>
           </td>
         </tr>
@@ -111,7 +111,7 @@ export function DiffFile(props: DiffFileProps) {
         <tr class="pt-expander">
           <td colspan={4} {...clickable(() => props.onExpand(p.gap))}>
             <Show when={!gapErr[p.gap.id]} fallback={<span>⚠ {gapErr[p.gap.id]}</span>}>
-              <span innerHTML={icons().unfold} /> <span>expand hidden lines</span>
+              <span innerHTML={icons.unfold} /> <span>expand hidden lines</span>
             </Show>
           </td>
         </tr>

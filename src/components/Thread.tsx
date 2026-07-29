@@ -17,6 +17,7 @@
 // after the matching diff row. Replaces the imperative rowsFor/threadRow/
 // renderNote machinery and its refreshThreads() full rebuild.
 import { For, Show, createSignal, createMemo, createEffect, type JSX } from "solid-js";
+import { icons } from "../icons";
 import { esc } from "../diff";
 import {
   composing,
@@ -37,7 +38,6 @@ import { CommentForm } from "./CommentForm";
 // the review actions live in the store (set by review.ts); non-null because the
 // thread components only ever render once review has populated it
 const rv = (): ReviewApi => reviewApi()!;
-const icons = (): Record<string, string> => (window as any).ptIcons ?? {};
 
 const EDIT_SVG =
   '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"/></svg>';
@@ -242,7 +242,7 @@ function ThreadActions(props: { thread: ReviewThread }) {
           <button
             type="button"
             class="pt-reply-btn"
-            innerHTML={`${icons().reply || ""}<span>Reply…</span>`}
+            innerHTML={`${icons.reply || ""}<span>Reply…</span>`}
             onClick={() => setReplying(true)}
           />
         }
@@ -260,7 +260,7 @@ function ThreadActions(props: { thread: ReviewThread }) {
         <button
           type="button"
           class="pt-reply-btn"
-          innerHTML={`${icons().check || ""}<span>${props.thread.resolved ? "Unresolve" : "Resolve"}</span>`}
+          innerHTML={`${icons.check || ""}<span>${props.thread.resolved ? "Unresolve" : "Resolve"}</span>`}
           onClick={() => rv().resolve(props.thread, !props.thread.resolved)}
         />
       </Show>

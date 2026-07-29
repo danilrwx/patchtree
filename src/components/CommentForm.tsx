@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { createSignal, onMount, Show, } from "solid-js";
+import { icons } from "../icons";
 
 export interface CommentFormProps {
   placeholder: string;
@@ -54,7 +55,6 @@ function prefixLines(ta: HTMLTextAreaElement, prefixFor: (i: number) => string) 
 }
 
 export function CommentForm(props: CommentFormProps) {
-  const icons = () => (window as any).ptIcons ?? {};
   let ta!: HTMLTextAreaElement;
   const [preview, setPreview] = createSignal(false);
   const [previewHtml, setPreviewHtml] = createSignal("");
@@ -85,7 +85,7 @@ export function CommentForm(props: CommentFormProps) {
   };
 
   const tb = (icon: string, title: string, cls: string, fn: () => void) => (
-    <button type="button" class={cls} title={title} innerHTML={icons()[icon] || icon} onClick={fn} />
+    <button type="button" class={cls} title={title} innerHTML={icons[icon] || icon} onClick={fn} />
   );
 
   return (

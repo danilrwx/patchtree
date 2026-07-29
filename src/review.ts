@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { setReviewThreads, setComposing, composing, setReviewApi } from "./store";
+import { icons } from "./icons";
 import type { Provider } from "./types";
 
 // The imperative surface content.ts builds and hands to the review controller.
@@ -326,7 +327,6 @@ export function initReview(P: Provider, view: PtView) {
   function mdToolbar(ta: HTMLTextAreaElement, suggestionText?: string | null) {
     const bar = document.createElement("div");
     bar.className = "pt-md-bar";
-    const icons = window.ptIcons || {};
     const add = (icon: string, title: string, cls: string, fn: () => void) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -363,7 +363,7 @@ export function initReview(P: Provider, view: PtView) {
 
   function buildCommitSelect(bar: HTMLElement) {
     const { dd, sum, menu } = view.makeDropdown(
-      `${window.ptIcons?.commit || ""}<span class="pt-dd-label">All commits</span>`
+      `${icons.commit || ""}<span class="pt-dd-label">All commits</span>`
     );
     dd.id = "pt-commits";
     bar.prepend(dd);
@@ -654,7 +654,7 @@ export function initReview(P: Provider, view: PtView) {
         a.target = "_blank";
         a.rel = "noopener";
         a.title = "Open at head revision";
-        a.innerHTML = window.ptIcons?.external || "↗";
+        a.innerHTML = icons.external || "↗";
         sec.querySelector(".pt-stats")?.before(a);
       }
     };
