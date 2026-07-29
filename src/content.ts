@@ -16,6 +16,7 @@
 
 import { resolveLang, parseDiff, buildFileModel } from "./diff";
 import { flashCenter, mountDialog } from "./ui";
+import { injectFonts } from "./fonts";
 import { render } from "solid-js/web";
 import { createSignal, batch } from "solid-js";
 import { unwrap, reconcile } from "solid-js/store";
@@ -113,37 +114,6 @@ async function expandGap(view: any, gap: any) {
     gap.busy = false;
     setGapErr(gap.id, e.message);
   }
-}
-
-// @font-face lives here, not in the injected CSS: extension-resource URLs
-// need runtime.getURL to work on both chrome-extension:// and moz-extension://
-const FONT_FACES = [
-  ["JetBrains Mono", "400", "normal", "JetBrainsMono-Regular.woff2"],
-  ["JetBrains Mono", "400", "italic", "JetBrainsMono-Italic.woff2"],
-  ["JetBrains Mono", "700", "normal", "JetBrainsMono-Bold.woff2"],
-  ["Inter", "100 900", "normal", "InterVariable.woff2"],
-  ["Inter", "100 900", "italic", "InterVariable-Italic.woff2"],
-  ["JetBrainsMono Nerd Font Mono", "400", "normal", "JetBrainsMonoNerdFontMono-Regular.woff2"],
-  ["JetBrainsMono Nerd Font Mono", "700", "normal", "JetBrainsMonoNerdFontMono-Bold.woff2"],
-  ["FiraCode Nerd Font Mono", "400", "normal", "FiraCodeNerdFontMono-Regular.woff2"],
-  ["FiraCode Nerd Font Mono", "700", "normal", "FiraCodeNerdFontMono-Bold.woff2"],
-  ["Hack Nerd Font Mono", "400", "normal", "HackNerdFontMono-Regular.woff2"],
-  ["Hack Nerd Font Mono", "700", "normal", "HackNerdFontMono-Bold.woff2"],
-  ["MesloLGS Nerd Font Mono", "400", "normal", "MesloLGSNerdFontMono-Regular.woff2"],
-  ["MesloLGS Nerd Font Mono", "700", "normal", "MesloLGSNerdFontMono-Bold.woff2"],
-  ["Iosevka Nerd Font Mono", "400", "normal", "IosevkaNerdFontMono-Regular.woff2"],
-  ["Iosevka Nerd Font Mono", "700", "normal", "IosevkaNerdFontMono-Bold.woff2"],
-];
-
-function injectFonts() {
-  const css = FONT_FACES.map(
-    ([family, weight, style, file]) =>
-      `@font-face{font-family:"${family}";font-weight:${weight};font-style:${style};` +
-      `src:url("${chrome.runtime.getURL(`assets/fonts/${file}`)}") format("woff2");}`
-  ).join("\n");
-  const el = document.createElement("style");
-  el.textContent = css;
-  document.documentElement.appendChild(el);
 }
 
 const GENERATED_RE =
