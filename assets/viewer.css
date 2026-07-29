@@ -115,8 +115,8 @@ html.pt-on body {
 #pt-tree {
   grid-area: tree;
   position: sticky;
-  top: 54px;
-  max-height: calc(100vh - 64px);
+  top: 48px;
+  max-height: calc(100vh - 58px);
   overflow: auto;
   width: 280px;
   min-width: 160px;
@@ -130,8 +130,8 @@ html.pt-on body {
   border-left: 1px solid var(--pt-border);
   margin-left: 3px;
   position: sticky;
-  top: 54px;
-  height: calc(100vh - 64px);
+  top: 48px;
+  height: calc(100vh - 58px);
 }
 
 #pt-splitter:hover {
@@ -942,7 +942,7 @@ html.pt-on {
 
 .pt-file-header {
   position: sticky;
-  top: 50px;
+  top: 44px;
   z-index: 2;
   display: flex;
   flex-wrap: nowrap;
