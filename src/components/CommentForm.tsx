@@ -23,8 +23,11 @@ export interface CommentFormProps {
   onError: (message: string) => void;
   suggestionText?: string | null;
   // how many lines above the anchored line the suggestion also replaces
-  // (a multi-line selection); becomes the `suggestion:-N+0` block header
+  // (a multi-line selection); becomes GitLab's `suggestion:-N+0` block header
   suggestionMinus?: number;
+  // GitHub uses a plain ```suggestion fence (range comes from the comment);
+  // GitLab encodes the range in the fence header
+  suggestionSyntax?: "github" | "gitlab";
   onDraft?: ((body: string) => Promise<void>) | null;
   // prefill (used by the inline note editor)
   initial?: string;
@@ -115,7 +118,11 @@ export function CommentForm(props: CommentFormProps) {
         <Show when={props.suggestionText != null}>
           {tb("diff", "Insert suggestion", "pt-md-sug", () => {
             const s = ta.selectionStart;
-            const block = `\`\`\`suggestion:-${props.suggestionMinus ?? 0}+0\n${props.suggestionText}\n\`\`\`\n`;
+            // GitHub: plain ```suggestion (multi-line spans the comment range);
+            // GitLab: encode the replaced range in the fence header
+            const header =
+              props.suggestionSyntax === "github" ? "" : `:-${props.suggestionMinus ?? 0}+0`;
+            const block = `\`\`\`suggestion${header}\n${props.suggestionText}\n\`\`\`\n`;
             ta.setRangeText(block, s, ta.selectionEnd);
             ta.focus();
             const lineStart = s + block.indexOf("\n") + 1;

@@ -187,6 +187,7 @@ export function initReview(P: Provider, view: PtView) {
       return !!P.token;
     },
     can: P.can,
+    suggestionSyntax: P.kind,
     renderMarkdown,
     status,
     reply: async (t: any, body: string) => {

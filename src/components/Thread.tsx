@@ -18,7 +18,7 @@
 // renderNote machinery and its refreshThreads() full rebuild.
 import { For, Show, createSignal, createMemo, createEffect, type JSX } from "solid-js";
 import { icons } from "../icons";
-import { esc, resolveLang, renderLineHTML, type Range } from "../diff";
+import { esc, resolveLang, renderLineHTML, wordDiff, type Range } from "../diff";
 import {
   composing,
   setComposing,
@@ -88,6 +88,13 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
     return out;
   });
   const sug = createMemo(() => props.part.sug!.split("\n"));
+  // pair removed/proposed lines positionally and word-diff them, so the widget
+  // highlights exactly what changed (like GitLab), not just whole ± lines
+  const wd = (i: number) => {
+    const b = before();
+    const s = sug();
+    return i < b.length && i < s.length ? wordDiff(b[i], s[i]) : null;
+  };
   // syntax-highlight the widget in one round-trip over the removed + proposed
   // lines; rows are 0-based, so proposed lines start after the removed ones
   const [hl, setHl] = createSignal<Record<number, Range[]>>({});
@@ -153,7 +160,7 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
             {(l, i) => (
               <tr class="pt-del">
                 <td class="pt-mark">−</td>
-                <td class="pt-code" innerHTML={renderLineHTML(l, hl()[i()], null)} />
+                <td class="pt-code" innerHTML={renderLineHTML(l, hl()[i()], wd(i())?.a ?? null)} />
               </tr>
             )}
           </For>
@@ -161,7 +168,10 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
             {(l, i) => (
               <tr class="pt-add">
                 <td class="pt-mark">+</td>
-                <td class="pt-code" innerHTML={renderLineHTML(l, hl()[before().length + i()], null)} />
+                <td
+                  class="pt-code"
+                  innerHTML={renderLineHTML(l, hl()[before().length + i()], wd(i())?.b ?? null)}
+                />
               </tr>
             )}
           </For>
@@ -366,6 +376,7 @@ function InlineForm(props: { pos: Composing; split: boolean; side: string }) {
           onClose={() => setComposing(null)}
           suggestionText={suggestion()?.text ?? null}
           suggestionMinus={suggestion()?.minus ?? 0}
+          suggestionSyntax={rv().suggestionSyntax}
         />
       </CommentCell>
     </tr>

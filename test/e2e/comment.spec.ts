@@ -89,5 +89,9 @@ test("the inline form offers a suggestion prefilled with the line", async ({ con
   const sug = page.locator(".pt-comment-form .pt-md-sug").first();
   await expect(sug).toBeVisible();
   await sug.click();
-  await expect(page.locator(".pt-comment-form textarea").first()).toHaveValue(/```suggestion/);
+  const ta = page.locator(".pt-comment-form textarea").first();
+  // GitHub uses a plain ```suggestion fence, NOT GitLab's ```suggestion:-N+0
+  // (the :-N+0 header makes GitHub render it as a plain code block, not a suggestion)
+  await expect(ta).toHaveValue(/```suggestion\n/);
+  await expect(ta).not.toHaveValue(/suggestion:-/);
 });
