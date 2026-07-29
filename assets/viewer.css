@@ -1169,76 +1169,20 @@ html.pt-on {
   tab-size: var(--pt-tab, 4);
 }
 
-/* vim-style nowrap: long lines keep full length and scroll horizontally */
-.pt-nowrap .pt-code,
-.pt-nowrap .pt-hs {
+/* vim-style nowrap: long lines keep full length and the file body scrolls
+   horizontally instead of wrapping */
+.pt-nowrap .pt-code {
   white-space: pre;
   overflow-wrap: normal;
 }
-
-/* unified: the single code column scrolls the whole file body */
-html.pt-nowrap #pt-root.pt-mode-unified .pt-file-body {
+.pt-nowrap .pt-file-body {
   overflow-x: auto;
 }
+/* keep comment/form cells anchored at the left while the code scrolls */
 .pt-nowrap .pt-comments-row td,
 .pt-nowrap .pt-inline-form td {
   position: sticky;
   left: 0;
-}
-
-/* split: each pane scrolls its own code (fixed columns so the table doesn't
-   grow); the body must not be a scroll container so the per-pane scrollbar can
-   pin to the viewport bottom */
-html.pt-nowrap #pt-root.pt-mode-split .pt-file-body {
-  overflow: visible;
-}
-.pt-nowrap .pt-split {
-  table-layout: fixed;
-  width: 100%;
-}
-.pt-nowrap .pt-split .pt-hs {
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.pt-nowrap .pt-split .pt-hs::-webkit-scrollbar {
-  display: none;
-}
-/* widen each row to the column's longest line so panning moves the whole pane
-   (short rows scroll too), not just the overflowing lines */
-.pt-nowrap .pt-split .pt-hs[data-hs="old"] .pt-hs-in {
-  min-width: var(--pt-hsw-old, 0);
-}
-.pt-nowrap .pt-split .pt-hs[data-hs="new"] .pt-hs-in {
-  min-width: var(--pt-hsw-new, 0);
-}
-
-/* one horizontal scrollbar per pane, sticky at the bottom of the viewport */
-.pt-srail {
-  display: none;
-}
-.pt-nowrap #pt-root.pt-mode-split .pt-srail {
-  display: table-row;
-}
-.pt-rail {
-  overflow-x: scroll;
-  overflow-y: hidden;
-  position: sticky;
-  bottom: 0;
-  height: 11px;
-  background: var(--pt-bg);
-  z-index: 3;
-  scrollbar-width: thin;
-}
-.pt-rail-sp {
-  height: 1px;
-}
-/* always show the rail's scrollbar (macOS hides overlay bars until scrolled) */
-.pt-rail::-webkit-scrollbar {
-  height: 9px;
-}
-.pt-rail::-webkit-scrollbar-thumb {
-  background: var(--pt-muted);
-  border-radius: 5px;
 }
 
 #pt-raw,

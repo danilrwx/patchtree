@@ -201,7 +201,6 @@ function buildFileView(file: any, index: number) {
   const activate = () => {
     setMounted(true);
     highlightFile(view);
-    queueMicrotask(() => wireSplitScroll(section));
   };
   if (eager) highlightFile(view);
   else {
@@ -245,7 +244,6 @@ function buildFileView(file: any, index: number) {
     section
   );
   if (initiallyViewed || generated) setFolded(true);
-  if (eager) queueMicrotask(() => wireSplitScroll(section));
   return view;
 }
 
@@ -270,63 +268,6 @@ async function highlightFile(v: { lang: string | null; texts: { old: string; new
     for (const [row, ranges] of Object.entries(resp.old || {}))
       setHighlights(hlKey(v.path, "old", +row), ranges as any);
   });
-}
-
-// re-measured whenever nowrap toggles or the window resizes, since the rail
-// widths depend on the (un)wrapped line lengths
-const splitMeasures = new Set<() => void>();
-function remeasureSplits() {
-  requestAnimationFrame(() => {
-    for (const m of splitMeasures) m();
-  });
-}
-
-// In split view the two panes scroll long lines independently; sync their
-// horizontal offset and drive both from a sticky per-pane scrollbar (the rail).
-function wireSplitScroll(section: HTMLElement) {
-  const railOld = section.querySelector<HTMLElement>('.pt-rail[data-rail="old"]');
-  const railNew = section.querySelector<HTMLElement>('.pt-rail[data-rail="new"]');
-  if (!railOld || !railNew) return;
-  const oldHs = [...section.querySelectorAll<HTMLElement>('.pt-hs[data-hs="old"]')];
-  const newHs = [...section.querySelectorAll<HTMLElement>('.pt-hs[data-hs="new"]')];
-  const cols = [oldHs, newHs];
-
-  const measure = () => {
-    // widen every row to the column's longest line so the whole pane pans as
-    // one; the rail spacer matches so its scrollbar spans the same range
-    const inner = (arr: HTMLElement[]) => arr.map((h) => h.firstElementChild as HTMLElement);
-    const max = (arr: HTMLElement[]) => arr.reduce((m, e) => Math.max(m, e.scrollWidth), 0);
-    const wOld = max(inner(oldHs));
-    const wNew = max(inner(newHs));
-    section.style.setProperty("--pt-hsw-old", `${wOld}px`);
-    section.style.setProperty("--pt-hsw-new", `${wNew}px`);
-    (railOld.firstElementChild as HTMLElement).style.width = `${wOld}px`;
-    (railNew.firstElementChild as HTMLElement).style.width = `${wNew}px`;
-  };
-  measure();
-  splitMeasures.add(measure);
-  document.fonts?.ready.then(measure);
-
-  let lock = false;
-  const apply = (left: number) => {
-    if (lock) return;
-    lock = true;
-    for (const col of cols) for (const e of col) e.scrollLeft = left;
-    if (railOld.scrollLeft !== left) railOld.scrollLeft = left;
-    if (railNew.scrollLeft !== left) railNew.scrollLeft = left;
-    lock = false;
-  };
-  railOld.addEventListener("scroll", () => apply(railOld.scrollLeft), { passive: true });
-  railNew.addEventListener("scroll", () => apply(railNew.scrollLeft), { passive: true });
-  // trackpad/shift-wheel over the code drives the same sync
-  section.addEventListener(
-    "scroll",
-    (e) => {
-      const t = e.target as HTMLElement;
-      if (t.classList?.contains("pt-hs")) apply(t.scrollLeft);
-    },
-    { capture: true, passive: true }
-  );
 }
 
 function looksLikeDiff(text: string) {
@@ -417,9 +358,7 @@ function applySettings(s: any) {
   st.setProperty("--pt-liga", s.noLigatures ? '"calt" 0, "liga" 0' : "normal");
   // nowrap (vim-style): long lines keep full length and the file scrolls
   // horizontally instead of wrapping
-  const wasNowrap = document.documentElement.classList.contains("pt-nowrap");
   document.documentElement.classList.toggle("pt-nowrap", !!s.noWrap);
-  if (wasNowrap !== !!s.noWrap) remeasureSplits();
 
   const palette = BASE16[s.theme] || customThemes[s.theme] || s.themePalette;
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;
@@ -638,10 +577,7 @@ async function main() {
   };
   requestAnimationFrame(setBarH);
   document.fonts?.ready.then(setBarH);
-  addEventListener("resize", () => {
-    requestAnimationFrame(setBarH);
-    remeasureSplits();
-  });
+  addEventListener("resize", () => requestAnimationFrame(setBarH));
 
   // ---- viewed state + reload scroll restore (chrome.storage.local) ----
   const stored = await localP;
