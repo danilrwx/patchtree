@@ -15,9 +15,9 @@
 // Theme gallery overlay: a searchable grid of scheme previews plus a custom
 // base16/base24 yaml paste. 500+ styled previews freeze layout if drawn at
 // once, so the grid renders in batches as a sentinel scrolls into view.
-import { For, Show, createMemo, createEffect, createSignal, onMount, onCleanup } from "solid-js";
+import { For, Show, createMemo, createEffect, createSignal, onMount } from "solid-js";
 import { esc } from "../diff";
-import { clickable } from "../a11y";
+import { clickable, onEscape } from "../a11y";
 import { Select } from "./Select";
 
 interface Theme {
@@ -75,11 +75,7 @@ export function ThemeGallery(props: {
     setRendered(BATCH);
   });
 
-  onMount(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
-    document.addEventListener("keydown", onKey);
-    onCleanup(() => document.removeEventListener("keydown", onKey));
-  });
+  onEscape(() => props.onClose());
 
   onMount(async () => {
     const list = ((await chrome.runtime.sendMessage({ type: "themes" })) || []) as Theme[];

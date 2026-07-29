@@ -14,6 +14,15 @@
 
 // Keyboard access for non-button elements that carry a click action.
 
+import { onCleanup } from "solid-js";
+
+/** Run `fn` on Escape while mounted; auto-removes the listener on cleanup. */
+export function onEscape(fn: () => void) {
+  const onKey = (e: KeyboardEvent) => e.key === "Escape" && fn();
+  document.addEventListener("keydown", onKey);
+  onCleanup(() => document.removeEventListener("keydown", onKey));
+}
+
 /** Enter/Space handler mirroring a click, for elements given role="button". */
 export function onActivate(fn: () => void) {
   return (e: KeyboardEvent) => {
