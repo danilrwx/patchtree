@@ -320,9 +320,6 @@ html.pt-on {
   position: sticky;
   top: 0;
   background: var(--pt-bg);
-  /* a separator under the sticky bar so a file header that scrolls up flush
-     against it (its own top border gone under the bar) still has a top edge */
-  border-bottom: 1px solid var(--pt-border);
   z-index: 4;
 }
 
@@ -932,6 +929,9 @@ html.pt-on {
 
 .pt-file {
   border: 1px solid var(--pt-border);
+  /* the top edge is drawn by the sticky header itself (border-top), so it
+     stays visible when the header scrolls up flush under the bar */
+  border-top: none;
   border-radius: 6px;
   margin: 16px 0;
 }
@@ -959,6 +959,7 @@ html.pt-on {
   gap: 10px;
   align-items: center;
   background: var(--pt-header-bg);
+  border-top: 1px solid var(--pt-border);
   border-bottom: 1px solid var(--pt-border);
   padding: 8px 12px;
   font-weight: 600;
