@@ -39,7 +39,7 @@ const missing = walk(".").filter((p) => !readFileSync(p, "utf8").slice(0, 800).i
 
 if (missing.length) {
   console.error("Missing Apache 2.0 license header:");
-  for (const p of missing) console.error("  " + p);
+  for (const p of missing) console.error(`  ${p}`);
   process.exit(1);
 }
 console.log(`license headers ok (${walk(".").length} files)`);
