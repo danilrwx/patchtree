@@ -995,6 +995,9 @@ import { CommentForm } from "./src/components/CommentForm";
     window.ptView.root.addEventListener("click", onLineClick);
   }
 
-  if (window.ptView) setup();
-  else window.addEventListener("pt-rendered", setup, { once: true });
+  // Defer to a macrotask so the browser paints the diff before any network
+  // request (threads, PR info, drafts) starts — the diff must show first.
+  const start = () => setTimeout(setup, 0);
+  if (window.ptView) start();
+  else window.addEventListener("pt-rendered", start, { once: true });
 })();

@@ -560,15 +560,31 @@ async function main() {
   );
   applyMode(savedView);
 
+  // Load appearance settings + custom themes before the first paint so the diff
+  // renders with the user's theme and fonts (no flash). Then paint the diff
+  // before building the rest of the chrome (gear, settings, theme picker) and
+  // before any provider/network work, so a GitHub diff shows as fast as a local
+  // one; provider requests run later, on pt-rendered.
+  const { settings: loaded = {} } = await chrome.storage.sync.get("settings");
+  const { customThemes = {} } = await chrome.storage.sync.get("customThemes");
+  window.ptCustomThemes = customThemes;
+  setSettings(loaded);
+  applySettings(loaded);
+
+  const oldBody = document.body;
+  oldBody.textContent = "";
+  oldBody.appendChild(rawPre);
+  oldBody.appendChild(root);
+  document.documentElement.classList.add("pt-on");
+  setCanExpand(!!window.ptProvider);
+  renderDiff(raw);
+
   const gear = makeDropdown(SVG_GEAR);
   gear.dd.classList.add("pt-dd-right");
   gear.dd.id = "pt-settings";
   gear.sum.title = "Settings";
   bar.appendChild(gear.dd);
 
-  const { settings: loaded = {} } = await chrome.storage.sync.get("settings");
-  setSettings(loaded);
-  applySettings(loaded);
   const saveSettings = () => chrome.storage.sync.set({ settings: unwrap(settings) });
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area === "sync" && ch.settings) {
@@ -585,9 +601,6 @@ async function main() {
     row.append(span, control);
     return row;
   };
-
-  const { customThemes = {} } = await chrome.storage.sync.get("customThemes");
-  window.ptCustomThemes = customThemes;
 
   const computeThemeOptions = () => {
     const names = ["GitHub", ...Object.keys(BASE16), ...Object.keys(customThemes)];
@@ -915,12 +928,6 @@ async function main() {
       if (!d.contains(e.target)) d.open = false;
   });
 
-  const oldBody = document.body;
-  oldBody.textContent = "";
-  oldBody.appendChild(rawPre);
-  oldBody.appendChild(root);
-  document.documentElement.classList.add("pt-on");
-
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target.closest("input, textarea, select, [contenteditable]")) return;
@@ -966,13 +973,6 @@ async function main() {
         break;
     }
   });
-
-  // providers.js (a later content script) has run by now; without a
-  // GitHub/GitLab provider there is no host to fetch source from, so hide the
-  // expand-hidden-lines and full-file controls (e.g. for local file:// patches)
-  setCanExpand(!!window.ptProvider);
-
-  renderDiff(raw);
 
   window.ptView = {
     bar,
