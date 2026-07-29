@@ -26,6 +26,12 @@ test("collapse button toggles the file tree", async ({ context, page }) => {
 
   await page.locator("#pt-collapse").click();
   await expect(page.locator("#pt-tree")).toBeVisible();
+
+  // "e" hotkey toggles it too
+  await page.locator("body").press("e");
+  await expect(page.locator("#pt-tree")).toBeHidden();
+  await page.locator("body").press("e");
+  await expect(page.locator("#pt-tree")).toBeVisible();
 });
 
 test("the tree toggle is pinned far-left, ahead of the other bar controls", async ({

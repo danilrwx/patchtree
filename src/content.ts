@@ -824,6 +824,9 @@ async function main() {
       case "x":
         cur()?.classList.toggle("pt-folded");
         break;
+      case "e":
+        collapse.click();
+        break;
       case "/":
         e.preventDefault();
         filter.focus();

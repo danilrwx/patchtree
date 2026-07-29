@@ -849,6 +849,11 @@ html.pt-on {
   z-index: 1;
 }
 
+#pt-filter-host {
+  display: flex;
+  flex: 0 0 auto;
+}
+
 #pt-filter {
   display: block;
   flex: 1;
@@ -1099,6 +1104,7 @@ html.pt-on {
 .pt-code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  padding-left: 10px;
   padding-right: 8px;
   tab-size: var(--pt-tab, 4);
 }

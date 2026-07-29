@@ -64,7 +64,7 @@ test("file header renders controls and the viewed checkbox folds the file", asyn
   await seedToken(context, page, DIFF_URL, "github.com");
   const first = page.locator("section.pt-file").first();
 
-  await expect(first.locator(".pt-file-header .pt-hbtn")).toBeVisible();
+  await expect(first.locator(".pt-file-header button.pt-hbtn")).toBeVisible();
   await expect(first.locator(".pt-file-header .pt-stats")).toContainText("+");
 
   await expect(page.locator("#pt-progress")).toContainText("0/2 viewed");
