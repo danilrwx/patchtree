@@ -50,3 +50,32 @@ test("resolving a thread marks its notes resolved", async ({ context, page }) =>
   });
   await expect(page.locator(".pt-note.pt-resolved").first()).toBeVisible({ timeout: 10000 });
 });
+
+test("editing a note updates its body", async ({ context, page }) => {
+  const thread = await openThread(context, page);
+  const edited = "e2e: edited note body";
+
+  await thread.locator('.pt-note-actions button[title="Edit"]').first().click();
+  const ta = thread.locator(".pt-comment-form textarea").first();
+  await expect(ta).toBeVisible();
+  await ta.fill(edited);
+  await thread.locator(".pt-comment-form button.pt-primary").first().click();
+
+  await expect(page.locator(".pt-comments-row", { hasText: edited }).first()).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(page.locator(".pt-note-body", { hasText: COMMENT_BODY })).toHaveCount(0);
+});
+
+test("deleting a note removes it (arm then confirm)", async ({ context, page }) => {
+  const thread = await openThread(context, page);
+  await expect(page.locator(".pt-note-body", { hasText: COMMENT_BODY }).first()).toBeVisible();
+
+  const del = thread.locator(".pt-note-actions button").nth(1); // edit, then delete
+  await del.click(); // arm
+  await del.click(); // confirm
+
+  await expect(page.locator(".pt-note-body", { hasText: COMMENT_BODY })).toHaveCount(0, {
+    timeout: 10000,
+  });
+});

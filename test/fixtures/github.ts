@@ -177,6 +177,17 @@ export async function mockGithubThreads(context: BrowserContext): Promise<void> 
       };
       return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
     }
+    const editM = /\/pulls\/comments\/(\d+)$/.exec(p);
+    if (editM && req.method() === "PATCH") {
+      const b = (req.postDataJSON?.() ?? {}) as { body: string };
+      const c = thread.comments.find((c) => String(c.databaseId) === editM[1]);
+      if (c) c.body = b.body;
+      return json({ id: +editM[1], body: b.body, user: { login: "me", id: 42 }, created_at: "t" });
+    }
+    if (editM && req.method() === "DELETE") {
+      thread.comments = thread.comments.filter((c) => String(c.databaseId) !== editM[1]);
+      return route.fulfill({ status: 204, body: "" });
+    }
     if (/\/comments\/\d+\/replies$/.test(p) && req.method() === "POST") {
       const b = (req.postDataJSON?.() ?? {}) as { body: string };
       const c = { databaseId: 2000 + thread.comments.length, body: b.body, author: { login: "me", databaseId: 42 } };
