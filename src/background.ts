@@ -107,19 +107,8 @@ function highlight(langName: string, text: string) {
       if (!tree) return { rows: {} };
       const lineStarts = lineStartsOf(text);
       const rows: Rows = {};
-      const captures = query.captures(tree.rootNode);
-      const n = Math.min(captures.length, MAX_CAPTURES);
-      for (let i = 0; i < n; i++) {
-        const { name, node } = captures[i];
-        const c = cssClass(name);
-        for (let row = node.startPosition.row; row <= node.endPosition.row; row++) {
-          const lineStart = lineStarts[row];
-          const lineEnd = row + 1 < lineStarts.length ? lineStarts[row + 1] - 1 : text.length;
-          const s = Math.max(node.startIndex, lineStart) - lineStart;
-          const e = Math.min(node.endIndex, lineEnd) - lineStart;
-          if (e > s) (rows[row] ||= []).push({ s, e, c });
-        }
-      }
+      for (const { name, node } of query.captures(tree.rootNode).slice(0, MAX_CAPTURES))
+        pushNode(rows, node, cssClass(name), lineStarts, text);
       tree.delete();
       return { rows };
     });
