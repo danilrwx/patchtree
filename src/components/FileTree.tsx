@@ -145,10 +145,12 @@ export function FileTree() {
     marked = el;
     if (!el?.offsetParent) return;
     el.classList.add("pt-active");
+    // centre the active row in the scroll area below the sticky filter head
     const er = el.getBoundingClientRect();
     const nr = nav.getBoundingClientRect();
-    if (er.top < nr.top + 4) nav.scrollTop -= nr.top + 4 - er.top;
-    else if (er.bottom > nr.bottom - 4) nav.scrollTop += er.bottom - (nr.bottom - 4);
+    const headH = document.getElementById("pt-tree-head")?.offsetHeight ?? 0;
+    const desiredTop = nr.top + headH + (nr.height - headH - er.height) / 2;
+    nav.scrollTop += er.top - desiredTop;
   });
 
   return <TreeNode node={root()} />;
