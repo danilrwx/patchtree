@@ -22,8 +22,7 @@ export interface DiffFileHeaderProps {
   adds: number;
   dels: number;
   generated: boolean;
-  oldPath: string | null;
-  newPath: string | null;
+  renamed: boolean;
   viewed: Accessor<boolean>;
   onCopy: () => void;
   onToggleFold: () => void;
@@ -32,7 +31,6 @@ export interface DiffFileHeaderProps {
 }
 
 export function DiffFileHeader(props: DiffFileHeaderProps) {
-  const rename = () => !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
   return (
     // biome-ignore lint/a11y/useSemanticElements: the header holds its own interactive controls (copy button, checkboxes) and cannot nest them inside a native <button>; role="button" is the correct pattern
     <div
@@ -50,7 +48,7 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
         <span class="pt-path-text">{props.path}</span>
       </span>
       <button type="button" class="pt-hbtn" title="Copy path" innerHTML={icons.copy} onClick={() => props.onCopy()} />
-      <Show when={rename()}>
+      <Show when={props.renamed}>
         <span class="pt-rename">renamed</span>
       </Show>
       <Show when={props.generated}>

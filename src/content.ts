@@ -170,7 +170,7 @@ function buildFileView(file: any, index: number) {
     ? "deleted"
     : file.isNew
       ? "added"
-      : file.oldPath && file.newPath && file.oldPath !== file.newPath
+      : file.isRenamed
         ? "renamed"
         : "modified";
 
@@ -210,6 +210,7 @@ function buildFileView(file: any, index: number) {
         dels,
         generated,
         binary: !!file.binary,
+        renamed: status === "renamed",
         oldPath: file.oldPath,
         newPath: file.newPath,
         viewed: () => !!viewed[path],

@@ -47,3 +47,23 @@ test("plain patch from a non-provider host renders without expand controls", asy
   expect(toggle.x - bar.x).toBeLessThan(6);
   expect(toggle.x + toggle.width).toBeLessThan(seg.x);
 });
+
+// `diff -up dir1/file dir2/file` (suckless-style) has different --- / +++ paths
+// for the *same* file — that is not a rename, only an explicit rename from/to is
+test("a tool diff with differing --- / +++ paths is not treated as a rename", async ({
+  context,
+  page,
+}) => {
+  const body = readFileSync(path.join(__dirname, "../fixtures/difftool.diff"), "utf8");
+  const url = "https://example.com/dwm.diff";
+  await context.route(url, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body })
+  );
+  await page.goto(url);
+
+  await expect(page.locator(".pt-file-header")).toHaveCount(2);
+  await expect(page.locator(".pt-tree-file.pt-st-renamed")).toHaveCount(0);
+  await expect(page.locator(".pt-rename")).toHaveCount(0);
+  await expect(page.locator(".pt-namediff")).toHaveCount(0);
+  await expect(page.locator(".pt-tree-file.pt-st-modified")).toHaveCount(2);
+});

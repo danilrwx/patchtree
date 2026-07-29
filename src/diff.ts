@@ -38,6 +38,7 @@ export interface DiffFile {
   binary: boolean;
   isNew?: boolean;
   isDeleted?: boolean;
+  isRenamed?: boolean;
 }
 
 export interface ParsedDiff {
@@ -180,8 +181,13 @@ export function parseDiff(text: string): ParsedDiff {
         const p = diffPath(line.slice(4)).replace(/^b\//, "");
         if (p === "/dev/null") file.isDeleted = true;
         else file.newPath = p;
-      } else if (line.startsWith("rename from ")) file.oldPath = line.slice(12);
-      else if (line.startsWith("rename to ")) file.newPath = line.slice(10);
+      } else if (line.startsWith("rename from ")) {
+        file.oldPath = line.slice(12);
+        file.isRenamed = true;
+      } else if (line.startsWith("rename to ")) {
+        file.newPath = line.slice(10);
+        file.isRenamed = true;
+      }
       else if (line.startsWith("copy from ")) file.oldPath = line.slice(10);
       else if (line.startsWith("copy to ")) file.newPath = line.slice(8);
       else if (line.startsWith("new file mode")) file.isNew = true;

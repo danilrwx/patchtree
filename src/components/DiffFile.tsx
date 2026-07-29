@@ -44,6 +44,7 @@ export interface DiffFileProps {
   dels: number;
   generated: boolean;
   binary: boolean;
+  renamed: boolean;
   oldPath: string | null;
   newPath: string | null;
   viewed: Accessor<boolean>;
@@ -79,7 +80,7 @@ export function DiffFile(props: DiffFileProps) {
 
   // a rename has no line content of its own; show the path change as a diff
   // (old − / new +) with the differing tokens word-highlighted
-  const renamed = !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
+  const renamed = props.renamed && !!props.oldPath && !!props.newPath;
   const nameWd = renamed ? wordDiff(props.oldPath!, props.newPath!) : null;
 
   // reactive line HTML: text + stored highlight ranges (+ optional word-diff bg)
@@ -258,8 +259,7 @@ export function DiffFile(props: DiffFileProps) {
         adds={props.adds}
         dels={props.dels}
         generated={props.generated}
-        oldPath={props.oldPath}
-        newPath={props.newPath}
+        renamed={renamed}
         viewed={props.viewed}
         onCopy={props.onCopy}
         onToggleFold={props.onToggleFold}
