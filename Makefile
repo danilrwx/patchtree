@@ -68,22 +68,24 @@ test: check lint typecheck
 e2e: build
 	npx playwright test
 
+# archives go under build/ so the repo root stays clean
 zip: build
-	rm -f patchtree.zip
-	cd dist && zip -qr ../patchtree.zip .
-	@ls -la patchtree.zip
+	mkdir -p build
+	rm -f build/patchtree.zip
+	cd dist && zip -qr ../build/patchtree.zip .
+	@ls -la build/patchtree.zip
 
 zip-firefox: build
-	rm -rf build/firefox patchtree-firefox.zip
+	rm -rf build/firefox build/patchtree-firefox.zip
 	mkdir -p build
 	cp -R dist build/firefox
 	node scripts/firefox-manifest.mjs build/firefox/manifest.json
-	cd build/firefox && zip -qr ../../patchtree-firefox.zip .
-	@ls -la patchtree-firefox.zip
+	cd build/firefox && zip -qr ../../build/patchtree-firefox.zip .
+	@ls -la build/patchtree-firefox.zip
 
 # grouped conventional-commit changelog; RANGE overrides (e.g. RANGE=v1.0.0..HEAD)
 changelog:
 	@./scripts/changelog.sh $(RANGE)
 
 clean:
-	rm -rf assets/vendor assets/fonts assets/queries assets/themes.json build dist patchtree.zip patchtree-firefox.zip
+	rm -rf assets/vendor assets/fonts assets/queries assets/themes.json build dist
