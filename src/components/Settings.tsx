@@ -125,6 +125,9 @@ export function Settings(props: SettingsProps) {
       <Row label="Ligatures">
         <input type="checkbox" checked={!settings.noLigatures} onChange={(e) => props.patch("noLigatures", !e.currentTarget.checked)} />
       </Row>
+      <Row label="Wrap long lines">
+        <input type="checkbox" checked={!settings.noWrap} onChange={(e) => props.patch("noWrap", !e.currentTarget.checked)} />
+      </Row>
     </>
   );
 }
