@@ -368,11 +368,18 @@ async function main() {
 
   const viewedKey = `viewed:${location.host}${location.pathname}`;
   const scrollKey = `scroll:${location.host}${location.pathname}`;
-  const stored = await chrome.storage.local.get([viewedKey, scrollKey]);
-  viewedSet = new Set(stored[viewedKey] || []);
+  // Start every persisted-state read up front and in parallel. The UI paints
+  // without awaiting them, so the raw diff is replaced immediately instead of
+  // after a chain of storage round-trips; state is layered on as it arrives.
+  const localP = chrome.storage.local.get([viewedKey, scrollKey]);
+  const syncP = chrome.storage.sync.get([
+    "treeWidth",
+    "sidebarHidden",
+    "view",
+    "settings",
+    "customThemes",
+  ]);
   saveViewed = () => chrome.storage.local.set({ [viewedKey]: [...viewedSet] });
-  // the file the user was on last time this URL was open, to restore on reload
-  const restoreTo: string = stored[scrollKey] || "";
   let lastActive = "";
   const saveActive = (p: string) => {
     if (p && p !== lastActive) {
@@ -415,15 +422,11 @@ async function main() {
   main.id = "pt-main";
   root.appendChild(main);
 
-  const { treeWidth, sidebarHidden } = await chrome.storage.sync.get(["treeWidth", "sidebarHidden"]);
-  if (treeWidth) tree.style.width = `${treeWidth}px`;
-
   const collapse = document.createElement("button");
   collapse.id = "pt-collapse";
   collapse.type = "button";
   collapse.title = "Toggle file tree";
   collapse.innerHTML = icons.sidebar;
-  root.classList.toggle("pt-tree-hidden", !!sidebarHidden);
   collapse.addEventListener("click", () => {
     const h = !root.classList.contains("pt-tree-hidden");
     root.classList.toggle("pt-tree-hidden", h);
@@ -518,8 +521,6 @@ async function main() {
     // highlighting is kicked off per file when it mounts (see buildFileView)
   }
 
-  const { view: savedView = "unified" } = await chrome.storage.sync.get("view");
-
   updateProgress = () => {
     setViewedDone(views.filter((v) => viewedSet.has(v.path)).length);
     setViewedTotal(views.length);
@@ -540,18 +541,12 @@ async function main() {
       }),
     bar
   );
-  applyMode(savedView);
+  applyMode("unified");
 
-  // Load appearance settings + custom themes before the first paint so the diff
-  // renders with the user's theme and fonts (no flash). Then paint the diff
-  // before building the rest of the chrome (gear, settings, theme picker) and
-  // before any provider/network work, so a GitHub diff shows as fast as a local
-  // one; provider requests run later, on pt-rendered.
-  const { settings: loaded = {} } = await chrome.storage.sync.get("settings");
-  customThemes = (await chrome.storage.sync.get("customThemes")).customThemes || {};
-  setSettings(loaded);
-  applySettings(loaded);
-
+  // Paint now: swap the raw text for our shell + diff before any storage read
+  // resolves. Appearance falls back to the CSS default theme until settings
+  // arrive a moment later — a brief default frame beats a long raw diff.
+  history.scrollRestoration = "manual";
   const oldBody = document.body;
   oldBody.textContent = "";
   oldBody.appendChild(rawPre);
@@ -560,11 +555,21 @@ async function main() {
   setCanExpand(!!provider);
   renderDiff(raw);
 
+  // ---- viewed state + reload scroll restore (chrome.storage.local) ----
+  const stored = await localP;
+  viewedSet = new Set(stored[viewedKey] || []);
+  const restoreTo: string = stored[scrollKey] || "";
+  for (const v of views)
+    if (viewedSet.has(v.path)) {
+      v.section.classList.add("pt-folded");
+      setViewed(v.path, true);
+    }
+  updateProgress();
+
   // Return to the file the user was on before a reload. The browser's own
   // scroll restoration lands on the wrong file: we rebuild the body and lazy
   // placeholders mis-estimate heights, so the remembered scrollY points at
   // different content. Drive it ourselves off the last active file instead.
-  history.scrollRestoration = "manual";
   {
     const idx = restoreTo ? views.findIndex((v) => v.path === restoreTo) : -1;
     if (idx > 0) {
@@ -583,6 +588,15 @@ async function main() {
       document.fonts?.ready.then(() => requestAnimationFrame(goTo));
     }
   }
+
+  // ---- appearance + layout (chrome.storage.sync) ----
+  const sync = await syncP;
+  if (sync.treeWidth) tree.style.width = `${sync.treeWidth}px`;
+  root.classList.toggle("pt-tree-hidden", !!sync.sidebarHidden);
+  applyMode(sync.view || "unified");
+  customThemes = sync.customThemes || {};
+  setSettings(sync.settings || {});
+  applySettings(sync.settings || {});
 
   const gear = makeDropdown(SVG_GEAR);
   gear.dd.classList.add("pt-dd-right");
