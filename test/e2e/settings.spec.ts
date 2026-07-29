@@ -83,3 +83,25 @@ test("picking a theme applies its color variables", async ({ context, page }) =>
   await expect(html).not.toHaveAttribute("style", before);
   await expect(html).toHaveAttribute("style", /--pt-/);
 });
+
+test("choosing a custom UI font reveals an input and applies it", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const gearSummary = page.locator('summary[title="Settings"]');
+  await gearSummary.click();
+  const gear = page.locator("details.pt-dd").filter({ has: gearSummary });
+
+  const fontRow = gear.locator(".pt-set-row", { hasText: "UI font" });
+  await fontRow.locator(".pt-select > summary").click();
+  await fontRow.locator(".pt-dd-item", { hasText: "Custom" }).click();
+
+  const input = fontRow.locator(".pt-font-ctl input");
+  await expect(input).toBeVisible();
+  await input.fill("Courier New");
+  // the field is debounced (~400ms) before it patches the --pt-ui variable
+  await expect(page.locator("html")).toHaveAttribute("style", /--pt-ui:\s*"Courier New"/, {
+    timeout: 5000,
+  });
+});

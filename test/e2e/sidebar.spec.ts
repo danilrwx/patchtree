@@ -96,3 +96,20 @@ test("the funnel can hide viewed files from the tree", async ({ context, page })
     });
   await expect(page.locator(".pt-tree-file:visible")).toHaveCount(1);
 });
+
+test("dragging the splitter resizes the file tree", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator("#pt-tree")).toBeVisible();
+
+  const width = () => page.locator("#pt-tree").evaluate((el) => el.getBoundingClientRect().width);
+  const before = await width();
+
+  const sp = (await page.locator("#pt-splitter").boundingBox())!;
+  await page.mouse.move(sp.x + sp.width / 2, sp.y + sp.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sp.x + 120, sp.y + sp.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  await expect.poll(width).toBeGreaterThan(before + 60);
+});
