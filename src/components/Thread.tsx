@@ -18,7 +18,7 @@
 // renderNote machinery and its refreshThreads() full rebuild.
 import { For, Show, createSignal, createMemo, createEffect, type JSX } from "solid-js";
 import { icons } from "../icons";
-import { esc } from "../diff";
+import { esc, resolveLang, renderLineHTML, type Range } from "../diff";
 import {
   composing,
   setComposing,
@@ -77,7 +77,7 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
   const [busy, setBusy] = createSignal(false);
   const line = () => props.thread.pos?.newLine ?? 0;
   // the new-side lines the suggestion replaces, shown as removed rows
-  const before = () => {
+  const before = createMemo(() => {
     const pos = props.thread.pos;
     if (!pos || pos.newLine == null) return [];
     const map = fileLines()[pos.path];
@@ -86,7 +86,20 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
     for (let n = pos.newLine - props.part.minus; n <= pos.newLine + props.part.plus; n++)
       if (map[n] != null) out.push(map[n]);
     return out;
-  };
+  });
+  const sug = createMemo(() => props.part.sug!.split("\n"));
+  // syntax-highlight the widget in one round-trip over the removed + proposed
+  // lines; rows are 0-based, so proposed lines start after the removed ones
+  const [hl, setHl] = createSignal<Record<number, Range[]>>({});
+  createEffect(() => {
+    const all = [...before(), ...sug()];
+    const lang = resolveLang(props.thread.pos?.path || "", all.join("\n"));
+    if (!lang || !all.length) return setHl({});
+    chrome.runtime
+      .sendMessage({ type: "highlight", lang, text: all.join("\n") })
+      .then((r: any) => setHl(r?.rows || {}))
+      .catch(() => {});
+  });
   const canDismiss = () =>
     props.thread.resolvable && !props.thread.resolved && rv().can.resolve && rv().token;
   const canApply = () =>
@@ -137,18 +150,18 @@ function Suggestion(props: { part: SugPart; thread: ReviewThread; meta?: unknown
       <table class="pt-sug-table">
         <tbody>
           <For each={before()}>
-            {(l) => (
+            {(l, i) => (
               <tr class="pt-del">
                 <td class="pt-mark">−</td>
-                <td class="pt-code">{l}</td>
+                <td class="pt-code" innerHTML={renderLineHTML(l, hl()[i()], null)} />
               </tr>
             )}
           </For>
-          <For each={props.part.sug!.split("\n")}>
-            {(l) => (
+          <For each={sug()}>
+            {(l, i) => (
               <tr class="pt-add">
                 <td class="pt-mark">+</td>
-                <td class="pt-code">{l}</td>
+                <td class="pt-code" innerHTML={renderLineHTML(l, hl()[before().length + i()], null)} />
               </tr>
             )}
           </For>

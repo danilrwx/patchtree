@@ -1320,17 +1320,22 @@ html.pt-on {
   border-collapse: collapse;
   font-family: var(--pt-mono);
   font-size: var(--pt-size, 14px);
+  line-height: 1.5;
+  tab-size: var(--pt-tab, 4);
 }
 
 .pt-sug-table .pt-mark {
   width: 22px;
   text-align: center;
+  vertical-align: top;
+  user-select: none;
 }
 
 .pt-sug-table .pt-code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding: 1px 8px 1px 0;
+  padding: 0 8px 0 4px;
+  vertical-align: top;
 }
 
 .pt-sug-table .pt-del .pt-mark,
