@@ -15,7 +15,15 @@
 import { For, Show, type Accessor } from "solid-js";
 import { icons } from "../icons";
 import { clickable } from "../a11y";
-import { renderLineHTML, rowMeta, type FileModel, type Gap, type RowMeta, type AlignSide } from "../diff";
+import {
+  renderLineHTML,
+  rowMeta,
+  wordDiff,
+  type FileModel,
+  type Gap,
+  type RowMeta,
+  type AlignSide,
+} from "../diff";
 import {
   highlights,
   hlKey,
@@ -68,6 +76,11 @@ export function DiffFile(props: DiffFileProps) {
   const path = m.path;
   // rough row count for the pre-mount placeholder, so the scrollbar stays stable
   const estRows = m.segments.reduce((a, s) => a + s.pairs.length + 1, 0);
+
+  // a rename has no line content of its own; show the path change as a diff
+  // (old − / new +) with the differing tokens word-highlighted
+  const renamed = !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
+  const nameWd = renamed ? wordDiff(props.oldPath!, props.newPath!) : null;
 
   // reactive line HTML: text + stored highlight ranges (+ optional word-diff bg)
   const code = (text: string, side: string, row: number | null, bg: any) =>
@@ -253,6 +266,30 @@ export function DiffFile(props: DiffFileProps) {
         onToggleFull={props.onToggleFull}
         onToggleViewed={props.onToggleViewed}
       />
+      <Show when={renamed}>
+        <table class="pt-table pt-namediff">
+          <colgroup>
+            <col style="width:44px" />
+            <col style="width:44px" />
+            <col style="width:16px" />
+            <col />
+          </colgroup>
+          <tbody>
+            <tr class="pt-del">
+              <td class="pt-no" />
+              <td class="pt-no" />
+              <td class="pt-mark">-</td>
+              <td class="pt-code" innerHTML={renderLineHTML(props.oldPath!, null, nameWd?.a ?? null)} />
+            </tr>
+            <tr class="pt-add">
+              <td class="pt-no" />
+              <td class="pt-no" />
+              <td class="pt-mark">+</td>
+              <td class="pt-code" innerHTML={renderLineHTML(props.newPath!, null, nameWd?.b ?? null)} />
+            </tr>
+          </tbody>
+        </table>
+      </Show>
       <Show when={props.binary}>
         <div class="pt-binary">binary file</div>
       </Show>

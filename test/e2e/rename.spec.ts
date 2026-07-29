@@ -13,32 +13,29 @@
 // limitations under the License.
 
 // Pure renames (no line changes) — the case that kept regressing: the header
-// must stay on one line, show a "renamed" badge, and the hover tooltip must be
-// visible with the old→new paths and the changed segment highlighted.
+// stays on one line with a "renamed" badge, and the body shows the path change
+// as a word-highlighted old−/new+ diff.
 import { test, expect, seedToken } from "./fixtures";
 import { mockGithubRename, DIFF_URL } from "../fixtures/github";
 
-test("a pure rename stays on one line with a highlighted tooltip", async ({ context, page }) => {
+test("a pure rename: one-line header + path shown as a word diff", async ({ context, page }) => {
   await mockGithubRename(context);
   await seedToken(context, page, DIFF_URL, "github.com");
-  // narrow enough that the long paths must truncate
+  // narrow enough that the long paths must truncate in the header
   await page.setViewportSize({ width: 900, height: 700 });
 
-  const header = page.locator("section.pt-file .pt-file-header").first();
+  const first = page.locator("section.pt-file").first();
+  const header = first.locator(".pt-file-header");
   await expect(header).toBeVisible({ timeout: 20000 });
 
   // one line (a wrapped header would be ~2× tall)
   const box = await header.boundingBox();
   expect(box!.height).toBeLessThan(48);
-
-  // rename badge, no wrapping old path on the row
   await expect(header.locator(".pt-rename")).toHaveText("renamed");
 
-  // tooltip: hidden until hover, then the old→new with the change highlighted
-  const tip = header.locator(".pt-tip");
-  await expect(tip).toBeHidden();
-  await header.hover();
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText("Package");
-  await expect(tip.locator("mark").first()).toBeVisible();
+  // body: the old (−) and new (+) paths as a diff, with the change highlighted
+  const nd = first.locator("table.pt-namediff");
+  await expect(nd.locator("tr.pt-del")).toContainText("Files.App/Assets");
+  await expect(nd.locator("tr.pt-add")).toContainText("Package");
+  await expect(nd.locator("tr.pt-add .pt-word-add").first()).toBeVisible();
 });

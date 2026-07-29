@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Show, For, type Accessor } from "solid-js";
+import { Show, type Accessor } from "solid-js";
 import { icons } from "../icons";
 import { onActivate } from "../a11y";
 import { canExpand } from "../store";
-import { wordDiff, type Range } from "../diff";
 
 export interface DiffFileHeaderProps {
   path: string;
@@ -32,30 +31,8 @@ export interface DiffFileHeaderProps {
   onToggleViewed: (checked: boolean) => void;
 }
 
-// split a path into segments, marking the token ranges that changed (from
-// wordDiff), so the rename tooltip highlights exactly what differs
-function markup(text: string, ranges: Range[]) {
-  const out: { t: string; hi: boolean }[] = [];
-  let pos = 0;
-  for (const r of ranges) {
-    if (r.s > pos) out.push({ t: text.slice(pos, r.s), hi: false });
-    out.push({ t: text.slice(r.s, r.e), hi: true });
-    pos = r.e;
-  }
-  if (pos < text.length) out.push({ t: text.slice(pos), hi: false });
-  return out;
-}
-
 export function DiffFileHeader(props: DiffFileHeaderProps) {
   const rename = () => !!(props.oldPath && props.newPath && props.oldPath !== props.newPath);
-  const rn = () => {
-    if (!rename()) return null;
-    const wd = wordDiff(props.oldPath!, props.newPath!);
-    return {
-      old: markup(props.oldPath!, wd?.a ?? []),
-      new: markup(props.newPath!, wd?.b ?? []),
-    };
-  };
   return (
     // biome-ignore lint/a11y/useSemanticElements: the header holds its own interactive controls (copy button, checkboxes) and cannot nest them inside a native <button>; role="button" is the correct pattern
     <div
@@ -76,27 +53,6 @@ export function DiffFileHeader(props: DiffFileHeaderProps) {
       <Show when={rename()}>
         <span class="pt-rename">renamed</span>
       </Show>
-      <span class="pt-tip">
-        <Show when={rn()} fallback={<div class="pt-tip-path">{props.path}</div>}>
-          {(r) => (
-            <>
-              <div class="pt-tip-path">
-                <For each={r().old}>{(s) => (s.hi ? <mark>{s.t}</mark> : s.t)}</For>
-              </div>
-              <div class="pt-tip-path">
-                →&nbsp;
-                <For each={r().new}>{(s) => (s.hi ? <mark>{s.t}</mark> : s.t)}</For>
-              </div>
-            </>
-          )}
-        </Show>
-        <Show when={props.generated}>
-          <div class="pt-tip-meta">generated</div>
-        </Show>
-        <div class="pt-tip-meta">
-          +{props.adds} −{props.dels}
-        </div>
-      </span>
       <Show when={props.generated}>
         <span class="pt-gen-badge">generated</span>
       </Show>

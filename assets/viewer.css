@@ -863,42 +863,6 @@ html.pt-on {
   text-align: left;
 }
 
-/* full-info hover tooltip — a real element (native title was easy to miss, and
-   an attr()::after rendered blank on the flex header). pre-wrap honours the
-   newlines in the tip; overflow-wrap breaks only when a token would overflow */
-.pt-tip {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 12px;
-  z-index: 10;
-  max-width: min(70vw, 560px);
-  font: 400 12px/1.45 var(--pt-ui);
-  color: var(--pt-fg);
-  background: var(--pt-header-bg);
-  border: 1px solid var(--pt-border);
-  border-radius: 6px;
-  padding: 5px 9px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-  pointer-events: none;
-}
-.pt-file-header:hover .pt-tip {
-  display: block;
-}
-.pt-tip-path {
-  font-family: var(--pt-mono, ui-monospace, monospace);
-  overflow-wrap: anywhere;
-}
-.pt-tip mark {
-  background: var(--pt-word-add);
-  color: inherit;
-  border-radius: 2px;
-  padding: 0 1px;
-}
-.pt-tip-meta {
-  margin-top: 3px;
-  color: var(--pt-muted);
-}
 
 .pt-file-header {
   cursor: pointer;
