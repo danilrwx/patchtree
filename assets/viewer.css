@@ -1169,20 +1169,59 @@ html.pt-on {
   tab-size: var(--pt-tab, 4);
 }
 
-/* vim-style nowrap: long lines keep full length and the file body scrolls
-   horizontally instead of wrapping */
-.pt-nowrap .pt-code {
+/* vim-style nowrap: long lines keep full length and scroll horizontally */
+.pt-nowrap .pt-code,
+.pt-nowrap .pt-hs {
   white-space: pre;
   overflow-wrap: normal;
 }
-.pt-nowrap .pt-file-body {
+
+/* unified: the single code column scrolls the whole file body */
+html.pt-nowrap #pt-root.pt-mode-unified .pt-file-body {
   overflow-x: auto;
 }
-/* keep comment/form cells anchored at the left while the code scrolls */
 .pt-nowrap .pt-comments-row td,
 .pt-nowrap .pt-inline-form td {
   position: sticky;
   left: 0;
+}
+
+/* split: each pane scrolls its own code (fixed columns so the table doesn't
+   grow); the body must not be a scroll container so the per-pane scrollbar can
+   pin to the viewport bottom */
+html.pt-nowrap #pt-root.pt-mode-split .pt-file-body {
+  overflow: visible;
+}
+.pt-nowrap .pt-split {
+  table-layout: fixed;
+  width: 100%;
+}
+.pt-nowrap .pt-split .pt-hs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pt-nowrap .pt-split .pt-hs::-webkit-scrollbar {
+  display: none;
+}
+
+/* one horizontal scrollbar per pane, sticky at the bottom of the viewport */
+.pt-srail {
+  display: none;
+}
+.pt-nowrap #pt-root.pt-mode-split .pt-srail {
+  display: table-row;
+}
+.pt-rail {
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: sticky;
+  bottom: 0;
+  height: 12px;
+  background: var(--pt-bg);
+  z-index: 3;
+}
+.pt-rail-sp {
+  height: 1px;
 }
 
 #pt-raw,

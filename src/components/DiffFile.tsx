@@ -258,10 +258,11 @@ export function DiffFile(props: DiffFileProps) {
       <td class={`pt-no${p.entry ? ` ${p.cls}-no` : " pt-void"}`}>
         <Show when={p.entry}>{p.entry!.no}</Show>
       </td>
-      <td
-        class={`pt-code${p.entry ? ` ${p.cls}-code` : " pt-void"}`}
-        innerHTML={p.entry ? code(p.entry.text, p.side, p.row, p.bg) : ""}
-      />
+      <td class={`pt-code${p.entry ? ` ${p.cls}-code` : " pt-void"}`}>
+        {/* the code sits in a per-side horizontal scroller so each pane scrolls
+            long lines independently; content.ts syncs the two columns' scrollLeft */}
+        <div class="pt-hs" data-hs={p.side} innerHTML={p.entry ? code(p.entry.text, p.side, p.row, p.bg) : ""} />
+      </td>
     </>
   );
 
@@ -393,6 +394,23 @@ export function DiffFile(props: DiffFileProps) {
                 )}
               </For>
               <Show when={canExpand() && m.trailingGap}>{(g) => <ExpanderS gap={g()} />}</Show>
+              {/* one horizontal scrollbar per pane, sticky at the bottom; only
+                  visible in nowrap mode when a side overflows (widths + scroll
+                  sync are wired in content.ts) */}
+              <tr class="pt-srail">
+                <td class="pt-no" />
+                <td>
+                  <div class="pt-rail" data-rail="old">
+                    <div class="pt-rail-sp" />
+                  </div>
+                </td>
+                <td class="pt-no" />
+                <td>
+                  <div class="pt-rail" data-rail="new">
+                    <div class="pt-rail-sp" />
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </Show>
