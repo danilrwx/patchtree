@@ -210,8 +210,20 @@ function NoteBody(props: { note: ReviewNote; thread: ReviewThread }) {
 function Note(props: { note: ReviewNote; thread: ReviewThread }) {
   const [editing, setEditing] = createSignal(false);
   const [armed, setArmed] = createSignal(false);
+  const [deleting, setDeleting] = createSignal(false);
   const mine = () =>
     rv().token && rv().me != null && props.note.authorId === rv().me!.id && !props.thread.pending;
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      // on success the store drops the note and this component unmounts
+      await rv().deleteNote(props.thread, props.note);
+    } catch {
+      setDeleting(false);
+      setArmed(false);
+    }
+  };
 
   return (
     <div class="pt-note" classList={{ "pt-resolved": props.note.resolved, "pt-pending": props.thread.pending }}>
@@ -230,19 +242,38 @@ function Note(props: { note: ReviewNote; thread: ReviewThread }) {
         </Show>
         <Show when={mine()}>
           <span class="pt-note-actions">
-            <button type="button" title="Edit" innerHTML={EDIT_SVG} onClick={() => setEditing(true)} />
-            <button
-              type="button"
-              title={armed() ? "Click again to delete" : "Delete"}
-              classList={{ "pt-armed": armed() }}
-              innerHTML={DEL_SVG}
-              onClick={() => {
-                if (!armed()) {
-                  setArmed(true);
-                  setTimeout(() => setArmed(false), 3000);
-                } else rv().deleteNote(props.thread, props.note);
-              }}
-            />
+            <Show
+              when={deleting()}
+              fallback={
+                <>
+                  <button type="button" title="Edit" innerHTML={EDIT_SVG} onClick={() => setEditing(true)} />
+                  <Show
+                    when={armed()}
+                    fallback={
+                      <button
+                        type="button"
+                        title="Delete"
+                        innerHTML={DEL_SVG}
+                        onClick={() => {
+                          setArmed(true);
+                          setTimeout(() => setArmed(false), 3000);
+                        }}
+                      />
+                    }
+                  >
+                    <button type="button" class="pt-confirm-del" onClick={doDelete}>
+                      <span innerHTML={DEL_SVG} />
+                      Confirm delete
+                    </button>
+                  </Show>
+                </>
+              }
+            >
+              <span class="pt-deleting">
+                <span class="pt-spin" />
+                Deleting…
+              </span>
+            </Show>
           </span>
         </Show>
       </div>
@@ -250,6 +281,7 @@ function Note(props: { note: ReviewNote; thread: ReviewThread }) {
         <CommentForm
           placeholder="Edit comment…"
           initial={props.note.body}
+          submitLabel="Update"
           renderMarkdown={rv().renderMarkdown}
           onError={(m) => rv().status(m, true)}
           onSubmit={(body) => rv().editNote(props.thread, props.note, body)}

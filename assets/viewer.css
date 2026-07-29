@@ -1221,8 +1221,6 @@ html.pt-on {
 .pt-inline-form td {
   padding: 8px 12px 8px 60px;
   background: var(--pt-bg);
-  border-top: 1px solid var(--pt-border);
-  border-bottom: 1px solid var(--pt-border);
 }
 
 .pt-split .pt-comments-row td,
@@ -1252,6 +1250,11 @@ html.pt-on {
   background: var(--pt-bg);
   padding: 8px 12px;
   margin: 6px 0;
+}
+
+/* replies (any note after the first) get a slightly tinted background, like GitHub */
+.pt-note + .pt-note {
+  background: var(--pt-header-bg);
 }
 
 .pt-note.pt-resolved { opacity: 0.55; }
@@ -1344,6 +1347,38 @@ html.pt-on {
 .pt-note-actions button.pt-armed {
   color: #cf222e;
   background: var(--pt-del-bg);
+}
+
+/* explicit delete confirmation + a spinner while the request is in flight */
+.pt-confirm-del {
+  gap: 4px;
+  color: #cf222e !important;
+  background: var(--pt-del-bg) !important;
+  font: 600 calc(var(--pt-ui-size, 14px) - 2px)/1.4 var(--pt-ui);
+}
+.pt-confirm-del svg {
+  width: 13px;
+  height: 13px;
+}
+.pt-deleting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pt-muted);
+  font: calc(var(--pt-ui-size, 14px) - 2px)/1.4 var(--pt-ui);
+}
+.pt-spin {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--pt-border);
+  border-top-color: var(--pt-muted);
+  border-radius: 50%;
+  animation: pt-spin 0.7s linear infinite;
+}
+@keyframes pt-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pt-md {

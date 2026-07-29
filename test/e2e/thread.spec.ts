@@ -88,8 +88,11 @@ test("editing a note updates its body", async ({ context, page }) => {
   // own edit form directly
   const ta = page.locator(".pt-note .pt-comment-form textarea").first();
   await expect(ta).toBeVisible();
+  // the edit form's primary button reads "Update", not "Comment"
+  const submit = page.locator(".pt-note .pt-comment-form button.pt-primary").first();
+  await expect(submit).toHaveText("Update");
   await ta.fill(edited);
-  await page.locator(".pt-note .pt-comment-form button.pt-primary").first().click();
+  await submit.click();
 
   await expect(page.locator(".pt-comments-row", { hasText: edited }).first()).toBeVisible({
     timeout: 10000,
@@ -97,13 +100,19 @@ test("editing a note updates its body", async ({ context, page }) => {
   await expect(page.locator(".pt-note-body", { hasText: COMMENT_BODY })).toHaveCount(0);
 });
 
-test("deleting a note removes it (arm then confirm)", async ({ context, page }) => {
+test("deleting a note: arm shows a Confirm button, then it removes the note", async ({
+  context,
+  page,
+}) => {
   const thread = await openThread(context, page);
   await expect(page.locator(".pt-note-body", { hasText: COMMENT_BODY }).first()).toBeVisible();
 
-  const del = thread.locator(".pt-note-actions button").nth(1); // edit, then delete
-  await del.click(); // arm
-  await del.click(); // confirm
+  // the trash icon (after Edit) arms → an explicit "Confirm delete" button appears
+  await thread.locator('.pt-note-actions button[title="Delete"]').click();
+  const confirm = thread.locator(".pt-confirm-del");
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText("Confirm delete");
+  await confirm.click();
 
   await expect(page.locator(".pt-note-body", { hasText: COMMENT_BODY })).toHaveCount(0, {
     timeout: 10000,

@@ -18,6 +18,8 @@ import { icons } from "../icons";
 export interface CommentFormProps {
   placeholder: string;
   onSubmit: (body: string) => Promise<void>;
+  // primary button label (e.g. "Update" when editing); defaults to "Comment"
+  submitLabel?: string;
   onClose: () => void;
   renderMarkdown: (text: string) => Promise<string>;
   onError: (message: string) => void;
@@ -143,7 +145,7 @@ export function CommentForm(props: CommentFormProps) {
           </button>
         </Show>
         <button type="button" class="pt-primary" disabled={busy()} onClick={run(props.onSubmit)}>
-          Comment
+          {props.submitLabel ?? "Comment"}
         </button>
       </div>
     </div>
