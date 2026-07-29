@@ -1361,10 +1361,11 @@ html.pt-on {
   tab-size: var(--pt-tab, 4);
 }
 
-/* reset the inherited .pt-comments-row td padding (8px…60px) that otherwise
-   inflates every suggestion row */
+/* !important beats the broad comment-cell padding that would otherwise inflate
+   every suggestion row — .pt-comments-row td (8px…60px) and, higher-specificity,
+   .pt-split .pt-comments-row td (8px 12px) in side-by-side view */
 .pt-sug-table td {
-  padding: 0;
+  padding: 0 !important;
 }
 
 .pt-sug-table .pt-mark {
@@ -1377,7 +1378,7 @@ html.pt-on {
 .pt-sug-table .pt-code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding: 0 8px 0 4px;
+  padding: 0 8px 0 4px !important;
   vertical-align: top;
 }
 

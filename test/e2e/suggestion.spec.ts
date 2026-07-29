@@ -31,3 +31,29 @@ test("a suggestion renders replaced and proposed lines", async ({ context, page 
   // token present → Apply offered
   await expect(sug.locator("button", { hasText: "Apply suggestion" })).toBeVisible();
 });
+
+test("suggestion rows are code-height, not inflated by comment-cell padding", async ({
+  context,
+  page,
+}) => {
+  await mockGithubSuggestion(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  // each row is a single code line (~22px), not the ~40-76px the inherited
+  // comment-cell padding produced — checked in both inline and side-by-side,
+  // since split view has its own higher-specificity .pt-comments-row td padding
+  const check = async () => {
+    const rows = page.locator(".pt-sug:visible .pt-sug-table tr:visible");
+    await expect(rows.first()).toBeVisible({ timeout: 20000 });
+    const n = await rows.count();
+    expect(n).toBeGreaterThan(0);
+    for (let i = 0; i < n; i++) {
+      const box = await rows.nth(i).boundingBox();
+      expect(box!.height, `row ${i} height`).toBeLessThan(30);
+    }
+  };
+  await check();
+  await page.locator('button[title="Side-by-side"]').click();
+  await check();
+});
