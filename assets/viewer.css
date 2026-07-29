@@ -99,7 +99,7 @@ html.pt-on body {
   -webkit-font-smoothing: antialiased;
   font-size: var(--pt-size, 14px);
   line-height: 1.6;
-  padding: 12px 16px 48px;
+  padding: 0 16px 48px;
   display: grid;
   grid-template-columns: auto 8px minmax(0, 1fr);
   grid-template-areas: "bar bar bar" "tree split main";
@@ -115,8 +115,8 @@ html.pt-on body {
 #pt-tree {
   grid-area: tree;
   position: sticky;
-  top: 48px;
-  max-height: calc(100vh - 58px);
+  top: var(--pt-bar-h, 44px);
+  max-height: calc(100vh - var(--pt-bar-h, 44px) - 8px);
   overflow: auto;
   width: 280px;
   min-width: 160px;
@@ -130,8 +130,8 @@ html.pt-on body {
   border-left: 1px solid var(--pt-border);
   margin-left: 3px;
   position: sticky;
-  top: 48px;
-  height: calc(100vh - 58px);
+  top: var(--pt-bar-h, 44px);
+  height: calc(100vh - var(--pt-bar-h, 44px) - 8px);
 }
 
 #pt-splitter:hover {
@@ -942,7 +942,7 @@ html.pt-on {
 
 .pt-file-header {
   position: sticky;
-  top: 44px;
+  top: var(--pt-bar-h, 44px);
   z-index: 2;
   display: flex;
   flex-wrap: nowrap;

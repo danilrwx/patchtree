@@ -555,6 +555,15 @@ async function main() {
   setCanExpand(!!provider);
   renderDiff(raw);
 
+  // The bar is a sticky top:0 header; publish its measured height so the
+  // sticky file headers / tree stick flush under it (no gap that leaks the
+  // diff below, no overlap that clips the header) at any font size.
+  const setBarH = () =>
+    document.documentElement.style.setProperty("--pt-bar-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
+  requestAnimationFrame(setBarH);
+  document.fonts?.ready.then(setBarH);
+  addEventListener("resize", () => requestAnimationFrame(setBarH));
+
   // ---- viewed state + reload scroll restore (chrome.storage.local) ----
   const stored = await localP;
   viewedSet = new Set(stored[viewedKey] || []);
