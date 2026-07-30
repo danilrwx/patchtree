@@ -1,0 +1,4 @@
+example.com/dra v1.3.0 h1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=
+example.com/dra v1.3.0/go.mod h1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb=
+k8s.io/api v0.30.0 h1:ccccccccccccccccccccccccccccccccccccccccccc=
+k8s.io/api v0.30.0/go.mod h1:ddddddddddddddddddddddddddddddddddddddddddd=

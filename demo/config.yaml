@@ -1,0 +1,11 @@
+apiVersion: dra.example.com/v1
+kind: DeviceClass
+metadata:
+  name: gpu.example.com
+spec:
+  driver: gpu.example.com
+  parameters:
+    sharing: none
+    memory: 16Gi
+  nodeSelector:
+    accelerator: nvidia
