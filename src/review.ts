@@ -645,6 +645,23 @@ export function initReview(P: Provider, view: PtView) {
       refs = info;
       P.setRefs(info as any);
       document.title = info.title;
+      if (info.ci) {
+        const ci = document.createElement("a");
+        ci.id = "pt-ci";
+        ci.href = info.ci.url;
+        ci.target = "_blank";
+        ci.rel = "noopener";
+        ci.dataset.state = info.ci.state;
+        ci.textContent = `● ${info.ci.state}`;
+        unresolvedEl.dd.after(ci);
+      }
+      if (info.conflicts) {
+        const cf = document.createElement("span");
+        cf.id = "pt-conflicts";
+        cf.textContent = "⚠ has conflicts";
+        unresolvedEl.dd.after(cf);
+      }
+      // inserted last so it sits immediately after the unresolved dropdown
       if (info.sourceBranch) {
         const br = document.createElement("span");
         br.id = "pt-branches";
@@ -670,23 +687,7 @@ export function initReview(P: Provider, view: PtView) {
           tgt.textContent = info.targetBranch;
           br.append(arrow, tgt);
         }
-        select.after(br);
-      }
-      if (info.ci) {
-        const ci = document.createElement("a");
-        ci.id = "pt-ci";
-        ci.href = info.ci.url;
-        ci.target = "_blank";
-        ci.rel = "noopener";
-        ci.dataset.state = info.ci.state;
-        ci.textContent = `● ${info.ci.state}`;
-        unresolvedEl.dd.after(ci);
-      }
-      if (info.conflicts) {
-        const cf = document.createElement("span");
-        cf.id = "pt-conflicts";
-        cf.textContent = "⚠ has conflicts";
-        unresolvedEl.dd.after(cf);
+        unresolvedEl.dd.after(br);
       }
     } catch (e: any) {
       status(`info unavailable: ${e.message}`, true);

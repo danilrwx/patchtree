@@ -745,7 +745,6 @@ html.pt-on {
 .pt-seg {
   display: flex;
   align-self: stretch;
-  margin-left: auto;
   border: 1px solid var(--pt-border);
   border-radius: 4px;
   overflow: hidden;
@@ -1661,6 +1660,9 @@ html.pt-on {
   white-space: nowrap;
   padding: 0px 4px;
 }
+/* the diff summary starts the right-aligned cluster (stats, viewed, view-mode,
+   gear, review) */
+#pt-diffstat { margin-left: auto; }
 #pt-diffstat .pt-adds { color: #1a7f37; }
 #pt-diffstat .pt-dels { color: #cf222e; }
 
@@ -1672,6 +1674,7 @@ html.pt-on {
   font: calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
   color: var(--pt-muted);
   white-space: nowrap;
+  padding: 0 4px;
 }
 #pt-branches .pt-branch-src {
   font-family: var(--pt-mono);
