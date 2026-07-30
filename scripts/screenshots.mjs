@@ -136,11 +136,15 @@ await clipShot("multiline", [ranges.first(), ranges.last(), mlForm]);
 await mlForm.locator("button", { hasText: "Cancel" }).click();
 
 await page.evaluate(() => window.scrollTo(0, 0));
+// the gear menu is taller than the shared viewport and scrolls inside it;
+// raise the window for this one frame so the shot isn't cut mid-item
+await page.setViewportSize({ width: 1440, height: 1200 });
 const settings = page.locator("#pt-settings");
 await settings.locator('summary[title="Settings"]').click();
 const menu = settings.locator("> .pt-dd-menu");
 await menu.waitFor();
 await elementShot("settings", menu);
+await page.setViewportSize({ width: 1440, height: 900 });
 
 await settings.locator(".pt-dd-item", { hasText: "Theme gallery" }).click();
 const gallery = page.locator("#pt-themes-dialog .pt-dialog");
