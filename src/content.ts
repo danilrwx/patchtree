@@ -577,6 +577,12 @@ async function main() {
     }
     updateProgress();
   });
+  const foldAll = (folded: boolean) => {
+    for (const v of views) v.section.classList.toggle("pt-folded", folded);
+    gear.dd.open = false;
+  };
+  menuItem(gear.menu, "Collapse all files", () => foldAll(true));
+  menuItem(gear.menu, "Expand all files", () => foldAll(false));
   const openTokensDialog = () =>
     mountDialog("pt-tokens-host", (close) => TokensDialog({ onClose: close }));
 

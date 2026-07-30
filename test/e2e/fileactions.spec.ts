@@ -96,3 +96,15 @@ test("clicking a file's comment badge jumps to the comment", async ({ context, p
   await badge.click();
   await expect(page.locator(".pt-comments-row.pt-flash")).toBeVisible();
 });
+
+test("collapse all / expand all folds every file", async ({ context, page }) => {
+  await open(context, page);
+  const files = page.locator("section.pt-file");
+  const n = await files.count();
+
+  await (await menu(page, "Collapse all files")).click();
+  await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(n);
+
+  await (await menu(page, "Expand all files")).click();
+  await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(0);
+});

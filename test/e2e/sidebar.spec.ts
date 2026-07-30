@@ -49,9 +49,12 @@ test("the tree toggle is pinned far-left, ahead of the other bar controls", asyn
   expect(toggle.x - bar.x).toBeLessThan(6);
   // review controls pack immediately after it — no big empty middle
   expect(commits.x - (toggle.x + toggle.width)).toBeLessThan(16);
-  // adjacent controls sit one gap apart — no stray legacy margin doubling it
+  // adjacent controls sit one gap apart — no stray legacy margin doubling it.
+  // the source→target branch label sits between commits and unresolved.
+  const branches = (await page.locator("#pt-branches").boundingBox())!;
+  expect(branches.x - (commits.x + commits.width)).toBeLessThan(12);
   const unresolved = (await page.locator("#pt-unresolved").boundingBox())!;
-  expect(unresolved.x - (commits.x + commits.width)).toBeLessThan(12);
+  expect(unresolved.x - (branches.x + branches.width)).toBeLessThan(12);
   // only the view-mode switch is pushed to the right
   expect(seg.x - (commits.x + commits.width)).toBeGreaterThan(40);
 });
