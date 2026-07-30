@@ -121,10 +121,11 @@ export function initReview(P: Provider, view: PtView) {
     const sel = t.pos.newLine
       ? `tr[data-path="${CSS.escape(t.pos.path)}"][data-new="${t.pos.newLine}"]`
       : `tr[data-path="${CSS.escape(t.pos.path)}"][data-old="${t.pos.oldLine}"]`;
-    const row = document.querySelector(sel);
-    const target =
-      row?.nextElementSibling?.classList.contains("pt-comments-row") ? row.nextElementSibling : row;
-    flashCenter(target);
+    // both the unified and split tables render the row; only one is visible, so
+    // pick the laid-out one (scrollIntoView on a display:none row is a no-op)
+    const row = [...document.querySelectorAll<HTMLElement>(sel)].find((r) => r.offsetParent);
+    const next = row?.nextElementSibling;
+    flashCenter(next?.classList.contains("pt-comments-row") ? next : row);
   }
 
   const mdCache = new Map<string, string>();

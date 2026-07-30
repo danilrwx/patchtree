@@ -19,7 +19,7 @@ import { flashCenter, mountDialog, makeDropdown, menuItem } from "./ui";
 import { injectFonts } from "./fonts";
 import { BASE16, applySettings, parseBase16Yaml } from "./theme";
 import { render } from "solid-js/web";
-import { createSignal, batch } from "solid-js";
+import { batch } from "solid-js";
 import { unwrap, reconcile } from "solid-js/store";
 import { FileTree } from "./components/FileTree";
 import { FileFilter } from "./components/FileFilter";
@@ -71,16 +71,16 @@ let updateProgress: () => void = () => {};
 // user-added base16 palettes (name → space-joined hex), loaded in main()
 let customThemes: Record<string, string> = {};
 
-// the first few files mount their rows eagerly; the rest mount as their section
-// scrolls near the viewport, so a large diff paints without building every row
-const EAGER_FILES = 6;
-const mountSetters = new WeakMap<Element, () => void>();
-const mountObserver = new IntersectionObserver(
+// Every file's rows are in the DOM from the start (no lazy mounting) so scroll
+// and jump-to-thread are exact. Only syntax highlighting stays lazy — it just
+// colours existing rows, so it never affects layout or scroll position.
+const highlightSetters = new WeakMap<Element, () => void>();
+const highlightObserver = new IntersectionObserver(
   (entries) => {
     for (const e of entries)
       if (e.isIntersecting) {
-        mountSetters.get(e.target)?.();
-        mountObserver.unobserve(e.target);
+        highlightSetters.get(e.target)?.();
+        highlightObserver.unobserve(e.target);
       }
   },
   { rootMargin: "1500px 0px" }
@@ -120,7 +120,7 @@ async function expandGap(view: any, gap: any) {
 const GENERATED_RE =
   /(^|\/)(go\.sum|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|composer\.lock|Gemfile\.lock|poetry\.lock)$|\.pb\.go$|zz_generated|\.generated\.|\.min\.(js|css)$|\.map$|(^|\/)vendor\//;
 
-function buildFileView(file: any, index: number) {
+function buildFileView(file: any) {
   const section = document.createElement("section");
   section.className = "pt-file";
 
@@ -137,13 +137,6 @@ function buildFileView(file: any, index: number) {
   const generated = GENERATED_RE.test(path);
   const model = buildFileModel(file);
   if (model.full) section.classList.add("pt-full");
-
-  // Give content-visibility a per-file height estimate instead of the fixed
-  // 600px default. A large (pt-full) file otherwise collapses to 600px when it
-  // scrolls out of view, jumping the scroll position and dragging the sticky
-  // header with it.
-  const estRows = model.segments.reduce((a, s) => a + s.pairs.length + 1, 0);
-  section.style.setProperty("contain-intrinsic-height", `auto ${44 + estRows * 20}px`);
 
   const status: FileStatus = file.isDeleted
     ? "deleted"
@@ -166,19 +159,10 @@ function buildFileView(file: any, index: number) {
   const setFolded = (f: boolean) => section.classList.toggle("pt-folded", f);
   const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter(Boolean);
 
-  // the first few files mount + highlight eagerly; the rest wait until their
-  // section scrolls near the viewport (shared mountObserver)
-  const eager = index < EAGER_FILES;
-  const [mounted, setMounted] = createSignal(eager);
-  const activate = () => {
-    setMounted(true);
-    highlightFile(view);
-  };
-  if (eager) highlightFile(view);
-  else {
-    mountSetters.set(section, activate);
-    mountObserver.observe(section);
-  }
+  // rows render immediately; highlighting runs when the section nears the
+  // viewport (colours existing rows, so no layout/scroll effect)
+  highlightSetters.set(section, () => highlightFile(view));
+  highlightObserver.observe(section);
 
   const initiallyViewed = viewedSet.has(path);
   render(
@@ -195,7 +179,6 @@ function buildFileView(file: any, index: number) {
         newPath: file.newPath,
         image: provider ? (side) => provider!.imageDataUrl(path, side) : undefined,
         viewed: () => !!viewed[path],
-        mount: mounted,
         onCopy: () => navigator.clipboard.writeText(path),
         onToggleFold: () => setFolded(!section.classList.contains("pt-folded")),
         onToggleFull: (checked) => {
@@ -466,29 +449,19 @@ async function main() {
     }
   updateProgress();
 
-  // Return to the file the user was on before a reload. The browser's own
-  // scroll restoration lands on the wrong file: we rebuild the body and lazy
-  // placeholders mis-estimate heights, so the remembered scrollY points at
-  // different content. Drive it ourselves off the last active file instead.
+  // Return to the file the user was on before a reload. Drive it off the last
+  // active file rather than the browser's remembered scrollY, which it restores
+  // before our body is rebuilt. All rows are in the DOM, so the offset is exact.
   {
     const idx = restoreTo ? views.findIndex((v) => v.path === restoreTo) : -1;
     if (idx > 0) {
-      // give every file above the target its real height so the offset is exact
-      for (let i = 0; i <= idx; i++) {
-        mountSetters.get(views[i].section)?.();
-        mountObserver.unobserve(views[i].section);
-      }
-      // Converge over a few frames: scrolling reveals more sections whose
-      // content-visibility height then resolves (and the web font swaps line
-      // metrics), each shifting the target. Re-pin until it stops moving.
-      let tries = 0;
       const goTo = () => {
         const want = Math.max(0, views[idx].section.getBoundingClientRect().top + window.scrollY - 52);
-        if (Math.abs(window.scrollY - want) > 1) window.scrollTo({ top: want });
-        if (tries++ < 20) requestAnimationFrame(goTo);
+        window.scrollTo({ top: want });
       };
-      requestAnimationFrame(goTo);
-      document.fonts?.ready.then(() => requestAnimationFrame(goTo));
+      goTo();
+      // the web font swaps line metrics after load — re-pin once it's ready
+      document.fonts?.ready.then(goTo);
     }
   }
 

@@ -53,9 +53,6 @@ export interface DiffFileProps {
   // fetch an image file's data URL at the old/new revision (binary previews)
   image?: (side: "old" | "new") => Promise<string | null>;
   viewed: Accessor<boolean>;
-  // false until the file scrolls near the viewport — defers building the row
-  // DOM/reactivity so a big diff doesn't mount every file up front
-  mount: Accessor<boolean>;
   onCopy: () => void;
   onToggleFold: () => void;
   onToggleFull: (checked: boolean) => void;
@@ -121,8 +118,6 @@ function ImagePreview(props: {
 export function DiffFile(props: DiffFileProps) {
   const m = props.model;
   const path = m.path;
-  // rough row count for the pre-mount placeholder, so the scrollbar stays stable
-  const estRows = m.segments.reduce((a, s) => a + s.pairs.length + 1, 0);
 
   // a rename has no line content of its own; show the path change as a diff
   // (old − / new +) with the differing tokens word-highlighted
@@ -333,7 +328,7 @@ export function DiffFile(props: DiffFileProps) {
           <ImagePreview image={props.image!} status={props.status} />
         </Show>
       </Show>
-      <Show when={!props.binary && props.mount()} fallback={<Show when={!props.binary}><div class="pt-file-ph" style={{ height: `${estRows * 19}px` }} /></Show>}>
+      <Show when={!props.binary}>
         <table class="pt-table pt-unified">
           <colgroup>
             <col style="width:44px" />

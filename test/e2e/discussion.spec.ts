@@ -15,7 +15,14 @@
 // General (non-line) discussion block and the unresolved-threads dropdown that
 // lets a reviewer jump between open threads.
 import { test, expect, seedToken } from "./fixtures";
-import { mockGithub, mockGithubDiscussion, DIFF_URL, DISCUSSION_BODY } from "../fixtures/github";
+import {
+  mockGithub,
+  mockGithubDiscussion,
+  mockGithubManyThread,
+  DIFF_URL,
+  DISCUSSION_BODY,
+  MANY_THREAD_BODY,
+} from "../fixtures/github";
 
 test("the unresolved dropdown lists open threads and jumps to one", async ({ context, page }) => {
   await mockGithub(context);
@@ -41,6 +48,39 @@ test("the unresolved dropdown lists open threads and jumps to one", async ({ con
       })
     )
     .toBe(1);
+});
+
+test("jumping to a thread deep in the diff scrolls it into view (both modes)", async ({
+  context,
+  page,
+}) => {
+  await mockGithubManyThread(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  await page.setViewportSize({ width: 1000, height: 500 });
+
+  const jump = async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const dd = page.locator("#pt-unresolved");
+    await expect(dd).toContainText("1 unresolved", { timeout: 20000 });
+    await dd.locator("summary").click();
+    await dd.locator(".pt-dd-item").first().click();
+    // the visible copy of the comment (unified vs split) lands in the viewport
+    const row = page.locator(".pt-comments-row:visible", { hasText: MANY_THREAD_BODY }).first();
+    await expect(row).toBeVisible({ timeout: 10000 });
+    await expect
+      .poll(() =>
+        row.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return r.top >= 0 && r.bottom <= window.innerHeight ? 1 : 0;
+        })
+      )
+      .toBe(1);
+  };
+
+  await jump(); // unified (default)
+  await page.locator('button[title="Side-by-side"]').click();
+  await jump(); // split — the row lives in the other table, must still scroll
 });
 
 test("the general discussion block renders and accepts a reply", async ({ context, page }) => {

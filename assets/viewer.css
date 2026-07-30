@@ -110,8 +110,8 @@ html.pt-on body {
 #pt-main {
   grid-area: main;
   min-width: 0;
-  /* gap instead of per-file margins: content-visibility puts each file in its
-     own formatting context, so sibling margins don't collapse and would double */
+  /* a flex column with a gap gives one predictable spacing between files,
+     preamble and the discussion block */
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -940,12 +940,6 @@ html.pt-on {
   white-space: pre;
 }
 
-.pt-file {
-  /* render only sections near the viewport — resize/reflow cost stops
-     scaling with the whole diff */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
-}
 
 /* header and body are two self-contained bordered blocks (rounded top / rounded
    bottom), not one bordered section. So the sticky header keeps its own border

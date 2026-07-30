@@ -31,6 +31,52 @@ const BASE = "2222222222222222222222222222222222222222";
 export const COMMENT_BODY = "patchtree-e2e: does this branch handle a nil claim?";
 
 const diff = readFileSync(path.join(__dirname, "pr130.diff"), "utf8");
+const manyDiff = readFileSync(path.join(__dirname, "manyfiles.diff"), "utf8");
+
+// path of the file the many-file thread anchors to (the 8th file → lazily
+// mounted, so jumping to it must trigger its mount first)
+export const MANY_THREAD_PATH = "pkg/mod08/file.go";
+export const MANY_THREAD_BODY = "patchtree-e2e: thread deep in a lazily-mounted file";
+
+// a 10-file PR with a single unresolved thread in a late (unmounted) file, to
+// exercise jump-to-thread scroll into a section whose rows aren't in the DOM yet
+export async function mockGithubManyThread(context: BrowserContext): Promise<void> {
+  const node = {
+    id: "MANY1",
+    isResolved: false,
+    path: MANY_THREAD_PATH,
+    line: 5,
+    diffSide: "RIGHT",
+    comments: {
+      nodes: [
+        {
+          databaseId: 8001,
+          body: MANY_THREAD_BODY,
+          createdAt: "2026-01-01T00:00:00Z",
+          author: { login: "reviewer", databaseId: 42 },
+        },
+      ],
+    },
+  };
+  await context.route(DIFF_URL, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body: manyDiff })
+  );
+  await context.route("https://api.github.com/**", (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p === "/graphql")
+      return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === "/user") return json({ id: 9, login: "me" });
+    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p === "/markdown") {
+      const b = (route.request().postDataJSON?.() ?? {}) as { text?: string };
+      return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
+    }
+    return json([]);
+  });
+}
 
 // one resolved-review-thread on a line that exists in the first hunk
 // (@@ -60,9 +60,14 @@ → new side line 62 is rendered)
@@ -283,7 +329,10 @@ export async function mockGithubMultiSuggestion(context: BrowserContext): Promis
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 9, login: "me" });
     if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
-    if (p === "/markdown") return route.fulfill({ contentType: "text/html", body: "<p></p>" });
+    if (p === "/markdown") {
+      const b = (route.request().postDataJSON?.() ?? {}) as { text?: string };
+      return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
+    }
     return json([]);
   });
 }
