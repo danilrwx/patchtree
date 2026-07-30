@@ -57,6 +57,9 @@ const THEME_VARS = (c: string[]): Record<string, string> => {
   const readable = (i: number, lo: number, t: number) =>
     Math.abs(luma(c[i]) - bgL) >= lo ? `#${c[i]}` : mix(c[5], c[0], t);
   const muted = readable(4, 0.25, 0.35);
+  // base24 extras: on dark schemes small indicators read better in the bright
+  // ANSI variants (base12..base17) than in the text-weight accents
+  const bright = (i: number, fb: number) => `#${(!light && c[i]) || c[fb]}`;
   return {
     bg: `#${c[0]}`,
     fg: `#${c[5]}`,
@@ -71,10 +74,10 @@ const THEME_VARS = (c: string[]): Record<string, string> => {
     "hunk-fg": muted,
     "word-add": light ? mix(c[0], c[11], 0.3) : hexRgba(c[11], 0.38),
     "word-del": light ? mix(c[0], c[8], 0.3) : hexRgba(c[8], 0.38),
-    success: `#${c[11]}`,
-    danger: `#${c[8]}`,
-    warning: `#${c[10]}`,
-    accent: `#${c[13]}`,
+    success: bright(20, 11),
+    danger: bright(18, 8),
+    warning: bright(19, 10),
+    accent: bright(22, 13),
     "tab-mark": `#${c[9]}`,
     btn: `#${c[11]}`,
     "btn-hover": mix(c[11], light ? "000000" : "ffffff", 0.15),
@@ -120,13 +123,17 @@ export function applySettings(s: any, customThemes: Record<string, string>) {
   }
 }
 
-// tinted-theming base16 yaml: base00..base0F hex values + scheme/name field
+// tinted-theming yaml: base00..base0F required, base10..base17 (base24
+// darker backgrounds + bright accents) kept when present
 export function parseBase16Yaml(text: string) {
   const colors = [];
-  for (let i = 0; i < 16; i++) {
-    const key = `base0${i.toString(16).toUpperCase()}`;
+  for (let i = 0; i < 24; i++) {
+    const key = `base${i.toString(16).toUpperCase().padStart(2, "0")}`;
     const m = new RegExp(`${key}:\\s*["']?#?([0-9a-fA-F]{6})`).exec(text);
-    if (!m) return null;
+    if (!m) {
+      if (i < 16) return null;
+      break;
+    }
     colors.push(m[1].toLowerCase());
   }
   const name = /(?:scheme|name):\s*["']?([^"'\n]+)/.exec(text)?.[1]?.trim() || "custom scheme";

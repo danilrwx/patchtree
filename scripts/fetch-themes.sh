@@ -14,8 +14,8 @@
 # limitations under the License.
 
 # Build assets/themes.json from the tinted-theming schemes collection (MIT licensed),
-# pinned to a commit. Only base24 schemes are included; patchtree uses the
-# base00–base0F part of the palette.
+# pinned to a commit. Only base24 schemes are included; base10–base17 (darker
+# backgrounds and bright accents) are kept when present.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -42,13 +42,13 @@ for (const system of ["base24"]) {
     if (!file.endsWith(".yaml")) continue;
     const text = readFileSync(`${src}/${system}/${file}`, "utf8");
     const colors = [];
-    for (let i = 0; i < 16; i++) {
-      const key = `base0${i.toString(16).toUpperCase()}`;
+    for (let i = 0; i < 24; i++) {
+      const key = `base${i.toString(16).toUpperCase().padStart(2, "0")}`;
       const m = new RegExp(`${key}:\\s*["']?#?([0-9a-fA-F]{6})`).exec(text);
-      if (!m) { colors.length = 0; break; }
+      if (!m) break;
       colors.push(m[1].toLowerCase());
     }
-    if (!colors.length) continue;
+    if (colors.length < 16) continue;
     const name = /name:\s*["']?([^"'\n]+)/.exec(text)?.[1]?.trim() || file.replace(".yaml", "");
     const variant = /variant:\s*["']?(\w+)/.exec(text)?.[1] || "dark";
     out.push({ name, system, variant, palette: colors.join(" ") });
