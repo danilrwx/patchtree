@@ -1660,6 +1660,27 @@ html.pt-on {
   padding: 0px 4px;
 }
 
+#pt-branches {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: center;
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
+  color: var(--pt-muted);
+  white-space: nowrap;
+}
+#pt-branches .pt-branch-src {
+  font-family: var(--pt-mono);
+  color: var(--pt-fg);
+}
+#pt-branches .pt-branch-arrow { opacity: 0.7; }
+#pt-branches .pt-branch-tgt { font-family: var(--pt-mono); }
+#pt-branches .pt-branch-copy {
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+}
+
 #pt-progress.pt-done { color: #1a7f37; }
 #pt-conflicts { color: #cf222e; }
 #pt-ci[data-state="success"] { color: #1a7f37; }

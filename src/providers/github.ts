@@ -164,6 +164,8 @@ export function github(owner: string, repo: string, num: string): Provider {
         headSha: pr.head.sha,
         baseSha: pr.base.sha,
         startSha: pr.base.sha,
+        sourceBranch: pr.head.ref,
+        targetBranch: pr.base.ref,
         ci,
         conflicts: pr.mergeable === false,
       };

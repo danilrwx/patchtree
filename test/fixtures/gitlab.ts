@@ -60,6 +60,8 @@ const discussions = [
 const mr = {
   title: "fix dra nil handling",
   diff_refs: { head_sha: HEAD, base_sha: BASE, start_sha: BASE },
+  source_branch: "feature",
+  target_branch: "main",
   head_pipeline: { status: "success", web_url: `${HOST}/pipe` },
   has_conflicts: false,
 };

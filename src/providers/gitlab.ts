@@ -134,6 +134,8 @@ export function gitlab(projectPath: string, iid: string): Provider {
         headSha: mr.diff_refs?.head_sha,
         baseSha: mr.diff_refs?.base_sha,
         startSha: mr.diff_refs?.start_sha,
+        sourceBranch: mr.source_branch,
+        targetBranch: mr.target_branch,
         ci: mr.head_pipeline
           ? { state: mr.head_pipeline.status, url: mr.head_pipeline.web_url }
           : null,

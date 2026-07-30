@@ -645,6 +645,33 @@ export function initReview(P: Provider, view: PtView) {
       refs = info;
       P.setRefs(info as any);
       document.title = info.title;
+      if (info.sourceBranch) {
+        const br = document.createElement("span");
+        br.id = "pt-branches";
+        const src = document.createElement("span");
+        src.className = "pt-branch-src";
+        src.textContent = info.sourceBranch;
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "pt-hbtn pt-branch-copy";
+        copy.title = "Copy branch name";
+        copy.innerHTML = icons.copy || "";
+        copy.addEventListener("click", () => {
+          navigator.clipboard.writeText(info.sourceBranch!);
+          status("branch name copied");
+        });
+        br.append(src, copy);
+        if (info.targetBranch) {
+          const arrow = document.createElement("span");
+          arrow.className = "pt-branch-arrow";
+          arrow.textContent = "→";
+          const tgt = document.createElement("span");
+          tgt.className = "pt-branch-tgt";
+          tgt.textContent = info.targetBranch;
+          br.append(arrow, tgt);
+        }
+        select.after(br);
+      }
       if (info.ci) {
         const ci = document.createElement("a");
         ci.id = "pt-ci";

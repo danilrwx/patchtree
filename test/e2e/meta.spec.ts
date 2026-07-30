@@ -28,6 +28,18 @@ test("the PR title and CI status are surfaced", async ({ context, page }) => {
   await expect(ci).toHaveAttribute("href", /\/checks$/);
 });
 
+test("the source and target branches are shown with a copy button", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const branches = page.locator("#pt-branches");
+  await expect(branches.locator(".pt-branch-src")).toHaveText("feature");
+  await expect(branches.locator(".pt-branch-tgt")).toHaveText("main");
+  await branches.locator(".pt-branch-copy").click();
+  await expect(page.locator("#pt-status")).toContainText("branch name copied");
+});
+
 test("each file links to its head revision", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

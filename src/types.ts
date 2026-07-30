@@ -46,6 +46,9 @@ export interface Info {
   headSha?: string;
   baseSha?: string;
   startSha?: string;
+  // source branch (the changes) and the branch it merges into
+  sourceBranch?: string;
+  targetBranch?: string;
   ci: CiStatus | null;
   conflicts: boolean;
 }

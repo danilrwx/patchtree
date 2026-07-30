@@ -128,7 +128,7 @@ const pull = {
   title: "fix dra nil handling",
   number: NUM,
   head: { sha: HEAD, ref: "feature", repo: { full_name: `${OWNER}/${REPO}` } },
-  base: { sha: BASE },
+  base: { sha: BASE, ref: "main" },
   mergeable: true,
 };
 
