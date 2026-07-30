@@ -18,10 +18,18 @@
 import { test, expect, seedToken } from "./fixtures";
 import { mockGithub, DIFF_URL } from "../fixtures/github";
 
+// The custom <Select> pins its dropdown position (fixed) when it opens; if the
+// web font is still swapping, the summary shifts afterward and the menu lands on
+// stale coords, so its items get intercepted. Wait for fonts before opening.
+async function fontsReady(page: import("@playwright/test").Page) {
+  await page.evaluate(() => document.fonts.ready);
+}
+
 test("gear settings apply to the rendered CSS variables", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  await fontsReady(page);
 
   const html = page.locator("html");
   const gearSummary = page.locator('summary[title="Settings"]');
@@ -66,6 +74,7 @@ test("picking a theme applies its color variables", async ({ context, page }) =>
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  await fontsReady(page);
 
   const html = page.locator("html");
   const gearSummary = page.locator('summary[title="Settings"]');
@@ -88,6 +97,7 @@ test("choosing a custom UI font reveals an input and applies it", async ({ conte
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  await fontsReady(page);
 
   const gearSummary = page.locator('summary[title="Settings"]');
   await gearSummary.click();
