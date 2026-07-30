@@ -156,6 +156,11 @@ a tag will carry with `scripts/changelog.sh v1.1.0`.
 
 ## Gallery
 
+Toolbar — commit filter, unresolved threads, source → target branch,
+diffstat and viewed progress:
+
+![toolbar](docs/screenshots/toolbar.png)
+
 File tree with filter, per-file stats and comment badges:
 
 ![file tree](docs/screenshots/tree.png)
