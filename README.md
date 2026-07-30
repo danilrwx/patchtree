@@ -34,22 +34,19 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 
 - Resizable, filterable **file tree** (filter matches paths *and* diff
   content), folder icons, per-file `+N −M`, comment-count badge.
-
-  ![file tree](docs/screenshots/tree.png)
 - **Viewed** checkboxes with an `N/M viewed` progress counter,
   fold/unfold, auto-collapsed `generated` files (lock files, `*.pb.go`,
   `vendor/`, minified assets).
 - **Keyboard**: `j`/`k` files, `n`/`p` threads (centered), `v` viewed,
-  `x` fold, `/` focus filter.
+  `x` fold, `/` focus filter — bound to physical keys, so they work on
+  any keyboard layout.
 - **Commit filter** dropdown — view the diff of a single commit.
-
-  ![commit filter](docs/screenshots/commits.png)
+- Diffstat summary, source → target branch with a copy button, and
+  pipeline/checks status in the toolbar.
 - Alt-click a line number → copy a **permalink** to that line's blob.
 - Copy-path and open-at-head buttons in every file header.
 
 ### Review
-
-![thread with a suggestion](docs/screenshots/thread.png)
 
 - **Threads on lines** (anchored to the old or new side, half-width in
   split view), replies, edit and delete of your comments.
@@ -59,26 +56,16 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   with the commented line; existing suggestions render as a red/green
   widget with **Apply suggestion** (GitLab).
 - **Multiline comments**: shift-click a line number to extend the range.
-
-![comment editor](docs/screenshots/comment-form.png)
-![insert suggestion](docs/screenshots/suggestion-editor.png)
-![multiline comment](docs/screenshots/multiline.png)
 - **Resolve/unresolve** threads (GitLab) and an **unresolved dropdown**
   in the toolbar that jumps to each open thread.
-
-  ![unresolved threads](docs/screenshots/unresolved.png)
 - **Draft reviews** (GitLab): “Add to review” collects pending comments,
   published together by Submit review.
 - **Submit review** panel: summary comment + Comment / Approve (or
   Unapprove) / Request changes; approval state shown as a badge.
-
-  ![submit review](docs/screenshots/submit-review.png)
 - General (non-diff) MR/PR discussion rendered above the first file.
-- Pipeline/checks status and merge-conflict indicator in the toolbar.
+- Merge-conflict indicator in the toolbar.
 
 ### Appearance
-
-![settings](docs/screenshots/settings.png)
 
 - **Theme gallery**: the base24 schemes from
   [tinted-theming](https://github.com/tinted-theming/schemes) (MIT) with live
@@ -88,8 +75,6 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   JetBrainsMono / FiraCode / Hack / MesloLGS / Iosevka; any local font by
   name; separate UI/code font sizes, tab width, italic comments and
   ligatures toggles.
-
-  ![theme gallery](docs/screenshots/theme-gallery.png)
 
 ## Install
 
@@ -109,8 +94,6 @@ tokens** on any diff page and add a GitLab host (PAT scope `api`) and/or
 a GitHub token (classic `repo`, or fine-grained with Pull requests
 read & write); rendering works without tokens. Tokens are stored in
 `storage.local` and never synced.
-
-![access tokens](docs/screenshots/tokens.png)
 
 Make sure the extension's **Site access** is “On all sites” (or grant
 your hosts explicitly) — without it the content script is not injected.
@@ -170,6 +153,52 @@ See [CHANGELOG.md](CHANGELOG.md). It is grouped from
 [conventional commits](https://www.conventionalcommits.org) — preview the
 unreleased section with `make changelog RANGE=v1.0.0..HEAD`, or the notes
 a tag will carry with `scripts/changelog.sh v1.1.0`.
+
+## Gallery
+
+File tree with filter, per-file stats and comment badges:
+
+![file tree](docs/screenshots/tree.png)
+
+Commit filter — the diff of a single commit:
+
+![commit filter](docs/screenshots/commits.png)
+
+A thread with a rendered suggestion:
+
+![thread with a suggestion](docs/screenshots/thread.png)
+
+Comment editor with markdown toolbar and preview:
+
+![comment editor](docs/screenshots/comment-form.png)
+
+Inserting a suggestion prefilled with the commented lines:
+
+![insert suggestion](docs/screenshots/suggestion-editor.png)
+
+Multiline comment — shift-click extends the range:
+
+![multiline comment](docs/screenshots/multiline.png)
+
+Unresolved-threads dropdown jumps to each open thread:
+
+![unresolved threads](docs/screenshots/unresolved.png)
+
+Submit review — summary comment plus Comment / Approve / Request changes:
+
+![submit review](docs/screenshots/submit-review.png)
+
+Settings menu — fonts, sizes, view options:
+
+![settings](docs/screenshots/settings.png)
+
+Theme gallery with live diff previews:
+
+![theme gallery](docs/screenshots/theme-gallery.png)
+
+Access tokens setup:
+
+![access tokens](docs/screenshots/tokens.png)
 
 ## License
 
