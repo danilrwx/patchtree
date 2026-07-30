@@ -21,5 +21,5 @@ export default defineConfig({
   workers: 1,
   timeout: 60_000,
   reporter: "list",
-  use: { actionTimeout: 15_000 },
+  use: { actionTimeout: 15_000, screenshot: "only-on-failure" },
 });

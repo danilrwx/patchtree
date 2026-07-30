@@ -52,6 +52,11 @@ export function Select(props: {
     menu.style.left = `${r.left}px`;
     menu.style.top = `${r.bottom + 4}px`;
     menu.style.minWidth = `${r.width}px`;
+    const m = menu.getBoundingClientRect();
+    if (m.bottom > window.innerHeight)
+      menu.style.top = `${Math.max(8, window.innerHeight - m.height - 8)}px`;
+    if (m.right > window.innerWidth)
+      menu.style.left = `${Math.max(8, window.innerWidth - m.width - 8)}px`;
     setKbd(opts().findIndex((o) => o.value === props.value()));
   };
 
