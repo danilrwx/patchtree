@@ -26,6 +26,9 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   the background worker): go, js/ts/tsx, python, bash, json, yaml, rust,
   c, c++, java, ruby, php, c#, lua, toml, hcl/terraform, css, html, and
   Helm/Go templates (`.tpl`, and any `.yaml` containing `{{ … }}` actions).
+  Languages without a grammar fall back to highlight.js (swift, kotlin,
+  scala, dart, elixir, haskell, sql, dockerfile, makefile, …); files
+  without an extension go by shebang, then hljs auto-detection.
 - **Expand hidden lines** between hunks (fetched from the repository at
   the head revision, highlighted and commentable) or the **Full file**
   toggle per file.
@@ -210,5 +213,6 @@ Access tokens setup:
 
 Apache License 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)) — copies must
 retain the copyright and license notices. Bundled third-party assets keep their own licenses: web-tree-sitter and
-the grammars (MIT), JetBrains Mono / Inter (OFL), Nerd Fonts patched
-fonts (MIT + upstream font licenses), tinted-theming schemes (MIT).
+the grammars (MIT), highlight.js (BSD-3-Clause), JetBrains Mono / Inter
+(OFL), Nerd Fonts patched fonts (MIT + upstream font licenses),
+tinted-theming schemes (MIT).

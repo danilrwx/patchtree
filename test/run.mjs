@@ -194,6 +194,56 @@ t("resolveLang routes helm/werf/yaml", () => {
   assert.equal(resolveLang("main.go", "x"), "go");
 });
 
+t("resolveLang falls back to hljs for grammarless languages", () => {
+  assert.equal(resolveLang("Sources/App.swift", ""), "hljs:swift");
+  assert.equal(resolveLang("db/schema.sql", ""), "hljs:sql");
+  assert.equal(resolveLang("Dockerfile", ""), "hljs:dockerfile");
+  assert.equal(resolveLang("proj/Makefile", ""), "hljs:makefile");
+  assert.equal(resolveLang("notes.xyz", "text"), null);
+});
+
+t("resolveLang: extensionless files use shebang, then hljs auto-detect", () => {
+  assert.equal(resolveLang("scripts/run", "#!/usr/bin/env bash\necho hi"), "bash");
+  assert.equal(resolveLang("scripts/gen", "#!/usr/bin/env python3\nprint(1)"), "python");
+  assert.equal(resolveLang("bin/fix", "#!/usr/bin/perl\nprint 1;"), "hljs:perl");
+  assert.equal(resolveLang("queries", "SELECT 1;"), "hljs:auto");
+  assert.equal(resolveLang("empty", "   "), null);
+});
+
+const { htmlToRows, hljsRows } = loadTs("src/hljs.ts");
+
+t("htmlToRows: spans, entities and newlines map to original offsets", () => {
+  const rows = htmlToRows(
+    '<span class="hljs-keyword">let</span> x = &quot;a&amp;b&quot;\n<span class="hljs-number">42</span>'
+  );
+  assert.deepEqual(rows[0], [{ s: 0, e: 3, c: "keyword" }]);
+  assert.deepEqual(rows[1], [{ s: 0, e: 2, c: "number" }]);
+});
+
+t("htmlToRows: nested unmapped scopes inherit, sub-scopes map", () => {
+  const rows = htmlToRows(
+    '<span class="hljs-string">&quot;a<span class="hljs-subst">x</span>b&quot;</span> <span class="hljs-title function_">go</span>'
+  );
+  assert.deepEqual(rows[0], [
+    { s: 0, e: 2, c: "string" },
+    { s: 2, e: 3, c: "embedded" },
+    { s: 3, e: 5, c: "string" },
+    { s: 6, e: 8, c: "function" },
+  ]);
+});
+
+t("hljsRows highlights a grammarless language", () => {
+  const rows = hljsRows("swift", "func greet() -> String {}");
+  assert.deepEqual(rows[0][0], { s: 0, e: 4, c: "keyword" });
+});
+
+t("hljsRows auto-detects code but leaves prose alone", () => {
+  const sql = hljsRows("auto", "SELECT id, name\nFROM users\nWHERE active = TRUE\nORDER BY name;");
+  assert.ok(Object.keys(sql).length > 0, "sql detected");
+  const prose = hljsRows("auto", "This project renders diffs.\nSee the docs for details.");
+  assert.deepEqual(prose, {});
+});
+
 t("renderLineHTML: identical span keeps the last capture", () => {
   const html = renderLineHTML(
     "key",

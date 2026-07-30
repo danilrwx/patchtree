@@ -1,0 +1,20 @@
+diff --git a/Sources/App.swift b/Sources/App.swift
+new file mode 100644
+--- /dev/null
++++ b/Sources/App.swift
+@@ -0,0 +1,6 @@
++import Foundation
++
++func greet(name: String) -> String {
++    let message = "Hello, \(name)"
++    return message
++}
+diff --git a/queries b/queries
+new file mode 100644
+--- /dev/null
++++ b/queries
+@@ -0,0 +1,4 @@
++SELECT id, name
++FROM users
++WHERE active = TRUE
++ORDER BY name;

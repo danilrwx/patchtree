@@ -40,11 +40,12 @@ const HEADER = [
 
 // One output .js per entry. content bundles the whole extension UI (providers
 // and the review controller are now imported, not separate window-bridged
-// scripts); the service worker stays an unbundled ES module because it imports
-// the vendored web-tree-sitter loader.
+// scripts); the service worker bundles too (highlight.js), keeping the
+// vendored web-tree-sitter loader external so its runtime-relative path in
+// dist/ survives.
 const ENTRIES = [
   { name: "content", bundle: true },
-  { name: "background", bundle: false, format: "esm" },
+  { name: "background", bundle: true, format: "esm", external: ["./assets/vendor/web-tree-sitter.js"] },
 ];
 
 // copied into dist/ unchanged; paths in manifest.json stay valid because the
@@ -64,12 +65,13 @@ await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
 
 await Promise.all(
-  ENTRIES.map(({ name, bundle = true, format = "iife" }) =>
+  ENTRIES.map(({ name, bundle = true, format = "iife", external = [] }) =>
     build({
       entryPoints: [resolveEntry(name)],
       outfile: `${OUT}/${name}.js`,
       bundle,
       format,
+      external,
       target: "chrome110",
       charset: "utf8",
       banner: { js: HEADER },

@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// path is relative to the built dist/background.js (unbundled ES module); the
-// vendored loader is fetched at build time and resolved at runtime, not by tsc
+// the vendored loader is fetched at build time and resolved at runtime
+// relative to dist/background.js (kept external when esbuild bundles the
+// worker), not by tsc
 // @ts-expect-error — no types for the vendored web-tree-sitter loader
 import { Parser, Language, Query } from "./assets/vendor/web-tree-sitter.js";
+import { hljsRows } from "./hljs";
 
 // typescript files are parsed with the tsx grammar so one wasm covers ts/tsx,
 // and its query is the javascript query plus typescript additions
@@ -99,6 +101,8 @@ function parseWith(language: any, text: string) {
 }
 
 function highlight(langName: string, text: string) {
+  if (langName.startsWith("hljs:"))
+    return Promise.resolve({ rows: hljsRows(langName.slice(5), text) });
   if (langName === "gotmpl") return highlightGotmpl(text);
   return init()
     .then(() => loadLang(langName))

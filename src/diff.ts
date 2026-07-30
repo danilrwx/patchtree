@@ -133,16 +133,79 @@ export function imageMime(path: string | null | undefined): string | null {
 
 export const isImagePath = (path: string | null | undefined): boolean => imageMime(path) !== null;
 
+// languages the background highlights through highlight.js when no
+// tree-sitter grammar exists; the "hljs:" prefix routes the request there
+const HLJS_BY_EXT: Record<string, string> = {
+  swift: "swift",
+  kt: "kotlin",
+  kts: "kotlin",
+  scala: "scala",
+  sbt: "scala",
+  dart: "dart",
+  ex: "elixir",
+  exs: "elixir",
+  erl: "erlang",
+  hrl: "erlang",
+  hs: "haskell",
+  ml: "ocaml",
+  mli: "ocaml",
+  pl: "perl",
+  pm: "perl",
+  r: "r",
+  sql: "sql",
+  proto: "protobuf",
+  groovy: "groovy",
+  gradle: "groovy",
+  clj: "clojure",
+  cljs: "clojure",
+  cljc: "clojure",
+  edn: "clojure",
+  jl: "julia",
+  m: "objectivec",
+  mm: "objectivec",
+  ini: "ini",
+  cfg: "ini",
+  cmake: "cmake",
+  dockerfile: "dockerfile",
+};
+
+const HLJS_BY_BASENAME: Record<string, string> = {
+  makefile: "makefile",
+  gnumakefile: "makefile",
+  dockerfile: "dockerfile",
+  containerfile: "dockerfile",
+  "cmakelists.txt": "cmake",
+};
+
+function shebangLang(text: string | null | undefined): string | null {
+  const first = (text || "").slice(0, 200).split("\n", 1)[0];
+  if (!first.startsWith("#!")) return null;
+  if (/python/.test(first)) return "python";
+  if (/ruby/.test(first)) return "ruby";
+  if (/\b(?:node|deno|bun)\b/.test(first)) return "javascript";
+  if (/perl/.test(first)) return "hljs:perl";
+  if (/\b(?:bash|zsh|dash|ksh|sh)\b/.test(first)) return "bash";
+  return null;
+}
+
 // Helm/Go templates: .tpl is always a template; a .yaml/.yml carrying
 // {{ … }} actions is highlighted as a template too (yaml text stays plain,
 // the actions get colored), everything else keeps its yaml highlighting.
+// Anything without a tree-sitter grammar falls back to highlight.js, and an
+// extensionless file without a shebang goes to hljs auto-detection.
 export function resolveLang(path: string | null | undefined, text: string | null | undefined): string | null {
   const p = path || "";
   const name = p.split("/").pop()!.toLowerCase();
   if (/\.tpl$/i.test(p) || name === "werf.yaml" || /\.?werf\.inc\.yaml$/.test(name)) return "gotmpl";
   const base = langFor(path);
   if (base === "yaml" && /\{\{.*?\}\}/s.test(text || "")) return "gotmpl";
-  return base;
+  if (base) return base;
+  const hl = HLJS_BY_BASENAME[name] || (name.includes(".") ? HLJS_BY_EXT[name.split(".").pop()!] : null);
+  if (hl) return `hljs:${hl}`;
+  const sb = shebangLang(text);
+  if (sb) return sb;
+  if (!name.includes(".") && (text || "").trim()) return "hljs:auto";
+  return null;
 }
 
 // strip the tab-separated timestamp some diff tools append to a ---/+++ path
