@@ -25,10 +25,11 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 - **Syntax highlighting** with real parsers (web-tree-sitter, wasm, run in
   the background worker): go, js/ts/tsx, python, bash, json, yaml, rust,
   c, c++, java, ruby, php, c#, lua, toml, hcl/terraform, css, html, and
-  Helm/Go templates (`.tpl`, and any `.yaml` containing `{{ … }}` actions).
+  Helm/Go templates (`.tpl`, and any `.yaml` containing `{{ … }}` actions)
+  and Dockerfile/Containerfile.
   Languages without a grammar fall back to highlight.js (swift, kotlin,
-  scala, dart, elixir, haskell, sql, dockerfile, makefile, …); files
-  without an extension go by shebang, then hljs auto-detection.
+  scala, dart, elixir, haskell, sql, makefile, …); files without an
+  extension go by shebang, then hljs auto-detection.
 - **Expand hidden lines** between hunks (fetched from the repository at
   the head revision, highlighted and commentable) or the **Full file**
   toggle per file.

@@ -103,12 +103,16 @@ const LANG_BY_EXT: Record<string, string> = {
   tf: "hcl",
   tfvars: "hcl",
   hcl: "hcl",
+  dockerfile: "dockerfile",
+  containerfile: "dockerfile",
 };
 
 export function langFor(path: string | null | undefined): string | null {
   if (!path) return null;
   const base = path.split("/").pop()!;
-  const ext = base.includes(".") ? base.split(".").pop()!.toLowerCase() : "";
+  // an extensionless name looks itself up, so Dockerfile/Containerfile hit
+  // the "dockerfile" entry the same way app.dockerfile does
+  const ext = base.split(".").pop()!.toLowerCase();
   return LANG_BY_EXT[ext] || null;
 }
 
@@ -166,14 +170,11 @@ const HLJS_BY_EXT: Record<string, string> = {
   ini: "ini",
   cfg: "ini",
   cmake: "cmake",
-  dockerfile: "dockerfile",
 };
 
 const HLJS_BY_BASENAME: Record<string, string> = {
   makefile: "makefile",
   gnumakefile: "makefile",
-  dockerfile: "dockerfile",
-  containerfile: "dockerfile",
   "cmakelists.txt": "cmake",
 };
 

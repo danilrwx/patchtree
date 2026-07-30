@@ -19,8 +19,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 WEB_TREE_SITTER=0.26.11
-# go-template (Helm) grammar ships no wasm on npm — built from source below
+# go-template (Helm) and dockerfile grammars ship no wasm on npm — built from
+# source below
 GOTMPL_SHA=aa71f63de226c5592dfbfc1f29949522d7c95fac
+# camdencheek/tree-sitter-dockerfile v0.2.0
+DOCKERFILE_SHA=868e44ce378deb68aac902a9db68ff82d2299dd0
 GRAMMARS=(
   "tree-sitter-go@0.25.0 tree-sitter-go.wasm"
   "tree-sitter-javascript@0.25.0 tree-sitter-javascript.wasm"
@@ -47,6 +50,7 @@ if [ "${FORCE:-}" != "1" ]; then
   missing=0
   [ -s assets/vendor/web-tree-sitter.js ] && [ -s assets/vendor/web-tree-sitter.wasm ] || missing=1
   [ -s assets/vendor/wasm/tree-sitter-gotmpl.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-dockerfile.wasm ] || missing=1
   for entry in "${GRAMMARS[@]}"; do [ -s "assets/vendor/wasm/${entry#* }" ] || missing=1; done
   if [ "$missing" = 0 ]; then
     echo "assets/vendor/ up to date (FORCE=1 to refetch)"
@@ -78,10 +82,15 @@ for entry in "${GRAMMARS[@]}"; do
   cp "$tmp/package/$wasm" assets/vendor/wasm/
 done
 
-echo "ngalaiko/tree-sitter-go-template@$GOTMPL_SHA -> tree-sitter-gotmpl.wasm"
-out="$PWD/assets/vendor/wasm/tree-sitter-gotmpl.wasm"
-curl -sfL "https://github.com/ngalaiko/tree-sitter-go-template/archive/$GOTMPL_SHA.tar.gz" | tar xz -C "$tmp"
-( cd "$tmp/tree-sitter-go-template-$GOTMPL_SHA" &&
-  npx --yes tree-sitter-cli@$WEB_TREE_SITTER build --wasm -o "$out" . )
+build_from_source() {
+  local repo=$1 sha=$2 out="$PWD/assets/vendor/wasm/$3"
+  echo "$repo@$sha -> $3"
+  curl -sfL "https://github.com/$repo/archive/$sha.tar.gz" | tar xz -C "$tmp"
+  ( cd "$tmp/${repo#*/}-$sha" &&
+    npx --yes tree-sitter-cli@$WEB_TREE_SITTER build --wasm -o "$out" . )
+}
+
+build_from_source ngalaiko/tree-sitter-go-template "$GOTMPL_SHA" tree-sitter-gotmpl.wasm
+build_from_source camdencheek/tree-sitter-dockerfile "$DOCKERFILE_SHA" tree-sitter-dockerfile.wasm
 
 echo "assets/vendor/ done"

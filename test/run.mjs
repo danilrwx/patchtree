@@ -197,9 +197,14 @@ t("resolveLang routes helm/werf/yaml", () => {
 t("resolveLang falls back to hljs for grammarless languages", () => {
   assert.equal(resolveLang("Sources/App.swift", ""), "hljs:swift");
   assert.equal(resolveLang("db/schema.sql", ""), "hljs:sql");
-  assert.equal(resolveLang("Dockerfile", ""), "hljs:dockerfile");
   assert.equal(resolveLang("proj/Makefile", ""), "hljs:makefile");
   assert.equal(resolveLang("notes.xyz", "text"), null);
+});
+
+t("dockerfile resolves to the tree-sitter grammar by basename or extension", () => {
+  assert.equal(resolveLang("Dockerfile", ""), "dockerfile");
+  assert.equal(resolveLang("build/Containerfile", ""), "dockerfile");
+  assert.equal(resolveLang("app.dev.dockerfile", ""), "dockerfile");
 });
 
 t("resolveLang: extensionless files use shebang, then hljs auto-detect", () => {

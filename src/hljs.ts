@@ -19,7 +19,6 @@ import hljs from "highlight.js/lib/core";
 import clojure from "highlight.js/lib/languages/clojure";
 import cmake from "highlight.js/lib/languages/cmake";
 import dart from "highlight.js/lib/languages/dart";
-import dockerfile from "highlight.js/lib/languages/dockerfile";
 import elixir from "highlight.js/lib/languages/elixir";
 import erlang from "highlight.js/lib/languages/erlang";
 import groovy from "highlight.js/lib/languages/groovy";
@@ -41,7 +40,6 @@ const LANGS = {
   clojure,
   cmake,
   dart,
-  dockerfile,
   elixir,
   erlang,
   groovy,
