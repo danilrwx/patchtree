@@ -940,6 +940,14 @@ html.pt-on {
   white-space: pre;
 }
 
+/* Skip layout/paint of off-screen files so window/splitter resize doesn't
+   re-wrap the whole diff. Enabled (via #pt-main.pt-cv) only after content.ts has
+   pinned each file's real height as contain-intrinsic-size, so scroll offsets
+   and jump-to-thread stay exact. */
+#pt-main.pt-cv > .pt-file {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
 
 /* header and body are two self-contained bordered blocks (rounded top / rounded
    bottom), not one bordered section. So the sticky header keeps its own border

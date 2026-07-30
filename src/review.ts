@@ -123,9 +123,29 @@ export function initReview(P: Provider, view: PtView) {
       : `tr[data-path="${CSS.escape(t.pos.path)}"][data-old="${t.pos.oldLine}"]`;
     // both the unified and split tables render the row; only one is visible, so
     // pick the laid-out one (scrollIntoView on a display:none row is a no-op)
-    const row = [...document.querySelectorAll<HTMLElement>(sel)].find((r) => r.offsetParent);
-    const next = row?.nextElementSibling;
-    flashCenter(next?.classList.contains("pt-comments-row") ? next : row);
+    const rowOf = () =>
+      [...document.querySelectorAll<HTMLElement>(sel)].find((r) => r.offsetParent) || null;
+    const target = () => {
+      const row = rowOf();
+      const next = row?.nextElementSibling;
+      return next?.classList.contains("pt-comments-row") ? (next as HTMLElement) : row;
+    };
+    const found = target();
+    if (found) return flashCenter(found);
+    // the file is off-screen under content-visibility, so its rows aren't laid
+    // out yet — bring the section in, then centre the row once it renders
+    const section = document.querySelector<HTMLElement>(
+      `section.pt-file[data-path="${CSS.escape(t.pos.path)}"]`
+    );
+    if (!section) return;
+    section.scrollIntoView({ block: "center" });
+    let tries = 0;
+    const wait = () => {
+      const el = target();
+      if (el) flashCenter(el);
+      else if (tries++ < 30) requestAnimationFrame(wait);
+    };
+    requestAnimationFrame(wait);
   }
 
   const mdCache = new Map<string, string>();

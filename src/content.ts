@@ -389,8 +389,26 @@ async function main() {
     for (const v of views) setViewed(v.path, viewedSet.has(v.path));
     for (const v of views) main.appendChild(v.section);
     updateProgress();
+    pinIntrinsicSizes();
     // highlighting is kicked off per file when it mounts (see buildFileView)
   }
+
+  // With the whole diff in the DOM, window/splitter resize would re-wrap every
+  // file. Enable content-visibility to skip off-screen files — but only after
+  // pinning each file's real rendered height as contain-intrinsic-size, so the
+  // skipped placeholder matches reality and scroll/jump offsets stay exact.
+  const pinIntrinsicSizes = () => {
+    main.classList.remove("pt-cv");
+    const measure = () => {
+      const hs = views.map((v) => v.section.offsetHeight);
+      views.forEach((v, i) => {
+        if (hs[i]) v.section.style.containIntrinsicSize = `auto ${hs[i]}px`;
+      });
+      main.classList.add("pt-cv");
+    };
+    // measure after the web font swaps line metrics, so heights are final
+    (document.fonts?.ready ?? Promise.resolve()).then(() => requestAnimationFrame(measure));
+  };
 
   updateProgress = () => {
     setViewedDone(views.filter((v) => viewedSet.has(v.path)).length);
