@@ -6,6 +6,10 @@ All notable changes, grouped from [conventional commits](https://www.conventiona
 
 ### 🚀 Features
 
+- **highlight:** highlight.js fallback for grammarless languages (`ef847d7`)
+- **theme:** use base24 bright accents on dark schemes (`6bd3c15`)
+- **settings:** word-diff toggle, always on inside suggestions (`aee73d1`)
+- **theme:** make UI chrome follow the applied scheme (`ebaaa55`)
 - **files:** add collapse all / expand all to the gear menu (`55f8dde`)
 - **toolbar:** show a diff summary of file count and total +/- (`c0ede8a`)
 - **review:** show source→target branch with a copy button (`ff20fb0`)
@@ -26,6 +30,10 @@ All notable changes, grouped from [conventional commits](https://www.conventiona
 
 ### 🐛 Fixes
 
+- **ui:** portal the select menu out of the scrollable gear menu (`10cf6d5`)
+- **ui:** breathing room around the branch arrow (`586f01b`)
+- **theme:** keep word-diff chips readable on light schemes (`ae6f65c`)
+- **ui:** clamp fixed select menu into the viewport (`20bafdb`)
 - **review:** converge the jump-to-thread scroll under content-visibility (`164d47b`)
 - **layout:** drop the empty discussion host so it adds no leading gap (`51b2227`)
 - **review:** split comment fills its pane; diff continues on the other side (`da4a38f`)
@@ -100,6 +108,9 @@ All notable changes, grouped from [conventional commits](https://www.conventiona
 
 ### 📖 Documentation
 
+- refresh screenshots with the extended showcase PR (`c1a8e37`)
+- regenerate screenshots at a uniform scale, add toolbar shot (`3719eb9`)
+- move screenshots out of feature sections into a gallery (`9461be3`)
 - set a within-limit AMO add-on name (`86eac32`)
 - format AMO listing in AMO-supported Markdown (`37ded6f`)
 - add AMO (Firefox Add-ons) store listing copy (`465408e`)
@@ -107,6 +118,7 @@ All notable changes, grouped from [conventional commits](https://www.conventiona
 
 ### ✅ Tests
 
+- **e2e:** wait for fonts before opening selects so CI doesn't hit stale menu coords (`c619a66`)
 - **e2e:** cover added-image preview and failed comment error path (`5a9fecb`)
 - **e2e:** cover custom theme yaml, custom font input and splitter resize (`b8d8456`)
 - **e2e:** cover GitLab commit selector and ignore-whitespace toggle (`4ff8a09`)
@@ -148,6 +160,10 @@ All notable changes, grouped from [conventional commits](https://www.conventiona
 
 ### 🔧 Chores
 
+- sync package-lock version and license (`e726e79`)
+- **scripts:** add screenshot generator for the docs gallery (`0f0c8df`)
+- declare Apache-2.0 license in package.json (`293b72f`)
+- **release:** v1.1.0 (`a92b828`)
 - remove dead PtView fields and stale comment (`d7fb994`)
 - write release archives into build/ instead of the repo root (`7f6df39`)
 - move assets under assets/, drop options page, background→src (`b4c5baf`)
