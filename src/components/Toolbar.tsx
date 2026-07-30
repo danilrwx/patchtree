@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Show } from "solid-js";
-import { viewMode, viewedDone, viewedTotal } from "../store";
+import { treeFiles, viewMode, viewedDone, viewedTotal } from "../store";
 
 const SVG_ROWS =
   '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.75" y="2.75" width="12.5" height="4.1" rx="1.4"/><rect x="1.75" y="9.15" width="12.5" height="4.1" rx="1.4"/></svg>';
@@ -22,8 +22,17 @@ const SVG_COLS =
 
 export function Toolbar(props: { onSetMode: (mode: "unified" | "split") => void }) {
   const done = () => viewedTotal() > 0 && viewedDone() === viewedTotal();
+  const files = () => treeFiles();
+  const adds = () => files().reduce((n, f) => n + f.adds, 0);
+  const dels = () => files().reduce((n, f) => n + f.dels, 0);
   return (
     <>
+      <span id="pt-diffstat">
+        <Show when={files().length > 0}>
+          {`${files().length} ${files().length === 1 ? "file" : "files"} `}
+          <span class="pt-adds">+{adds()}</span> <span class="pt-dels">−{dels()}</span>
+        </Show>
+      </span>
       <span id="pt-progress" classList={{ "pt-done": done() }}>
         <Show when={viewedTotal() > 0}>{`${viewedDone()}/${viewedTotal()} viewed`}</Show>
       </span>

@@ -314,6 +314,7 @@ html.pt-on {
 
 /* empty text slots must not claim a flex gap, or spacing looks uneven */
 #pt-progress:empty,
+#pt-diffstat:empty,
 #pt-status:empty,
 #pt-hint:empty {
   display: none;
@@ -1650,6 +1651,7 @@ html.pt-on {
 }
 
 #pt-progress,
+#pt-diffstat,
 #pt-conflicts,
 #pt-ci {
   font: calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
@@ -1659,6 +1661,8 @@ html.pt-on {
   white-space: nowrap;
   padding: 0px 4px;
 }
+#pt-diffstat .pt-adds { color: #1a7f37; }
+#pt-diffstat .pt-dels { color: #cf222e; }
 
 #pt-branches {
   display: inline-flex;

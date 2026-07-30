@@ -43,6 +43,15 @@ test("renders the PR diff with tree, highlighting and a mocked thread", async ({
   await expect(page.getByText(/no GitHub token/i)).toHaveCount(0);
 });
 
+test("the toolbar shows a diff summary of files and total changes", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  const stat = page.locator("#pt-diffstat");
+  await expect(stat).toContainText("2 files");
+  await expect(stat.locator(".pt-adds")).toHaveText(/^\+\d+$/);
+  await expect(stat.locator(".pt-dels")).toHaveText(/^−\d+$/);
+});
+
 test("file tree filters by name", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
