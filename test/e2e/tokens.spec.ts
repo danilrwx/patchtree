@@ -26,6 +26,11 @@ test("access tokens dialog loads and closes", async ({ context, page }) => {
 
   const dialog = page.locator("#pt-tokens-dialog");
   await expect(dialog).toBeVisible();
+  // visible is not enough: without its fixed-overlay CSS the dialog rendered
+  // in-flow at the very bottom of the page, off-screen
+  await expect(dialog.locator(".pt-dialog")).toBeInViewport();
+  const overlay = await dialog.evaluate((el) => getComputedStyle(el).position);
+  expect(overlay).toBe("fixed");
   // the GitHub token seeded into storage is loaded back into the form
   await expect(dialog.locator(".pt-tokens input[type=password]").last()).toHaveValue("e2e-token");
 

@@ -489,7 +489,8 @@ html.pt-on {
   width: 100%;
 }
 
-#pt-themes-dialog {
+#pt-themes-dialog,
+#pt-tokens-dialog {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
