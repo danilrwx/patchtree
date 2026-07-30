@@ -30,38 +30,74 @@ function hexRgba(hex: string, a: number) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-const THEME_VARS = (c: string[]): Record<string, string> => ({
-  bg: `#${c[0]}`,
-  fg: `#${c[5]}`,
-  muted: `#${c[4]}`,
-  border: `#${c[2]}`,
-  "header-bg": `#${c[1]}`,
-  "add-bg": hexRgba(c[11], 0.14),
-  "add-no-bg": hexRgba(c[11], 0.35),
-  "del-bg": hexRgba(c[8], 0.12),
-  "del-no-bg": hexRgba(c[8], 0.3),
-  "hunk-bg": hexRgba(c[13], 0.12),
-  "hunk-fg": `#${c[4]}`,
-  "word-add": hexRgba(c[11], 0.38),
-  "word-del": hexRgba(c[8], 0.38),
-  keyword: `#${c[14]}`,
-  string: `#${c[11]}`,
-  comment: `#${c[3]}`,
-  function: `#${c[13]}`,
-  type: `#${c[10]}`,
-  constant: `#${c[9]}`,
-  number: `#${c[9]}`,
-  variable: `#${c[8]}`,
-  property: `#${c[13]}`,
-  operator: `#${c[5]}`,
-  tag: `#${c[8]}`,
-  attribute: `#${c[10]}`,
-  punctuation: `#${c[4]}`,
-  embedded: `#${c[15]}`,
-  escape: `#${c[12]}`,
-  label: `#${c[10]}`,
-  module: `#${c[10]}`,
-});
+function luma(hex: string) {
+  const n = parseInt(hex, 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+
+function mix(a: string, b: string, t: number) {
+  const x = parseInt(a, 16);
+  const y = parseInt(b, 16);
+  const ch = (s: number) => Math.round(((x >> s) & 255) * (1 - t) + ((y >> s) & 255) * t);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
+}
+
+// Schemes auto-converted from terminal palettes often carry terminal blacks in
+// base01/base02 and near-invisible grays in base03/base04, which breaks UI
+// surfaces (a black toolbar on a light page). When a slot's contrast against
+// the background falls outside the plausible band for its role, derive the
+// color from a bg→fg blend instead of trusting the palette.
+const THEME_VARS = (c: string[]): Record<string, string> => {
+  const bgL = luma(c[0]);
+  const light = bgL > 0.5;
+  const surface = (i: number, lo: number, hi: number, t: number) => {
+    const d = Math.abs(luma(c[i]) - bgL);
+    return d >= lo && d <= hi ? `#${c[i]}` : mix(c[0], c[5], t);
+  };
+  const readable = (i: number, lo: number, t: number) =>
+    Math.abs(luma(c[i]) - bgL) >= lo ? `#${c[i]}` : mix(c[5], c[0], t);
+  const muted = readable(4, 0.25, 0.35);
+  return {
+    bg: `#${c[0]}`,
+    fg: `#${c[5]}`,
+    muted,
+    border: surface(2, 0.02, 0.35, 0.18),
+    "header-bg": surface(1, 0.008, 0.15, 0.06),
+    "add-bg": hexRgba(c[11], light ? 0.2 : 0.14),
+    "add-no-bg": hexRgba(c[11], light ? 0.42 : 0.35),
+    "del-bg": hexRgba(c[8], light ? 0.16 : 0.12),
+    "del-no-bg": hexRgba(c[8], light ? 0.36 : 0.3),
+    "hunk-bg": hexRgba(c[13], light ? 0.15 : 0.12),
+    "hunk-fg": muted,
+    "word-add": hexRgba(c[11], light ? 0.5 : 0.38),
+    "word-del": hexRgba(c[8], light ? 0.5 : 0.38),
+    success: `#${c[11]}`,
+    danger: `#${c[8]}`,
+    warning: `#${c[10]}`,
+    accent: `#${c[13]}`,
+    "tab-mark": `#${c[9]}`,
+    btn: `#${c[11]}`,
+    "btn-hover": mix(c[11], light ? "000000" : "ffffff", 0.15),
+    "btn-fg": luma(c[11]) > 0.5 ? "#1a1d21" : "#ffffff",
+    keyword: `#${c[14]}`,
+    string: `#${c[11]}`,
+    comment: readable(3, 0.18, 0.5),
+    function: `#${c[13]}`,
+    type: `#${c[10]}`,
+    constant: `#${c[9]}`,
+    number: `#${c[9]}`,
+    variable: `#${c[8]}`,
+    property: `#${c[13]}`,
+    operator: `#${c[5]}`,
+    tag: `#${c[8]}`,
+    attribute: `#${c[10]}`,
+    punctuation: muted,
+    embedded: `#${c[15]}`,
+    escape: `#${c[12]}`,
+    label: `#${c[10]}`,
+    module: `#${c[10]}`,
+  };
+};
 
 export function applySettings(s: any, customThemes: Record<string, string>) {
   const st = document.documentElement.style;
