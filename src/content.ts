@@ -253,12 +253,20 @@ async function main() {
     "settings",
     "customThemes",
   ]);
-  saveViewed = () => chrome.storage.local.set({ [viewedKey]: [...viewedSet] });
+  // reloading the extension (dev rebuilds, store updates) invalidates this
+  // tab's chrome.* context while scroll/viewed handlers keep firing; those
+  // writes are best-effort, so go quiet instead of spamming the error log
+  const persist = (write: () => void) => {
+    try {
+      if (chrome.runtime?.id) write();
+    } catch {}
+  };
+  saveViewed = () => persist(() => chrome.storage.local.set({ [viewedKey]: [...viewedSet] }));
   let lastActive = "";
   const saveActive = (p: string) => {
     if (p && p !== lastActive) {
       lastActive = p;
-      chrome.storage.local.set({ [scrollKey]: p });
+      persist(() => chrome.storage.local.set({ [scrollKey]: p }));
     }
   };
 
@@ -304,7 +312,7 @@ async function main() {
   collapse.addEventListener("click", () => {
     const h = !root.classList.contains("pt-tree-hidden");
     root.classList.toggle("pt-tree-hidden", h);
-    chrome.storage.sync.set({ sidebarHidden: h });
+    persist(() => chrome.storage.sync.set({ sidebarHidden: h }));
   });
   bar.insertBefore(collapse, bar.firstChild);
   splitter.addEventListener("mousedown", (e) => {
@@ -324,7 +332,7 @@ async function main() {
       document.removeEventListener("mousemove", move);
       document.removeEventListener("mouseup", up);
       document.body.style.userSelect = "";
-      chrome.storage.sync.set({ treeWidth: tree.getBoundingClientRect().width });
+      persist(() => chrome.storage.sync.set({ treeWidth: tree.getBoundingClientRect().width }));
     };
     document.addEventListener("mousemove", move);
     document.addEventListener("mouseup", up);
@@ -425,7 +433,7 @@ async function main() {
       Toolbar({
         onSetMode: (m) => {
           applyMode(m);
-          chrome.storage.sync.set({ view: m });
+          persist(() => chrome.storage.sync.set({ view: m }));
         },
       }),
     bar
@@ -498,7 +506,7 @@ async function main() {
   gear.sum.title = "Settings";
   bar.appendChild(gear.dd);
 
-  const saveSettings = () => chrome.storage.sync.set({ settings: unwrap(settings) });
+  const saveSettings = () => persist(() => chrome.storage.sync.set({ settings: unwrap(settings) }));
   chrome.storage.onChanged.addListener((ch, area) => {
     if (area === "sync" && ch.settings) {
       setSettings(reconcile(ch.settings.newValue || {}));
