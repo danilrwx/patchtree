@@ -652,7 +652,14 @@ async function main() {
     const goCenter = flashCenter;
     const mid = window.innerHeight / 2;
     const cur = () => sections[Math.max(0, currentIdx(sections))];
-    switch (e.key) {
+    // key off the physical key (e.code), not e.key, so the shortcuts work on
+    // non-Latin layouts (e.g. Cyrillic) where the same key yields another char
+    const key = /^Key[A-Z]$/.test(e.code)
+      ? e.code.slice(3).toLowerCase()
+      : e.code === "Slash"
+        ? "/"
+        : e.key;
+    switch (key) {
       case "j":
         go(sections[Math.min(sections.length - 1, currentIdx(sections) + 1)]);
         break;

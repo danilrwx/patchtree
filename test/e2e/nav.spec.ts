@@ -82,6 +82,24 @@ test("e toggles the tree and / focuses the filter", async ({ context, page }) =>
   await expect(page.locator("#pt-filter")).toBeFocused();
 });
 
+test("shortcuts fire by physical key, so they work on a Cyrillic layout", async ({
+  context,
+  page,
+}) => {
+  await open(context, page);
+  await toTop(page);
+  const first = page.locator("section.pt-file").first();
+
+  // the physical "x" key on a Russian layout emits "ч"; the handler must key
+  // off e.code (KeyX), not the produced character
+  await page.evaluate(() =>
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { code: "KeyX", key: "ч", bubbles: true })
+    )
+  );
+  await expect(first).toHaveClass(/pt-folded/);
+});
+
 test("clicking outside an open dropdown closes it", async ({ context, page }) => {
   await open(context, page);
   const gearSummary = page.locator('summary[title="Settings"]');
