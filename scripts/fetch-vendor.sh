@@ -44,13 +44,27 @@ GRAMMARS=(
   "@tree-sitter-grammars/tree-sitter-lua@0.4.1 tree-sitter-lua.wasm"
   "@tree-sitter-grammars/tree-sitter-toml@0.7.0 tree-sitter-toml.wasm"
   "@tree-sitter-grammars/tree-sitter-hcl@1.2.0 tree-sitter-hcl.wasm"
+  "@tree-sitter-grammars/tree-sitter-zig@1.1.2 tree-sitter-zig.wasm"
+  "tree-sitter-elixir@0.3.5 tree-sitter-elixir.wasm"
+  "tree-sitter-scala@0.24.0 tree-sitter-scala.wasm"
+  "tree-sitter-haskell@0.23.1 tree-sitter-haskell.wasm"
 )
+
+# grammars whose npm wasm is unusable (not an emscripten side module) or
+# missing — built from pinned sources; their queries are pinned to the same
+# revision in fetch-queries.sh
+DART_NPM=tree-sitter-dart@1.0.0
+GROOVY_SHA=deb0dcf8c4544f07564060f6e9b9f6e4b0bfc27d
+KOTLIN_REF=0.3.8
 
 if [ "${FORCE:-}" != "1" ]; then
   missing=0
   [ -s assets/vendor/web-tree-sitter.js ] && [ -s assets/vendor/web-tree-sitter.wasm ] || missing=1
   [ -s assets/vendor/wasm/tree-sitter-gotmpl.wasm ] || missing=1
   [ -s assets/vendor/wasm/tree-sitter-dockerfile.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-dart.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-groovy.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-kotlin.wasm ] || missing=1
   for entry in "${GRAMMARS[@]}"; do [ -s "assets/vendor/wasm/${entry#* }" ] || missing=1; done
   if [ "$missing" = 0 ]; then
     echo "assets/vendor/ up to date (FORCE=1 to refetch)"
@@ -90,7 +104,17 @@ build_from_source() {
     npx --yes tree-sitter-cli@$WEB_TREE_SITTER build --wasm -o "$out" . )
 }
 
+build_from_npm() {
+  local pkg=$1 out="$PWD/assets/vendor/wasm/$2"
+  echo "$pkg (source build) -> $2"
+  fetch_pkg "$pkg"
+  ( cd "$tmp/package" && npx --yes tree-sitter-cli@$WEB_TREE_SITTER build --wasm -o "$out" . )
+}
+
 build_from_source ngalaiko/tree-sitter-go-template "$GOTMPL_SHA" tree-sitter-gotmpl.wasm
 build_from_source camdencheek/tree-sitter-dockerfile "$DOCKERFILE_SHA" tree-sitter-dockerfile.wasm
+build_from_source murtaza64/tree-sitter-groovy "$GROOVY_SHA" tree-sitter-groovy.wasm
+build_from_source fwcd/tree-sitter-kotlin "$KOTLIN_REF" tree-sitter-kotlin.wasm
+build_from_npm "$DART_NPM" tree-sitter-dart.wasm
 
 echo "assets/vendor/ done"

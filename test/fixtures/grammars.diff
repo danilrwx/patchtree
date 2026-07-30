@@ -1,0 +1,65 @@
+diff --git a/app/main.dart b/app/main.dart
+new file mode 100644
+--- /dev/null
++++ b/app/main.dart
+@@ -0,0 +1,3 @@
++class Device {
++  final String uuid = "gpu-0";
++}
+diff --git a/Jenkinsfile.groovy b/Jenkinsfile.groovy
+new file mode 100644
+--- /dev/null
++++ b/Jenkinsfile.groovy
+@@ -0,0 +1,3 @@
++def build() {
++  sh "make zip"
++}
+diff --git a/src/main.zig b/src/main.zig
+new file mode 100644
+--- /dev/null
++++ b/src/main.zig
+@@ -0,0 +1,3 @@
++const std = @import("std");
++
++pub fn main() void {}
+diff --git a/lib/inventory.ex b/lib/inventory.ex
+new file mode 100644
+--- /dev/null
++++ b/lib/inventory.ex
+@@ -0,0 +1,3 @@
++defmodule Inventory do
++  def count(list), do: length(list)
++end
+diff --git a/app/Main.kt b/app/Main.kt
+new file mode 100644
+--- /dev/null
++++ b/app/Main.kt
+@@ -0,0 +1,3 @@
++fun main() {
++    val name = "patchtree"
++}
+diff --git a/src/Main.scala b/src/Main.scala
+new file mode 100644
+--- /dev/null
++++ b/src/Main.scala
+@@ -0,0 +1,3 @@
++object Main {
++  def run(): Unit = ()
++}
+diff --git a/src/Main.hs b/src/Main.hs
+new file mode 100644
+--- /dev/null
++++ b/src/Main.hs
+@@ -0,0 +1,4 @@
++module Main where
++
++main :: IO ()
++main = putStrLn "hi"
+diff --git a/NOTES.md b/NOTES.md
+new file mode 100644
+--- /dev/null
++++ b/NOTES.md
+@@ -0,0 +1,3 @@
++# Release notes
++
++Ship the *zip* after CI is green.

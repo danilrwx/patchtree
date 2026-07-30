@@ -18,42 +18,32 @@
 import hljs from "highlight.js/lib/core";
 import clojure from "highlight.js/lib/languages/clojure";
 import cmake from "highlight.js/lib/languages/cmake";
-import dart from "highlight.js/lib/languages/dart";
-import elixir from "highlight.js/lib/languages/elixir";
 import erlang from "highlight.js/lib/languages/erlang";
-import groovy from "highlight.js/lib/languages/groovy";
-import haskell from "highlight.js/lib/languages/haskell";
 import ini from "highlight.js/lib/languages/ini";
 import julia from "highlight.js/lib/languages/julia";
-import kotlin from "highlight.js/lib/languages/kotlin";
 import makefile from "highlight.js/lib/languages/makefile";
+import markdown from "highlight.js/lib/languages/markdown";
 import objectivec from "highlight.js/lib/languages/objectivec";
 import ocaml from "highlight.js/lib/languages/ocaml";
 import perl from "highlight.js/lib/languages/perl";
 import protobuf from "highlight.js/lib/languages/protobuf";
 import r from "highlight.js/lib/languages/r";
-import scala from "highlight.js/lib/languages/scala";
 import sql from "highlight.js/lib/languages/sql";
 import swift from "highlight.js/lib/languages/swift";
 
 const LANGS = {
   clojure,
   cmake,
-  dart,
-  elixir,
   erlang,
-  groovy,
-  haskell,
   ini,
   julia,
-  kotlin,
   makefile,
+  markdown,
   objectivec,
   ocaml,
   perl,
   protobuf,
   r,
-  scala,
   sql,
   swift,
 };

@@ -41,6 +41,13 @@ SOURCES=(
   "hcl $RAW/helix-editor/helix/25.07.1/runtime/queries/hcl/highlights.scm"
   "gotmpl $RAW/ngalaiko/tree-sitter-go-template/aa71f63de226c5592dfbfc1f29949522d7c95fac/queries/highlights.scm"
   "dockerfile $RAW/camdencheek/tree-sitter-dockerfile/v0.2.0/queries/highlights.scm"
+  "zig $RAW/tree-sitter-grammars/tree-sitter-zig/v1.1.2/queries/highlights.scm"
+  "elixir $RAW/elixir-lang/tree-sitter-elixir/v0.3.5/queries/highlights.scm"
+  "scala $RAW/tree-sitter/tree-sitter-scala/v0.24.0/queries/highlights.scm"
+  "haskell $RAW/tree-sitter/tree-sitter-haskell/v0.23.1/queries/highlights.scm"
+  "kotlin $RAW/fwcd/tree-sitter-kotlin/0.3.8/queries/highlights.scm"
+  "dart https://unpkg.com/tree-sitter-dart@1.0.0/queries/highlights.scm"
+  "groovy $RAW/helix-editor/helix/25.07.1/runtime/queries/groovy/highlights.scm"
 )
 
 if [ "${FORCE:-}" != "1" ]; then

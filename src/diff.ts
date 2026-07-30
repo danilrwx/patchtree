@@ -105,6 +105,18 @@ const LANG_BY_EXT: Record<string, string> = {
   hcl: "hcl",
   dockerfile: "dockerfile",
   containerfile: "dockerfile",
+  dart: "dart",
+  groovy: "groovy",
+  gradle: "groovy",
+  zig: "zig",
+  zon: "zig",
+  ex: "elixir",
+  exs: "elixir",
+  kt: "kotlin",
+  kts: "kotlin",
+  scala: "scala",
+  sbt: "scala",
+  hs: "haskell",
 };
 
 export function langFor(path: string | null | undefined): string | null {
@@ -141,16 +153,8 @@ export const isImagePath = (path: string | null | undefined): boolean => imageMi
 // tree-sitter grammar exists; the "hljs:" prefix routes the request there
 const HLJS_BY_EXT: Record<string, string> = {
   swift: "swift",
-  kt: "kotlin",
-  kts: "kotlin",
-  scala: "scala",
-  sbt: "scala",
-  dart: "dart",
-  ex: "elixir",
-  exs: "elixir",
   erl: "erlang",
   hrl: "erlang",
-  hs: "haskell",
   ml: "ocaml",
   mli: "ocaml",
   pl: "perl",
@@ -158,8 +162,6 @@ const HLJS_BY_EXT: Record<string, string> = {
   r: "r",
   sql: "sql",
   proto: "protobuf",
-  groovy: "groovy",
-  gradle: "groovy",
   clj: "clojure",
   cljs: "clojure",
   cljc: "clojure",
@@ -170,6 +172,8 @@ const HLJS_BY_EXT: Record<string, string> = {
   ini: "ini",
   cfg: "ini",
   cmake: "cmake",
+  md: "markdown",
+  markdown: "markdown",
 };
 
 const HLJS_BY_BASENAME: Record<string, string> = {
