@@ -417,7 +417,10 @@ html.pt-on {
   min-width: 180px;
 }
 
-#pt-settings .pt-dd-menu {
+/* the gear menu only — nested select menus keep their own width, otherwise
+   their items stretch under the gear menu's classic scrollbar on Linux and
+   clicks in that band go to the scrollbar, not the item */
+#pt-settings > .pt-dd-menu {
   min-width: 280px;
 }
 

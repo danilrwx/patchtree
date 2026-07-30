@@ -620,6 +620,9 @@ async function main() {
   }).classList.add("pt-star-item");
 
   document.addEventListener("click", (e) => {
+    // menus can be portaled to <body> while open (see Select.tsx), so a click
+    // inside any menu is never "outside"
+    if ((e.target as Element).closest?.(".pt-dd-menu")) return;
     for (const d of document.querySelectorAll("details.pt-dd[open], details#pt-review[open]"))
       if (!d.contains(e.target as Node)) (d as HTMLDetailsElement).open = false;
   });

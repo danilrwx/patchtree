@@ -14,7 +14,7 @@
 
 // Styled replacement for a native <select>, ported from content.js makeSelect.
 // The menu is positioned fixed on open so it isn't clipped by scrolling parents.
-import { For, createSignal, type Accessor } from "solid-js";
+import { For, createSignal, onCleanup, type Accessor } from "solid-js";
 import { clickable } from "../a11y";
 
 export interface SelectOption {
@@ -42,16 +42,27 @@ export function Select(props: {
     props.onChange(o.value);
   };
 
+  // the menu may be parked under <body> when the component unmounts
+  onCleanup(() => menu.remove());
+
+  // While open, the menu lives under document.body: a position:fixed menu
+  // nested in a scrollable dropdown loses real clicks in Chromium when the
+  // scroller is on the main-thread path (classic scrollbars on Linux) — the
+  // input hit test resolves to the scroller even though elementFromPoint
+  // returns the item.
   const onToggle = () => {
     if (!dd.open) {
       menu.style.cssText = "";
+      dd.appendChild(menu);
       return;
     }
     const r = sum.getBoundingClientRect();
     menu.style.position = "fixed";
     menu.style.left = `${r.left}px`;
     menu.style.top = `${r.bottom + 4}px`;
-    menu.style.minWidth = `${r.width}px`;
+    menu.style.minWidth = `${Math.max(r.width, 150)}px`;
+    menu.style.font = getComputedStyle(sum).font;
+    document.body.appendChild(menu);
     const m = menu.getBoundingClientRect();
     if (m.bottom > window.innerHeight)
       menu.style.top = `${Math.max(8, window.innerHeight - m.height - 8)}px`;
