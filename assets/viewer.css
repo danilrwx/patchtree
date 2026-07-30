@@ -1200,6 +1200,12 @@ html.pt-on {
 .pt-word-add { background: var(--pt-word-add); border-radius: 2px; }
 .pt-word-del { background: var(--pt-word-del); border-radius: 2px; }
 
+/* word-diff is toggleable, but suggestion widgets always keep it — the
+   proposed change is hard to read without seeing which tokens moved */
+html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
+  background: transparent;
+}
+
 .pt-add-code { background: var(--pt-add-bg); }
 .pt-add-no { background: var(--pt-add-no-bg); }
 .pt-del-code { background: var(--pt-del-bg); }

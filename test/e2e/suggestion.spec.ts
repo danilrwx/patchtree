@@ -37,6 +37,36 @@ test("a suggestion renders replaced and proposed lines", async ({ context, page 
   await expect(sug.locator("button", { hasText: "Apply suggestion" })).toBeVisible();
 });
 
+test("suggestion keeps word highlight even with word diff turned off", async ({
+  context,
+  page,
+}) => {
+  await mockGithubSuggestion(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const sug = page.locator(".pt-sug").first();
+  await expect(sug).toBeAttached({ timeout: 20000 });
+
+  // pin the pt-no-wd CSS scoping: chips inside the widget keep their tint,
+  // identical chips in the diff go transparent
+  const [inSug, inDiff] = await page.evaluate(() => {
+    document.documentElement.classList.add("pt-no-wd");
+    const probe = (parent: Element) => {
+      const s = document.createElement("span");
+      s.className = "pt-word-add";
+      parent.appendChild(s);
+      return getComputedStyle(s).backgroundColor;
+    };
+    return [
+      probe(document.querySelector(".pt-sug")!),
+      probe(document.querySelector(".pt-unified td.pt-code")!),
+    ];
+  });
+  expect(inSug).not.toBe("rgba(0, 0, 0, 0)");
+  expect(inDiff).toBe("rgba(0, 0, 0, 0)");
+});
+
 test("suggestion rows are code-height, not inflated by comment-cell padding", async ({
   context,
   page,

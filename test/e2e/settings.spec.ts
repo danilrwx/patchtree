@@ -68,6 +68,14 @@ test("gear settings apply to the rendered CSS variables", async ({ context, page
   const before = await html.getAttribute("style");
   await row("Ligatures").locator("input[type=checkbox]").click();
   await expect(html).not.toHaveAttribute("style", before ?? "");
+
+  // word diff toggle flags the page root, which the chip CSS keys off
+  await ensureOpen();
+  await row("Word diff").locator("input[type=checkbox]").uncheck();
+  await expect(html).toHaveClass(/pt-no-wd/);
+  await ensureOpen();
+  await row("Word diff").locator("input[type=checkbox]").check();
+  await expect(html).not.toHaveClass(/pt-no-wd/);
 });
 
 test("picking a theme applies its color variables", async ({ context, page }) => {

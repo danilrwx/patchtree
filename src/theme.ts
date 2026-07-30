@@ -110,6 +110,7 @@ export function applySettings(s: any, customThemes: Record<string, string>) {
   st.setProperty("--pt-ui-size", `${s.uiFontSize || 14}px`);
   st.setProperty("--pt-comment-style", s.noItalic ? "normal" : "italic");
   st.setProperty("--pt-liga", s.noLigatures ? '"calt" 0, "liga" 0' : "normal");
+  document.documentElement.classList.toggle("pt-no-wd", !!s.noWordDiff);
 
   const palette = BASE16[s.theme] || customThemes[s.theme] || s.themePalette;
   const vars = palette ? THEME_VARS(palette.split(" ")) : null;

@@ -20,7 +20,8 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 - **Inline and side-by-side** views; fully added/deleted files take the
   full width in split mode.
 - **Word-level diff**: changed words inside modified line pairs get a
-  stronger tint (LCS over tokens), layered under syntax colors.
+  stronger tint (LCS over tokens), layered under syntax colors; can be
+  toggled off in settings (suggestion widgets always keep it).
 - **Syntax highlighting** with real parsers (web-tree-sitter, wasm, run in
   the background worker): go, js/ts/tsx, python, bash, json, yaml, rust,
   c, c++, java, ruby, php, c#, lua, toml, hcl/terraform, css, html, and
