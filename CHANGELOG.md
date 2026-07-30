@@ -2,6 +2,18 @@
 
 All notable changes, grouped from [conventional commits](https://www.conventionalcommits.org).
 
+## v1.1.1
+
+### 🚀 Features
+
+- **highlight:** tree-sitter grammars for kotlin, scala, dart, groovy, elixir, haskell and zig (`774758f`)
+- **highlight:** dockerfile tree-sitter grammar (`fd0f1d1`)
+
+### 🐛 Fixes
+
+- **ui:** access tokens dialog rendered off-screen, not as an overlay (`bafd281`)
+- **content:** stop best-effort storage writes throwing after extension reload (`cc6bfde`)
+
 ## v1.1.0
 
 ### 🚀 Features
