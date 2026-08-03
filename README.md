@@ -44,8 +44,9 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   fold/unfold, auto-collapsed `generated` files (lock files, `*.pb.go`,
   `vendor/`, minified assets).
 - **Keyboard**: `j`/`k` files, `n`/`p` threads (centered), `v` viewed,
-  `x` fold, `/` focus filter — bound to physical keys, so they work on
-  any keyboard layout.
+  `x` fold, `s` inline/side-by-side, `e` file tree, `/` focus filter,
+  `?` shortcuts overlay — bound to physical keys, so they work on any
+  keyboard layout.
 - **Commit filter** dropdown — view the diff of a single commit.
 - Diffstat summary, source → target branch with a copy button, and
   pipeline/checks status in the toolbar.

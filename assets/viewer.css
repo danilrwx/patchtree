@@ -324,6 +324,11 @@ html.pt-on {
   margin: 4px 0;
 }
 
+#pt-collapse.pt-active {
+  background: var(--pt-hunk-bg);
+  color: var(--pt-fg);
+}
+
 /* empty text slots must not claim a flex gap, or spacing looks uneven */
 #pt-progress:empty,
 #pt-diffstat:empty,
@@ -490,7 +495,8 @@ html.pt-on {
 }
 
 #pt-themes-dialog,
-#pt-tokens-dialog {
+#pt-tokens-dialog,
+#pt-keymap-dialog {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
@@ -1825,3 +1831,22 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
 .pt-apply:not(:disabled):hover {
   background: var(--pt-header-bg);
 }
+
+.pt-keymap { width: 420px; }
+.pt-keymap h4 { margin: 12px 0 4px; }
+
+.pt-keys { border-collapse: collapse; width: 100%; }
+.pt-keys td { padding: 4px 8px 4px 0; vertical-align: top; }
+.pt-keys td:first-child { white-space: nowrap; color: var(--pt-muted); }
+
+.pt-keys kbd {
+  font-family: var(--pt-mono);
+  font-size: calc(var(--pt-ui-size, 14px) - 2px);
+  background: var(--pt-header-bg);
+  border: 1px solid var(--pt-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.pt-key-sep { margin: 0 4px; color: var(--pt-muted); }

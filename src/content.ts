@@ -28,8 +28,10 @@ import { Toolbar } from "./components/Toolbar";
 import { Settings } from "./components/Settings";
 import { GeneralThreads } from "./components/Thread";
 import { TokensDialog } from "./components/TokensDialog";
+import { KeymapDialog } from "./components/KeymapDialog";
 import { ThemeGallery } from "./components/ThemeGallery";
 import {
+  viewMode,
   setTreeFiles,
   setFilter,
   setViewed,
@@ -309,11 +311,15 @@ async function main() {
   collapse.type = "button";
   collapse.title = "Toggle file tree";
   collapse.innerHTML = icons.sidebar;
+  const syncCollapse = () =>
+    collapse.classList.toggle("pt-active", !root.classList.contains("pt-tree-hidden"));
   collapse.addEventListener("click", () => {
     const h = !root.classList.contains("pt-tree-hidden");
     root.classList.toggle("pt-tree-hidden", h);
+    syncCollapse();
     persist(() => chrome.storage.sync.set({ sidebarHidden: h }));
   });
+  syncCollapse();
   bar.insertBefore(collapse, bar.firstChild);
   splitter.addEventListener("mousedown", (e) => {
     e.preventDefault();
@@ -428,16 +434,11 @@ async function main() {
     root.classList.toggle("pt-mode-split", mode === "split");
     root.classList.toggle("pt-mode-unified", mode !== "split");
   };
-  render(
-    () =>
-      Toolbar({
-        onSetMode: (m) => {
-          applyMode(m);
-          persist(() => chrome.storage.sync.set({ view: m }));
-        },
-      }),
-    bar
-  );
+  const setMode = (m: string) => {
+    applyMode(m);
+    persist(() => chrome.storage.sync.set({ view: m }));
+  };
+  render(() => Toolbar({ onSetMode: setMode }), bar);
   applyMode("unified");
 
   // Paint now: swap the raw text for our shell + diff before any storage read
@@ -495,6 +496,7 @@ async function main() {
   const sync = await syncP;
   if (sync.treeWidth) tree.style.width = `${sync.treeWidth}px`;
   root.classList.toggle("pt-tree-hidden", !!sync.sidebarHidden);
+  syncCollapse();
   applyMode(sync.view || "unified");
   customThemes = sync.customThemes || {};
   setSettings(sync.settings || {});
@@ -611,7 +613,13 @@ async function main() {
   menuItem(gear.menu, "Expand all files", () => foldAll(false));
   const openTokensDialog = () =>
     mountDialog("pt-tokens-host", (close) => TokensDialog({ onClose: close }));
+  const openKeymapDialog = () =>
+    mountDialog("pt-keymap-host", (close) => KeymapDialog({ onClose: close }));
 
+  menuItem(gear.menu, "Keyboard shortcuts…", () => {
+    gear.dd.open = false;
+    openKeymapDialog();
+  });
   menuItem(gear.menu, "Access tokens…", () => {
     gear.dd.open = false;
     openTokensDialog();
@@ -692,7 +700,9 @@ async function main() {
     const key = /^Key[A-Z]$/.test(e.code)
       ? e.code.slice(3).toLowerCase()
       : e.code === "Slash"
-        ? "/"
+        ? e.shiftKey
+          ? "?"
+          : "/"
         : e.key;
     switch (key) {
       case "j":
@@ -715,6 +725,12 @@ async function main() {
         break;
       case "e":
         collapse.click();
+        break;
+      case "s":
+        setMode(viewMode() === "split" ? "unified" : "split");
+        break;
+      case "?":
+        openKeymapDialog();
         break;
       case "/":
         e.preventDefault();
