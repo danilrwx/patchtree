@@ -44,7 +44,7 @@ test("the tree toggle is pinned far-left, ahead of the other bar controls", asyn
   const bar = (await page.locator("#pt-bar").boundingBox())!;
   const toggle = (await page.locator("#pt-collapse").boundingBox())!;
   const commits = (await page.locator("#pt-commits").boundingBox())!;
-  const seg = (await page.locator("#pt-bar .pt-seg").boundingBox())!;
+  const seg = (await page.locator("#pt-bar .pt-seg").first().boundingBox())!;
   // toggle flush against the bar's left edge
   expect(toggle.x - bar.x).toBeLessThan(6);
   // review controls pack immediately after it — no big empty middle

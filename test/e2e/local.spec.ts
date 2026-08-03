@@ -43,7 +43,7 @@ test("plain patch from a non-provider host renders without expand controls", asy
   // there is no review layer to anchor it
   const bar = (await page.locator("#pt-bar").boundingBox())!;
   const toggle = (await page.locator("#pt-collapse").boundingBox())!;
-  const seg = (await page.locator("#pt-bar .pt-seg").boundingBox())!;
+  const seg = (await page.locator("#pt-bar .pt-seg").first().boundingBox())!;
   expect(toggle.x - bar.x).toBeLessThan(6);
   expect(toggle.x + toggle.width).toBeLessThan(seg.x);
 });
