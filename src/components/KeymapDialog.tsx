@@ -63,13 +63,13 @@ export function KeymapDialog(props: { onClose: () => void }) {
           </tbody>
         </table>
         <h4>Mouse</h4>
-        <table class="pt-keys">
+        <table class="pt-keys pt-keys-mouse">
           <tbody>
             <For each={MOUSE}>
               {([what, how]) => (
                 <tr>
-                  <td>{how}</td>
                   <td>{what}</td>
+                  <td>{how}</td>
                 </tr>
               )}
             </For>

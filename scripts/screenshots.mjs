@@ -154,6 +154,13 @@ await elementShot("theme-gallery", gallery);
 await page.keyboard.press("Escape");
 
 await settings.locator('summary[title="Settings"]').click();
+await settings.locator(".pt-dd-item", { hasText: "Keyboard shortcuts" }).click();
+const keymap = page.locator("#pt-keymap-dialog .pt-dialog");
+await keymap.waitFor();
+await elementShot("keymap", keymap);
+await page.keyboard.press("Escape");
+
+await settings.locator('summary[title="Settings"]').click();
 await settings.locator(".pt-dd-item", { hasText: "Access tokens" }).click();
 const tokens = page.locator("#pt-tokens-dialog .pt-dialog");
 await tokens.waitFor();

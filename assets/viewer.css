@@ -1861,12 +1861,14 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
   background: var(--pt-header-bg);
 }
 
-.pt-keymap { width: 420px; }
+.pt-keymap { width: 480px; }
 .pt-keymap h4 { margin: 12px 0 4px; }
 
 .pt-keys { border-collapse: collapse; width: 100%; }
 .pt-keys td { padding: 4px 8px 4px 0; vertical-align: top; }
 .pt-keys td:first-child { white-space: nowrap; color: var(--pt-muted); }
+.pt-keys-mouse td:first-child { color: var(--pt-fg); }
+.pt-keys-mouse td:last-child { color: var(--pt-muted); padding-left: 12px; }
 
 .pt-keys kbd {
   font-family: var(--pt-mono);

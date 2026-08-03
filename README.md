@@ -40,16 +40,19 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 
 - Resizable, filterable **file tree** (filter matches paths *and* diff
   content), folder icons, per-file `+N −M`, comment-count badge.
-- **Viewed** checkboxes with an `N/M viewed` progress counter,
-  fold/unfold, auto-collapsed `generated` files (lock files, `*.pb.go`,
-  `vendor/`, minified assets).
+- **Viewed** checkboxes with a progress counter, fold/unfold,
+  auto-collapsed `generated` files (lock files, `*.pb.go`, `vendor/`,
+  minified assets).
 - **Keyboard**: `j`/`k` files, `n`/`p` threads (centered), `v` viewed,
   `x` fold, `s` inline/side-by-side, `e` file tree, `/` focus filter,
   `?` shortcuts overlay — bound to physical keys, so they work on any
   keyboard layout.
-- **Commit filter** dropdown — view the diff of a single commit.
-- Diffstat summary, source → target branch with a copy button, and
-  pipeline/checks status in the toolbar.
+- **Commit filter** — icon until you pick a commit, then a chip with its
+  sha and a reset ×; shows the diff of that commit alone.
+- Compact toolbar: `+N −M · viewed/total` with a one-click reset, an
+  unresolved-threads badge, source → target branch with a copy button,
+  pipeline/checks status, and single buttons that fold every file or
+  flip inline ⇄ side-by-side (each labelled by what it will do).
 - Alt-click a line number → copy a **permalink** to that line's blob.
 - Copy-path and open-at-head buttons in every file header.
 
@@ -63,8 +66,8 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
   with the commented line; existing suggestions render as a red/green
   widget with **Apply suggestion** (GitLab).
 - **Multiline comments**: shift-click a line number to extend the range.
-- **Resolve/unresolve** threads (GitLab) and an **unresolved dropdown**
-  in the toolbar that jumps to each open thread.
+- **Resolve/unresolve** threads (GitLab) and an **unresolved badge** in
+  the toolbar that jumps to each open thread.
 - **Draft reviews** (GitLab): “Add to review” collects pending comments,
   published together by Submit review.
 - **Submit review** panel: summary comment + Comment / Approve (or
@@ -163,8 +166,8 @@ a tag will carry with `scripts/changelog.sh v1.1.0`.
 
 ## Gallery
 
-Toolbar — commit filter, unresolved threads, source → target branch,
-diffstat and viewed progress:
+Toolbar — commit filter, unresolved badge, source → target branch,
+diffstat, viewed progress and the layout toggles:
 
 ![toolbar](docs/screenshots/toolbar.png)
 
@@ -192,7 +195,7 @@ Multiline comment — shift-click extends the range:
 
 ![multiline comment](docs/screenshots/multiline.png)
 
-Unresolved-threads dropdown jumps to each open thread:
+Unresolved badge — the dropdown jumps to each open thread:
 
 ![unresolved threads](docs/screenshots/unresolved.png)
 
@@ -200,9 +203,13 @@ Submit review — summary comment plus Comment / Approve / Request changes:
 
 ![submit review](docs/screenshots/submit-review.png)
 
-Settings menu — fonts, sizes, view options:
+Settings menu — fonts, sizes, view options, shortcuts and tokens:
 
 ![settings](docs/screenshots/settings.png)
+
+Keyboard shortcuts overlay (`?`):
+
+![keyboard shortcuts](docs/screenshots/keymap.png)
 
 Theme gallery with live diff previews:
 
