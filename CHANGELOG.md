@@ -2,6 +2,16 @@
 
 All notable changes, grouped from [conventional commits](https://www.conventionalcommits.org).
 
+## v1.2.1
+
+### 🐛 Fixes
+
+- **firefox:** declare data collection for the listed AMO channel (`6aa1748`)
+
+### 🔧 Chores
+
+- **ci:** publish Firefox versions to the public AMO channel (`600fe96`)
+
 ## v1.2.0
 
 ### 🚀 Features
