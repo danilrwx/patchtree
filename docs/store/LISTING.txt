@@ -1,0 +1,161 @@
+patchtree — store listing copy
+================================================================================
+Plain text on purpose: the Chrome Web Store description field renders NO
+markdown and NO html — asterisks, backticks and #-headings would show up
+verbatim. Only line breaks survive, so structure comes from blank lines,
+UPPERCASE headings and "·" bullets. AMO does accept a little markup, but the
+same text reads fine there, so both listings can share it.
+
+Fields below are ready to paste as-is.
+
+
+--------------------------------------------------------------------------------
+NAME (45 chars max on CWS)
+--------------------------------------------------------------------------------
+patchtree — pretty diffs & code review
+
+
+--------------------------------------------------------------------------------
+SHORT DESCRIPTION / SUMMARY (132 chars max on CWS, 250 on AMO)
+--------------------------------------------------------------------------------
+CWS (106 chars):
+Raw .diff pages become a real code review UI, with tree-sitter syntax
+highlighting. For GitLab and GitHub.
+
+AMO (215 chars):
+Turn any raw .diff / .patch page into a real code review UI: tree-sitter syntax
+highlighting (the same grammars Neovim and Helix use), a file tree, inline
+comments, suggestions and approvals — for GitLab and GitHub.
+
+
+--------------------------------------------------------------------------------
+DESCRIPTION
+--------------------------------------------------------------------------------
+patchtree turns a plain .diff or .patch page into the code review interface you
+would get on a merge or pull request — but on the raw diff itself, on any host.
+
+Open a diff URL such as
+https://gitlab.example.com/group/project/-/merge_requests/104.diff
+or click the toolbar icon on any MR/PR page and review right there. Local
+.diff / .patch files opened via file:// work too.
+
+REAL SYNTAX HIGHLIGHTING, NOT REGEX COLOURING
+
+Most diff viewers paint patches with regular expressions, so a template string,
+a nested generic or a bash heredoc quietly falls apart. patchtree runs the real
+grammars instead — the same tree-sitter parsers Neovim, Helix and Zed use —
+compiled to WebAssembly and executed in the extension's background worker.
+
+· A real parse tree per file, so nesting is never guessed: JSX inside
+  TypeScript, generics, Rust macros, bash heredocs, f-strings and Helm/Go
+  template actions inside YAML all keep their structure.
+· 28 grammars, each pinned to the revision its highlight queries were written
+  for: Go, JS/TS/TSX, Python, Bash, JSON, YAML, Rust, C, C++, Java, Ruby, PHP,
+  C#, Lua, TOML, HCL/Terraform, CSS, HTML, Kotlin, Scala, Dart, Groovy, Elixir,
+  Haskell, Zig, Dockerfile/Containerfile, and Helm/Go templates.
+· Parsing runs off the main thread and grammars load lazily, one per language a
+  diff actually contains, so a 10 000-line diff never blocks scrolling.
+· Word-level diff sits under the syntax colours: you see what changed and what
+  it means at once.
+· Anything without a grammar falls back to highlight.js (Swift, SQL, Markdown,
+  Makefile, Perl, R, Protobuf, Objective-C, …); files with no extension go by
+  shebang, then auto-detection.
+
+DIFF RENDERING
+
+· Any plain-text .diff / .patch page, whatever served it — git-format or a
+  plain diff -u, GitLab, GitHub, or a local file.
+· Inline and side-by-side views; fully added or deleted files use the full
+  width in split mode.
+· Expand hidden lines between hunks, or switch a file to its full contents.
+· Large diffs stay smooth — only visible file sections are rendered.
+
+NAVIGATION
+
+· Resizable, filterable file tree: the filter matches paths and diff content,
+  with status icons, per-file +N -M and comment-count badges.
+· Viewed checkboxes with a progress counter, one-click reset, fold/unfold, and
+  auto-collapsed generated files (lock files, *.pb.go, vendor/, minified).
+· Keyboard, bound to physical keys so any layout works: j/k files, n/p threads,
+  v viewed, x fold, s inline/side-by-side, e file tree, / filter, ? all
+  shortcuts.
+· Per-commit diff filter, copy-path, open-at-head, and line permalinks.
+
+REVIEW (WITH AN ACCESS TOKEN)
+
+· Threads anchored to lines, on the old or new side, with replies, editing and
+  deletion of your own comments.
+· Markdown editor with a toolbar and Write/Preview tabs, rendered through the
+  platform's own markdown API.
+· Suggestions: one click prefills a suggestion block; existing ones render as a
+  red/green widget with Apply (GitLab).
+· Multi-line comments — shift-click or drag over line numbers.
+· Resolve/unresolve threads and an unresolved badge that jumps to each open one.
+· Draft reviews and a Submit-review panel: Comment / Approve / Request changes,
+  with the approval state shown as a badge.
+· Pipeline/checks status and a merge-conflict indicator in the toolbar.
+
+APPEARANCE
+
+· Theme gallery with the base24 schemes from tinted-theming, live code previews
+  (including how added and removed lines look), light/dark filter, and
+  paste-your-own scheme YAML.
+· Bundled fonts (JetBrains Mono, Inter, Nerd Font builds) or any local font by
+  name; separate UI and code font sizes, tab width, italic-comment and ligature
+  toggles.
+
+SETUP
+
+· Rendering needs no account. To turn on review actions, open the gear menu →
+  Access tokens and add a GitLab host (personal access token, api scope) and/or
+  a GitHub token (classic repo, or fine-grained with Pull requests read/write).
+· Chrome: keep Site access at "On all sites" (or grant your hosts explicitly),
+  otherwise the content script is not injected. To render local files, allow
+  access to file URLs in the extension's details page.
+
+PRIVACY
+
+patchtree talks only to the host serving the diff and that host's API
+(GitLab/GitHub) to render diffs and post your review actions. Access tokens are
+entered by you, stored locally, and never synced or sent anywhere else. No
+analytics, no tracking, no third-party servers.
+
+Open source, Apache-2.0: https://github.com/danilrwx/patchtree
+
+
+--------------------------------------------------------------------------------
+CATEGORY / SINGLE PURPOSE / PERMISSIONS (CWS privacy tab)
+--------------------------------------------------------------------------------
+Category: Developer Tools
+
+Single purpose:
+Render raw .diff / .patch pages as a code review interface and let the reviewer
+comment on them through the hosting platform's API.
+
+storage — remembers appearance settings, per-file viewed state and the access
+tokens the user enters; tokens stay in local storage and are never synced.
+
+activeTab — used when the toolbar icon is clicked on a merge/pull request page,
+to open that request's .diff URL in a new tab.
+
+Host permissions (all sites) — the extension renders .diff and .patch pages
+wherever they are served: github.com, gitlab.com and any self-hosted GitLab
+instance, which live on arbitrary company domains that cannot be enumerated in
+advance. Requests only ever go to the host of the page being viewed and its
+API.
+
+Remote code: no. Everything is bundled in the package; nothing is fetched and
+evaluated at runtime.
+
+Data collection: none.
+
+
+--------------------------------------------------------------------------------
+GRAPHIC ASSETS
+--------------------------------------------------------------------------------
+Store icon 128x128       assets/icons/icon128.png
+Screenshots 1280x800     docs/store/01-overview.png … 05-themes.png (in order)
+Small promo tile 440x280 docs/store/promo-small-440x280.jpg
+Marquee 1400x560         docs/store/promo-marquee-1400x560.jpg
+
+Regenerate with: node scripts/scenes.mjs && node scripts/promo.mjs

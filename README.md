@@ -154,6 +154,10 @@ configured. Firefox MV3 treats host permissions as opt-in — enable
 - `node scripts/scenes.mjs` — reshoot every gallery frame: 2x into
   `docs/screenshots/` for this README, and the first five at 1x into
   `docs/store/` for the Chrome Web Store and AMO listings.
+- `node scripts/promo.mjs` — render the store promo images (440x280 tile and
+  1400x560 marquee). Listing copy lives in
+  [docs/store/LISTING.txt](docs/store/LISTING.txt) — plain text, since the
+  Chrome Web Store renders neither markdown nor html.
 - `make clean` — remove fetched assets, `dist/`, and archives.
 
 CI (`.github/workflows/release.yml`) rebuilds every asset from the pinned
