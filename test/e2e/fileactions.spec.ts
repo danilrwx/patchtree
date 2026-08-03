@@ -60,15 +60,22 @@ test("raw view shows the unprocessed diff", async ({ context, page }) => {
   await expect(raw).toContainText("diff --git");
 });
 
-test("clear viewed unchecks every viewed file", async ({ context, page }) => {
+test("the counter's reset button appears with progress and clears it", async ({
+  context,
+  page,
+}) => {
   await open(context, page);
   const first = page.locator("section.pt-file").first();
+  const clear = page.locator("#pt-clear-viewed");
 
+  await expect(clear).toBeHidden();
   await first.locator("label.pt-viewed:not(.pt-fullfile) input[type=checkbox]").check();
   await expect(page.locator("#pt-progress")).toContainText("1/2 viewed");
+  await expect(clear).toBeVisible();
 
-  await (await menu(page, "Clear viewed")).click();
+  await clear.click();
   await expect(page.locator("#pt-progress")).toContainText("0/2 viewed");
+  await expect(clear).toBeHidden();
 });
 
 test("clicking a file in the tree scrolls to it", async ({ context, page }) => {

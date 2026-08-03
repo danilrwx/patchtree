@@ -438,7 +438,17 @@ async function main() {
     applyMode(m);
     persist(() => chrome.storage.sync.set({ view: m }));
   };
-  render(() => Toolbar({ onSetMode: setMode, onFoldAll: (f) => foldAll(f) }), bar);
+  const clearViewed = () => {
+    for (const cb of document.querySelectorAll(".pt-viewed:not(.pt-fullfile) input:checked")) {
+      (cb as HTMLInputElement).checked = false;
+      cb.dispatchEvent(new Event("change"));
+    }
+    updateProgress();
+  };
+  render(
+    () => Toolbar({ onSetMode: setMode, onFoldAll: (f) => foldAll(f), onClearViewed: clearViewed }),
+    bar
+  );
   applyMode("unified");
 
   // Paint now: swap the raw text for our shell + diff before any storage read
@@ -600,14 +610,6 @@ async function main() {
     tree.style.display = showingRaw ? "none" : "";
     splitter.style.display = showingRaw ? "none" : "";
     gear.dd.open = false;
-  });
-  menuItem(gear.menu, "Clear viewed", () => {
-    gear.dd.open = false;
-    for (const cb of document.querySelectorAll(".pt-viewed:not(.pt-fullfile) input:checked")) {
-      (cb as HTMLInputElement).checked = false;
-      cb.dispatchEvent(new Event("change"));
-    }
-    updateProgress();
   });
   const openTokensDialog = () =>
     mountDialog("pt-tokens-host", (close) => TokensDialog({ onClose: close }));

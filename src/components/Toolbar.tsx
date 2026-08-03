@@ -24,6 +24,7 @@ const SVG_COLS =
 export function Toolbar(props: {
   onSetMode: (mode: "unified" | "split") => void;
   onFoldAll: (folded: boolean) => void;
+  onClearViewed: () => void;
 }) {
   const done = () => viewedTotal() > 0 && viewedDone() === viewedTotal();
   const files = () => treeFiles();
@@ -39,6 +40,15 @@ export function Toolbar(props: {
       </span>
       <span id="pt-progress" classList={{ "pt-done": done() }}>
         <Show when={viewedTotal() > 0}>{`${viewedDone()}/${viewedTotal()} viewed`}</Show>
+        <Show when={viewedDone() > 0}>
+          <button
+            type="button"
+            id="pt-clear-viewed"
+            title="Clear viewed"
+            innerHTML={icons.sync}
+            onClick={() => props.onClearViewed()}
+          />
+        </Show>
       </span>
       <div class="pt-seg">
         <button
