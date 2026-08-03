@@ -920,21 +920,6 @@ html.pt-on {
 }
 
 .pt-filter-dd > summary::after { content: none; }
-
-.pt-tree-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border: 1px solid var(--pt-border);
-  border-radius: 4px;
-  background: none;
-  color: var(--pt-fg);
-  cursor: pointer;
-}
-.pt-tree-btn:hover { background: var(--pt-header-bg); }
 .pt-filter-dd > summary:hover { background: var(--pt-header-bg); }
 
 .pt-filter-dd > summary.pt-filter-active {

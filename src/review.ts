@@ -346,6 +346,7 @@ export function initReview(P: Provider, view: PtView) {
       `${icons.commit || ""}<span class="pt-dd-label">All commits</span>`
     );
     dd.id = "pt-commits";
+    sum.title = "Filter by commit";
     bar.prepend(dd);
     const items: any[] = [];
 
@@ -633,6 +634,7 @@ export function initReview(P: Provider, view: PtView) {
 
     unresolvedEl = makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
     unresolvedEl.dd.id = "pt-unresolved";
+    unresolvedEl.sum.title = "Jump to an unresolved thread";
     unresolvedEl.dd.style.display = "none";
     select.after(unresolvedEl.dd);
 

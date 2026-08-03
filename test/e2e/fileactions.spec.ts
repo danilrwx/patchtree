@@ -102,9 +102,9 @@ test("collapse all / expand all tree buttons fold every file", async ({ context,
   const files = page.locator("section.pt-file");
   const n = await files.count();
 
-  await page.locator('#pt-tree-head button[title="Collapse all files"]').click();
+  await page.locator('#pt-bar button[title="Collapse all files"]').click();
   await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(n);
 
-  await page.locator('#pt-tree-head button[title="Expand all files"]').click();
+  await page.locator('#pt-bar button[title="Expand all files"]').click();
   await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(0);
 });

@@ -291,18 +291,7 @@ async function main() {
   head.id = "pt-tree-head";
   const filterHost = document.createElement("span");
   filterHost.id = "pt-filter-host";
-  const treeBtn = (title: string, icon: string, fn: () => void) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "pt-tree-btn";
-    b.title = title;
-    b.innerHTML = icon;
-    b.addEventListener("click", fn);
-    return b;
-  };
-  const collapseAllBtn = treeBtn("Collapse all files", icons.fold, () => foldAll(true));
-  const expandAllBtn = treeBtn("Expand all files", icons.unfold, () => foldAll(false));
-  head.append(filter, filterHost, collapseAllBtn, expandAllBtn);
+  head.append(filter, filterHost);
   tree.append(head, treeList);
   root.appendChild(tree);
   filter.addEventListener("input", () => setFilter(filter.value));
@@ -449,7 +438,7 @@ async function main() {
     applyMode(m);
     persist(() => chrome.storage.sync.set({ view: m }));
   };
-  render(() => Toolbar({ onSetMode: setMode }), bar);
+  render(() => Toolbar({ onSetMode: setMode, onFoldAll: (f) => foldAll(f) }), bar);
   applyMode("unified");
 
   // Paint now: swap the raw text for our shell + diff before any storage read
