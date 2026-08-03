@@ -1,9 +1,10 @@
 # patchtree
 
 Chrome/Firefox extension that turns raw `.diff` / `.patch` URLs into a
-full-featured code review UI — with tree-sitter syntax highlighting and
-review workflows for **GitLab** (any instance, including self-hosted) and
-**GitHub**.
+full-featured code review UI, with **real tree-sitter syntax highlighting**
+— the same grammars Neovim, Helix and Zed parse with, not regex guesswork —
+and review workflows for **GitLab** (any instance, including self-hosted)
+and **GitHub**.
 
 Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 (or click the extension icon on any MR/PR page) and review right there.
@@ -11,6 +12,33 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 ![overview](docs/screenshots/01-overview.png)
 
 ## Features
+
+### Syntax highlighting that actually parses the code
+
+Diff viewers usually colour patches with regular expressions, so a template
+string, a nested generic or a heredoc quietly falls apart. patchtree runs the
+**real grammars** instead — the same tree-sitter parsers editors like Neovim,
+Helix and Zed use — compiled to WebAssembly and executed in the extension's
+background worker.
+
+- **A real parse tree per file**, so nesting is never guessed: JSX inside
+  TypeScript, generics, Rust macros, bash heredocs, f-strings, and Helm/Go
+  template actions embedded in YAML all keep their structure.
+- **28 grammars**, each pinned to the revision its highlight queries were
+  written for: go, js/ts/tsx, python, bash, json, yaml, rust, c, c++, java,
+  ruby, php, c#, lua, toml, hcl/terraform, css, html, kotlin, scala, dart,
+  groovy, elixir, haskell, zig, Dockerfile/Containerfile, and Helm/Go
+  templates (`.tpl`, and any `.yaml` carrying `{{ … }}` actions).
+- **Off the main thread**: wasm grammars load lazily, one per language a diff
+  actually contains, and parsing happens in the background worker — a
+  10 000-line diff never blocks scrolling.
+- **Layered with the diff itself**: word-level diff tints sit under the syntax
+  colours, so you see both what changed and what it means.
+- Anything without a grammar falls back to highlight.js (swift, sql, markdown,
+  makefile, perl, r, protobuf, objective-c, ocaml, erlang, clojure, …); files
+  with no extension go by shebang, then auto-detection.
+- Every colour comes from the active theme, so highlighting follows the
+  base24 scheme you pick (see Appearance).
 
 ### Diff rendering
 
@@ -22,15 +50,6 @@ Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 - **Word-level diff**: changed words inside modified line pairs get a
   stronger tint (LCS over tokens), layered under syntax colors; can be
   toggled off in settings (suggestion widgets always keep it).
-- **Syntax highlighting** with real parsers (web-tree-sitter, wasm, run in
-  the background worker): go, js/ts/tsx, python, bash, json, yaml, rust,
-  c, c++, java, ruby, php, c#, lua, toml, hcl/terraform, css, html,
-  kotlin, scala, dart, groovy, elixir, haskell, zig,
-  Dockerfile/Containerfile, and Helm/Go templates (`.tpl`, and any
-  `.yaml` containing `{{ … }}` actions).
-  Languages without a grammar fall back to highlight.js (swift, sql,
-  markdown, makefile, perl, r, …); files without an extension go by
-  shebang, then hljs auto-detection.
 - **Expand hidden lines** between hunks (fetched from the repository at
   the head revision, highlighted and commentable) or the **Full file**
   toggle per file.
