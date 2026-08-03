@@ -104,15 +104,12 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
-          # listed submissions need add-on level metadata too (categories,
-          # summary, license); AMO keeps them once set, so this only really
-          # matters for the first publish
+          # only version-level metadata: the product page (summary, description,
+          # categories, screenshots) lives in AMO's Developer Hub, and the
+          # category fields only exist there once a listed version is approved
           jq -n --rawfile notes RELEASE_NOTES.md \
-            '{
-               categories: ["web-development"],
-               summary: {"en-US": "Turn raw .diff/.patch URLs into a full code review UI: tree-sitter highlighting, file tree, inline comments and reviews for GitLab and GitHub."},
-               version: {license: "Apache-2.0", release_notes: {"en-US": $notes}}
-             }' > amo-metadata.json
+            '{version: {license: "Apache-2.0", release_notes: {"en-US": $notes}}}' \
+            > amo-metadata.json
           npx web-ext sign --channel listed --approval-timeout 0 \
             --amo-metadata amo-metadata.json \
             --source-dir build/firefox --artifacts-dir signed
