@@ -110,11 +110,11 @@ To render local `.diff` / `.patch` files (`file://`), also enable
 
 `make zip-firefox` builds `patchtree-firefox.zip` with an event-page
 background and the gecko id. For development load it via
-`about:debugging` → Load Temporary Add-on. Permanent installs need
-signing: CI signs an unlisted `.xpi` through AMO on tags when
-`AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets are configured. Firefox MV3
-treats host permissions as opt-in — enable “Access your data for all
-websites” in the add-on's Permissions tab.
+`about:debugging` → Load Temporary Add-on. Permanent installs come from
+the AMO listing: on `v*` tags CI submits the version to the public AMO
+channel for review when `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets are
+configured. Firefox MV3 treats host permissions as opt-in — enable
+“Access your data for all websites” in the add-on's Permissions tab.
 
 ## Build / release
 

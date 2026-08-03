@@ -79,16 +79,24 @@ jobs:
             build/patchtree.zip
             build/patchtree-firefox.zip
 
-      - name: Sign for Firefox (AMO, unlisted)
+      - name: Changelog
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: ./scripts/changelog.sh "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
+
+      # submits the version for review on the public AMO listing and returns
+      # immediately (--approval-timeout 0): a signed xpi only exists after a
+      # reviewer approves, so Firefox distribution happens through AMO itself
+      - name: Submit to AMO (listed)
         if: startsWith(github.ref, 'refs/tags/v') && env.AMO_ISSUER != ''
         env:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: npx web-ext sign --channel unlisted --source-dir build/firefox --artifacts-dir signed && cp signed/*.xpi build/patchtree-firefox.xpi
-
-      - name: Changelog
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: ./scripts/changelog.sh "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
+        run: |
+          jq -n --rawfile notes RELEASE_NOTES.md \
+            '{version: {release_notes: {"en-US": $notes}}}' > amo-metadata.json
+          npx web-ext sign --channel listed --approval-timeout 0 \
+            --amo-metadata amo-metadata.json \
+            --source-dir build/firefox --artifacts-dir signed
 
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -97,6 +105,5 @@ jobs:
           files: |
             build/patchtree.zip
             build/patchtree-firefox.zip
-            build/patchtree-firefox.xpi
             build/checksums.txt
           body_path: RELEASE_NOTES.md
