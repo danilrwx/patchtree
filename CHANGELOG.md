@@ -2,6 +2,23 @@
 
 All notable changes, grouped from [conventional commits](https://www.conventionalcommits.org).
 
+## v1.2.0
+
+### 🚀 Features
+
+- **toolbar:** compact bar (`936e487`)
+- **toolbar:** clear-viewed reset lives beside its counter (`7e8f941`)
+- **sidebar:** sticky GitHub-star item in the gear menu (`d558678`)
+- **ui:** shortcuts overlay, s view-mode hotkey, stateful sidebar toggle (`984cff0`)
+
+### 📖 Documentation
+
+- refresh screenshots and README for the compact toolbar (`a2b86e5`)
+
+### 🔧 Chores
+
+- **ci:** submit Firefox builds to the public AMO channel (`600fe96`)
+
 ## v1.1.1
 
 ### 🚀 Features
