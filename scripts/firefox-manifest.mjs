@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Rewrite manifest.json in place for the Firefox build:
-// event-page background instead of a service worker, plus the gecko id.
+// Rewrite manifest.json in place for the Firefox build: event-page background
+// instead of a service worker, the gecko id, and the data-collection
+// declaration AMO requires for listed versions (we collect nothing — tokens
+// live in storage.local and only ever go to their own host).
 import { readFileSync, writeFileSync } from "node:fs";
 
 const path = process.argv[2];
@@ -21,7 +23,11 @@ const m = JSON.parse(readFileSync(path, "utf8"));
 
 m.background = { scripts: ["background.js"], type: "module" };
 m.browser_specific_settings = {
-  gecko: { id: "patchtree@danilrwx.github.io", strict_min_version: "128.0" },
+  gecko: {
+    id: "patchtree@danilrwx.github.io",
+    strict_min_version: "128.0",
+    data_collection_permissions: { required: ["none"] },
+  },
 };
 
 writeFileSync(path, `${JSON.stringify(m, null, 2)}\n`);

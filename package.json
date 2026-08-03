@@ -1,6 +1,6 @@
 {
   "name": "patchtree",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "license": "Apache-2.0",
   "description": "Build toolchain for the patchtree extension",

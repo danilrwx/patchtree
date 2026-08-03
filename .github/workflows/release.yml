@@ -104,12 +104,13 @@ jobs:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
-          # only version-level metadata: the product page (summary, description,
-          # categories, screenshots) lives in AMO's Developer Hub, and the
-          # category fields only exist there once a listed version is approved
+          # the first listed publish must carry add-on level fields the
+          # Developer Hub has no form for yet (categories); AMO keeps them
           jq -n --rawfile notes RELEASE_NOTES.md \
-            '{version: {license: "Apache-2.0", release_notes: {"en-US": $notes}}}' \
-            > amo-metadata.json
+            '{
+               categories: ["web-development"],
+               version: {license: "Apache-2.0", release_notes: {"en-US": $notes}}
+             }' > amo-metadata.json
           npx web-ext sign --channel listed --approval-timeout 0 \
             --amo-metadata amo-metadata.json \
             --source-dir build/firefox --artifacts-dir signed
