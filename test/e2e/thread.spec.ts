@@ -51,7 +51,7 @@ test("split: the comment card fills its pane, the other side keeps a diff backgr
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
   // wide enough that a 720px-capped card would leave a big white gutter
   await page.setViewportSize({ width: 2400, height: 700 });
-  await page.locator('button[title="Side-by-side"]').click();
+  await page.locator("#pt-view-toggle").click();
 
   const thread = page.locator(".pt-split .pt-comments-row", { hasText: COMMENT_BODY }).first();
   await expect(thread).toBeAttached({ timeout: 20000 });

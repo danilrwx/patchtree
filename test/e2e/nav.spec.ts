@@ -66,7 +66,7 @@ test("v marks the current file viewed", async ({ context, page }) => {
 
   await page.keyboard.press("v");
   await expect(page.locator("section.pt-file").first()).toHaveClass(/pt-folded/);
-  await expect(page.locator("#pt-progress")).toContainText("1/2 viewed");
+  await expect(page.locator("#pt-progress")).toContainText("1/2");
 });
 
 test("e toggles the tree and / focuses the filter", async ({ context, page }) => {

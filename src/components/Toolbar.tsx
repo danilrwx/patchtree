@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Show } from "solid-js";
-import { treeFiles, viewMode, viewedDone, viewedTotal } from "../store";
+import { anyExpanded, treeFiles, viewMode, viewedDone, viewedTotal } from "../store";
 import { icons } from "../icons";
 
 const SVG_ROWS =
@@ -32,14 +32,20 @@ export function Toolbar(props: {
   const dels = () => files().reduce((n, f) => n + f.dels, 0);
   return (
     <>
-      <span id="pt-diffstat">
+      <span
+        id="pt-diffstat"
+        title={`${files().length} ${files().length === 1 ? "file" : "files"} changed`}
+      >
         <Show when={files().length > 0}>
-          {`${files().length} ${files().length === 1 ? "file" : "files"} `}
           <span class="pt-adds">+{adds()}</span> <span class="pt-dels">−{dels()}</span>
         </Show>
       </span>
-      <span id="pt-progress" classList={{ "pt-done": done() }}>
-        <Show when={viewedTotal() > 0}>{`${viewedDone()}/${viewedTotal()} viewed`}</Show>
+      <span
+        id="pt-progress"
+        classList={{ "pt-done": done() }}
+        title={`${viewedDone()} of ${viewedTotal()} files viewed`}
+      >
+        <Show when={viewedTotal() > 0}>{`· ${viewedDone()}/${viewedTotal()}`}</Show>
         <Show when={viewedDone() > 0}>
           <button
             type="button"
@@ -53,31 +59,17 @@ export function Toolbar(props: {
       <div class="pt-seg">
         <button
           type="button"
-          title="Collapse all files"
-          innerHTML={icons.fold}
-          onClick={() => props.onFoldAll(true)}
+          id="pt-fold-toggle"
+          title={anyExpanded() ? "Collapse all files" : "Expand all files"}
+          innerHTML={anyExpanded() ? icons.fold : icons.unfold}
+          onClick={() => props.onFoldAll(anyExpanded())}
         />
         <button
           type="button"
-          title="Expand all files"
-          innerHTML={icons.unfold}
-          onClick={() => props.onFoldAll(false)}
-        />
-      </div>
-      <div class="pt-seg">
-        <button
-          type="button"
-          title="Inline"
-          classList={{ "pt-active": viewMode() !== "split" }}
-          innerHTML={SVG_ROWS}
-          onClick={() => props.onSetMode("unified")}
-        />
-        <button
-          type="button"
-          title="Side-by-side"
-          classList={{ "pt-active": viewMode() === "split" }}
-          innerHTML={SVG_COLS}
-          onClick={() => props.onSetMode("split")}
+          id="pt-view-toggle"
+          title={viewMode() === "split" ? "Switch to inline" : "Switch to side-by-side"}
+          innerHTML={viewMode() === "split" ? SVG_ROWS : SVG_COLS}
+          onClick={() => props.onSetMode(viewMode() === "split" ? "unified" : "split")}
         />
       </div>
     </>

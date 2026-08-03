@@ -70,11 +70,11 @@ test("the counter's reset button appears with progress and clears it", async ({
 
   await expect(clear).toBeHidden();
   await first.locator("label.pt-viewed:not(.pt-fullfile) input[type=checkbox]").check();
-  await expect(page.locator("#pt-progress")).toContainText("1/2 viewed");
+  await expect(page.locator("#pt-progress")).toContainText("1/2");
   await expect(clear).toBeVisible();
 
   await clear.click();
-  await expect(page.locator("#pt-progress")).toContainText("0/2 viewed");
+  await expect(page.locator("#pt-progress")).toContainText("0/2");
   await expect(clear).toBeHidden();
 });
 
@@ -104,14 +104,20 @@ test("clicking a file's comment badge jumps to the comment", async ({ context, p
   await expect(page.locator(".pt-comments-row.pt-flash")).toBeVisible();
 });
 
-test("collapse all / expand all tree buttons fold every file", async ({ context, page }) => {
+test("the fold toggle collapses everything, then expands everything", async ({
+  context,
+  page,
+}) => {
   await open(context, page);
   const files = page.locator("section.pt-file");
   const n = await files.count();
+  const toggle = page.locator("#pt-fold-toggle");
 
-  await page.locator('#pt-bar button[title="Collapse all files"]').click();
+  await expect(toggle).toHaveAttribute("title", "Collapse all files");
+  await toggle.click();
   await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(n);
 
-  await page.locator('#pt-bar button[title="Expand all files"]').click();
+  await expect(toggle).toHaveAttribute("title", "Expand all files");
+  await toggle.click();
   await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(0);
 });

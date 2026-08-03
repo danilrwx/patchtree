@@ -32,6 +32,7 @@ import { KeymapDialog } from "./components/KeymapDialog";
 import { ThemeGallery } from "./components/ThemeGallery";
 import {
   viewMode,
+  setAnyExpanded,
   setTreeFiles,
   setFilter,
   setViewed,
@@ -438,6 +439,16 @@ async function main() {
     applyMode(m);
     persist(() => chrome.storage.sync.set({ view: m }));
   };
+  const refreshAnyExpanded = () =>
+    setAnyExpanded(!!main.querySelector("section.pt-file:not(.pt-folded)"));
+  new MutationObserver(refreshAnyExpanded).observe(main, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  refreshAnyExpanded();
+
   const clearViewed = () => {
     for (const cb of document.querySelectorAll(".pt-viewed:not(.pt-fullfile) input:checked")) {
       (cb as HTMLInputElement).checked = false;

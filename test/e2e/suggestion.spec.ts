@@ -89,7 +89,7 @@ test("suggestion rows are code-height, not inflated by comment-cell padding", as
     }
   };
   await check();
-  await page.locator('button[title="Side-by-side"]').click();
+  await page.locator("#pt-view-toggle").click();
   await check();
 });
 

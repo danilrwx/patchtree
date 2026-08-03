@@ -33,7 +33,7 @@ test("the unresolved dropdown lists open threads and jumps to one", async ({ con
   await page.evaluate(() => window.scrollTo(0, 0));
 
   const dd = page.locator("#pt-unresolved");
-  await expect(dd).toContainText("1 unresolved", { timeout: 20000 });
+  await expect(dd.locator(".pt-dd-label")).toHaveText("1", { timeout: 20000 });
   await dd.locator("summary").click();
   await dd.locator(".pt-dd-item").first().click();
 
@@ -62,7 +62,7 @@ test("jumping to a thread deep in the diff scrolls it into view (both modes)", a
   const jump = async () => {
     await page.evaluate(() => window.scrollTo(0, 0));
     const dd = page.locator("#pt-unresolved");
-    await expect(dd).toContainText("1 unresolved", { timeout: 20000 });
+    await expect(dd.locator(".pt-dd-label")).toHaveText("1", { timeout: 20000 });
     await dd.locator("summary").click();
     await dd.locator(".pt-dd-item").first().click();
     // the visible copy of the comment (unified vs split) lands in the viewport
@@ -79,7 +79,7 @@ test("jumping to a thread deep in the diff scrolls it into view (both modes)", a
   };
 
   await jump(); // unified (default)
-  await page.locator('button[title="Side-by-side"]').click();
+  await page.locator("#pt-view-toggle").click();
   await jump(); // split — the row lives in the other table, must still scroll
 });
 

@@ -47,7 +47,7 @@ test("the toolbar shows a diff summary of files and total changes", async ({ con
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
   const stat = page.locator("#pt-diffstat");
-  await expect(stat).toContainText("2 files");
+  await expect(stat).toHaveAttribute("title", "2 files changed");
   await expect(stat.locator(".pt-adds")).toHaveText(/^\+\d+$/);
   await expect(stat.locator(".pt-dels")).toHaveText(/^−\d+$/);
 });
@@ -76,11 +76,11 @@ test("file header renders controls and the viewed checkbox folds the file", asyn
   await expect(first.locator(".pt-file-header button.pt-hbtn")).toBeVisible();
   await expect(first.locator(".pt-file-header .pt-stats")).toContainText("+");
 
-  await expect(page.locator("#pt-progress")).toContainText("0/2 viewed");
+  await expect(page.locator("#pt-progress")).toContainText("0/2");
   const viewedCb = first.locator("label.pt-viewed:not(.pt-fullfile) input[type=checkbox]");
   await viewedCb.check();
   await expect(first).toHaveClass(/pt-folded/);
-  await expect(page.locator("#pt-progress")).toContainText("1/2 viewed");
+  await expect(page.locator("#pt-progress")).toContainText("1/2");
 });
 
 test("expander loads hidden context lines", async ({ context, page }) => {
@@ -105,7 +105,7 @@ test("shows word-diff marks and toggles to side-by-side", async ({ context, page
 
   // inline by default, then switch to split
   await expect(page.locator(".pt-mode-unified")).toHaveCount(1);
-  await page.locator('button[title="Side-by-side"]').click();
+  await page.locator("#pt-view-toggle").click();
   await expect(page.locator(".pt-mode-split")).toHaveCount(1);
   await expect(page.locator(".pt-mode-unified")).toHaveCount(0);
 });

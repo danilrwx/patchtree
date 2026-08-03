@@ -97,7 +97,7 @@ export function initReview(P: Provider, view: PtView) {
     if (!unresolvedEl) return;
     const open = realThreads.filter((t) => t.resolvable && !t.resolved);
     unresolvedEl.dd.style.display = open.length ? "" : "none";
-    unresolvedEl.sum.querySelector(".pt-dd-label").textContent = `${open.length} unresolved`;
+    unresolvedEl.sum.querySelector(".pt-dd-label").textContent = `${open.length}`;
     unresolvedEl.menu.textContent = "";
     for (const t of open) {
       const note = t.notes[0];
@@ -342,11 +342,20 @@ export function initReview(P: Provider, view: PtView) {
   }
 
   function buildCommitSelect(bar: HTMLElement) {
+    // icon-only while inactive; picking a commit turns the summary into a
+    // chip with the short sha and a reset ×
     const { dd, sum, menu } = makeDropdown(
-      `${icons.commit || ""}<span class="pt-dd-label">All commits</span>`
+      `${icons.commit || ""}<span class="pt-dd-label"></span>`
     );
     dd.id = "pt-commits";
     sum.title = "Filter by commit";
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "pt-chip-clear";
+    reset.title = "Show all commits";
+    reset.textContent = "×";
+    reset.hidden = true;
+    sum.appendChild(reset);
     bar.prepend(dd);
     const items: any[] = [];
 
@@ -354,8 +363,9 @@ export function initReview(P: Provider, view: PtView) {
       dd.open = false;
       if (sha === currentCommit) return;
       currentCommit = sha;
-      sum.querySelector(".pt-dd-label")!.textContent =
-        label.length > 44 ? `${label.slice(0, 43)}…` : label;
+      sum.querySelector(".pt-dd-label")!.textContent = sha ? label : "";
+      sum.classList.toggle("pt-chip-active", !!sha);
+      reset.hidden = !sha;
       for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
         let text = view.initialRaw;
@@ -373,14 +383,19 @@ export function initReview(P: Provider, view: PtView) {
       return item;
     };
 
-    addItem("", "All commits", "All commits").classList.add("pt-active");
+    addItem("", "All commits", "").classList.add("pt-active");
+    reset.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      choose("", "", items[0]);
+    });
     P.commits()
       .then((commits: any[]) => {
         for (const c of commits)
           addItem(
             c.sha,
             `<span class="pt-sha">${esc(c.short)}</span><span>${esc(c.title)}</span>`,
-            c.title
+            c.short
           );
       })
       .catch((e: any) => status(`commits unavailable: ${e.message}`, true));
@@ -632,7 +647,7 @@ export function initReview(P: Provider, view: PtView) {
     badge.hidden = true;
     select.after(badge);
 
-    unresolvedEl = makeDropdown(`<span class="pt-dd-label">unresolved</span>`);
+    unresolvedEl = makeDropdown(`${icons.comment}<span class="pt-dd-label"></span>`);
     unresolvedEl.dd.id = "pt-unresolved";
     unresolvedEl.sum.title = "Jump to an unresolved thread";
     unresolvedEl.dd.style.display = "none";
