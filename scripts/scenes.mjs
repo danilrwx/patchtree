@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Regenerates the numbered "scene" frames used by both the README gallery and
-// the store listings. Every scene is shot twice from the same script: at 2x
+// Regenerates every gallery frame for the README and the store listings. Each
+// frame is a full 1280x800 window, so menus and dialogs are shown in place over
+// the diff instead of cropped out of context. Shot twice from one run: at 2x
 // into docs/screenshots/ (crisp on HiDPI, for the README) and at 1x into
-// docs/store/ (exactly the 1280x800 the stores ask for, so nothing is ever
-// rescaled or cropped). Files are numbered in listing upload order.
+// docs/store/ (exactly what the stores ask for). The 1x run stops after the
+// five frames the Chrome Web Store allows; the rest are README-only.
 // Usage: node scripts/scenes.mjs
 import { chromium } from "@playwright/test";
 import { execSync } from "node:child_process";
@@ -36,85 +37,145 @@ const TARGETS = [
 for (const [dir, scale] of TARGETS) await shootScenes(path.join(root, dir), scale);
 
 async function shootScenes(out, deviceScaleFactor) {
-const context = await chromium.launchPersistentContext("", {
-  headless: false,
-  viewport: { width: 1280, height: 800 },
-  deviceScaleFactor,
-  args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-});
-const page = context.pages()[0] ?? (await context.newPage());
-const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const storeRun = deviceScaleFactor === 1;
+  const context = await chromium.launchPersistentContext("", {
+    headless: false,
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor,
+    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+  });
+  const page = context.pages()[0] ?? (await context.newPage());
+  const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
 
-const settings = (s) =>
-  sw.evaluate(
-    (v) =>
-      new Promise((res) =>
-        chrome.storage.sync.get("settings", (o) =>
-          chrome.storage.sync.set({ settings: { ...(o.settings || {}), ...v } }, res)
-        )
-      ),
-    s
+  const settings = (s) =>
+    sw.evaluate(
+      (v) =>
+        new Promise((res) =>
+          chrome.storage.sync.get("settings", (o) =>
+            chrome.storage.sync.set({ settings: { ...(o.settings || {}), ...v } }, res)
+          )
+        ),
+      s
+    );
+
+  await page.goto(url);
+  await sw.evaluate(
+    (t) => chrome.storage.local.set({ gitlabs: { "github.com": { token: t } } }),
+    token
   );
 
-await page.goto(url);
-await sw.evaluate((t) => chrome.storage.local.set({ gitlabs: { "github.com": { token: t } } }), token);
+  const load = async () => {
+    await page.reload();
+    await page.locator(".pt-keyword").first().waitFor({ timeout: 30000 });
+    await page.locator(".pt-comments-row").first().waitFor({ state: "attached", timeout: 30000 });
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(1200);
+  };
 
-async function load() {
-  await page.reload();
-  await page.locator(".pt-keyword").first().waitFor({ timeout: 30000 });
-  await page.locator(".pt-comments-row").first().waitFor({ state: "attached", timeout: 30000 });
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(1200);
-}
+  const shot = async (name) => {
+    await page.screenshot({ path: path.join(out, `${name}.png`) });
+    console.log(`${path.basename(out)}/${name}.png @${deviceScaleFactor}x`);
+  };
 
-const shot = async (name) => {
-  await page.screenshot({ path: path.join(out, `${name}.png`) });
-  console.log(`${path.basename(out)}/${name}.png @${deviceScaleFactor}x`);
-};
+  // <details> menus toggle, so always close what's open before opening the
+  // next one — otherwise a second "open" click closes the menu instead
+  const closeMenus = () =>
+    page.evaluate(() => {
+      for (const d of document.querySelectorAll("#pt-bar details[open]"))
+        d.removeAttribute("open");
+    });
 
-await load();
+  const dropdown = async (sel) => {
+    await closeMenus();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const dd = page.locator(sel);
+    await dd.locator("summary").first().click();
+    // "> .pt-dd-menu": the gear menu nests <Select> menus of its own
+    await dd.locator("> .pt-dd-menu").waitFor();
+    await page.waitForTimeout(200);
+  };
 
-// 1 — the whole thing at a glance: tree, toolbar, highlighted diff
-await page.evaluate(() => window.scrollTo(0, 0));
-await shot("01-overview");
+  // open the gear menu at the top of the page, optionally picking an item
+  const gear = async (item) => {
+    await dropdown("#pt-settings");
+    if (item) await page.locator("#pt-settings .pt-dd-item", { hasText: item }).click();
+  };
 
-// 2 — review: a thread with a suggestion, centred in the viewport
-const sug = page.locator(".pt-comments-row:visible", { has: page.locator(".pt-sug") }).first();
-await sug.scrollIntoViewIfNeeded();
-await page.evaluate(() => window.scrollBy(0, -160));
-await page.waitForTimeout(400);
-await shot("02-review-threads");
+  await load();
 
-// 3 — side-by-side view
-await page.locator("#pt-view-toggle").click();
-await page.waitForTimeout(600);
-await page.evaluate(() => window.scrollTo(0, 0));
-await page.waitForTimeout(400);
-await shot("03-side-by-side");
-await page.locator("#pt-view-toggle").click();
+  // 1 — the whole thing at a glance: tree, toolbar, highlighted diff
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot("01-overview");
 
-// 4 — commenting: a multi-line range with the markdown editor open
-const cells = page.locator(".pt-unified tr.pt-add td.pt-no:visible", { hasText: /\d/ });
-await cells.nth(2).scrollIntoViewIfNeeded();
-await cells.nth(2).click();
-await cells.nth(4).click({ modifiers: ["Shift"] });
-const form = page.locator(".pt-comment-form").first();
-await form.locator("textarea").fill("Extract this into a helper — it repeats in the watcher too.");
-await form.scrollIntoViewIfNeeded();
-await page.evaluate(() => window.scrollBy(0, -220));
-await page.waitForTimeout(400);
-await shot("04-inline-comments");
-await form.locator("button", { hasText: "Cancel" }).click();
+  // 2 — review: a thread with a suggestion, centred in the viewport
+  const sug = page.locator(".pt-comments-row:visible", { has: page.locator(".pt-sug") }).first();
+  await sug.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -160));
+  await page.waitForTimeout(400);
+  await shot("02-review-threads");
 
-// 5 — the theme gallery over a dark scheme, so both are on show at once
-await settings({ theme: "Dracula" });
-await load();
-await page.locator("#pt-settings > summary").click();
-await page.locator("#pt-settings .pt-dd-item", { hasText: "Theme gallery" }).click();
-await page.locator("#pt-themes-dialog").waitFor();
-await page.waitForTimeout(800);
-await shot("05-themes");
+  // 3 — side-by-side view
+  await page.locator("#pt-view-toggle").click();
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(400);
+  await shot("03-side-by-side");
+  await page.locator("#pt-view-toggle").click();
 
-await settings({ theme: "" });
-await context.close();
+  // 4 — commenting: a multi-line range with the markdown editor open
+  const cells = page.locator(".pt-unified tr.pt-add td.pt-no:visible", { hasText: /\d/ });
+  await cells.nth(2).scrollIntoViewIfNeeded();
+  await cells.nth(2).click();
+  await cells.nth(4).click({ modifiers: ["Shift"] });
+  const form = page.locator(".pt-comment-form").first();
+  await form.locator("textarea").fill("Extract this into a helper — it repeats in the watcher too.");
+  await form.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -220));
+  await page.waitForTimeout(400);
+  await shot("04-inline-comments");
+  await form.locator("button", { hasText: "Cancel" }).click();
+
+  // 5 — the theme gallery over a dark scheme, so both are on show at once
+  await settings({ theme: "Dracula" });
+  await load();
+  await gear("Theme gallery");
+  await page.locator("#pt-themes-dialog").waitFor();
+  await page.waitForTimeout(800);
+  await shot("05-themes");
+  await page.keyboard.press("Escape");
+  await settings({ theme: "" });
+
+  if (storeRun) {
+    await context.close();
+    return;
+  }
+
+  // README-only frames: every menu and dialog in place over the diff
+  await load();
+
+  await gear();
+  await shot("06-settings");
+
+  await gear("Keyboard shortcuts");
+  await page.locator("#pt-keymap-dialog").waitFor();
+  await page.waitForTimeout(300);
+  await shot("07-shortcuts");
+  await page.keyboard.press("Escape");
+
+  await dropdown("#pt-unresolved");
+  await shot("08-unresolved");
+
+  await dropdown("#pt-commits");
+  await shot("09-commits");
+
+  await dropdown(".pt-filter-dd");
+  await shot("10-file-filter");
+  await closeMenus();
+
+  await gear("Access tokens");
+  await page.locator("#pt-tokens-dialog").waitFor();
+  await shot("11-tokens");
+  await page.keyboard.press("Escape");
+
+  await context.close();
 }

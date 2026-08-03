@@ -132,9 +132,9 @@ configured. Firefox MV3 treats host permissions as opt-in — enable
   `.diff` fixture with the adapter mocked (needs `npx playwright install
   chromium`; runs headed, use `xvfb-run` on Linux).
 - `make zip` / `make zip-firefox` — bundle and archive `dist/`.
-- `node scripts/scenes.mjs` — reshoot the numbered gallery frames (2x into
-  `docs/screenshots/`, 1x into `docs/store/` for the store listings);
-  `node scripts/screenshots.mjs` — the detail frames.
+- `node scripts/scenes.mjs` — reshoot every gallery frame: 2x into
+  `docs/screenshots/` for this README, and the first five at 1x into
+  `docs/store/` for the Chrome Web Store and AMO listings.
 - `make clean` — remove fetched assets, `dist/`, and archives.
 
 CI (`.github/workflows/release.yml`) rebuilds every asset from the pinned
@@ -185,34 +185,29 @@ Theme gallery over a dark scheme — base24 schemes with live diff previews:
 
 ![theme gallery](docs/screenshots/05-themes.png)
 
-Toolbar — commit filter, unresolved badge, source → target branch, diffstat,
-viewed progress and the layout toggles:
+Settings: theme, fonts, sizes and view options:
 
-![toolbar](docs/screenshots/toolbar.png)
-
-File tree with filter, per-file stats and comment badges:
-
-![file tree](docs/screenshots/tree.png)
-
-Commit filter — the diff of a single commit:
-
-![commit filter](docs/screenshots/commits.png)
-
-Unresolved badge — the dropdown jumps to each open thread:
-
-![unresolved threads](docs/screenshots/unresolved.png)
-
-Settings menu — fonts, sizes, view options, shortcuts and tokens:
-
-![settings](docs/screenshots/settings.png)
+![settings](docs/screenshots/06-settings.png)
 
 Keyboard shortcuts overlay (`?`):
 
-![keyboard shortcuts](docs/screenshots/keymap.png)
+![keyboard shortcuts](docs/screenshots/07-shortcuts.png)
 
-Access tokens setup:
+The unresolved badge jumps to each open thread:
 
-![access tokens](docs/screenshots/tokens.png)
+![unresolved threads](docs/screenshots/08-unresolved.png)
+
+Commit filter — review the diff of a single commit:
+
+![commit filter](docs/screenshots/09-commits.png)
+
+Tree filter — by extension, or hide viewed and deleted files:
+
+![file filter](docs/screenshots/10-file-filter.png)
+
+Access tokens, stored locally and never synced:
+
+![access tokens](docs/screenshots/11-tokens.png)
 
 ## License
 
