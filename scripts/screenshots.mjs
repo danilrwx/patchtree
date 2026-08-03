@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Regenerates docs/screenshots/ against the live showcase PR
+// Regenerates the detail frames in docs/screenshots/ against the live showcase
+// PR (the numbered scene frames come from scripts/scenes.mjs)
 // (danilrwx/patchtree#1) with the built dist/ extension loaded.
 // All frames share one viewport and deviceScaleFactor so the gallery
 // keeps a uniform scale. Usage: node scripts/screenshots.mjs
@@ -80,10 +81,6 @@ async function dropdownShot(name, dd) {
   await page.keyboard.press("Escape");
 }
 
-await page.evaluate(() => window.scrollTo(0, 0));
-await page.screenshot({ path: file("overview") });
-console.log("overview");
-
 await clipShot("toolbar", [page.locator("#pt-bar")], 0);
 
 const tree = page.locator("#pt-tree");
@@ -92,48 +89,6 @@ await clipShot("tree", [tree, lastRow], 0);
 
 await dropdownShot("commits", page.locator("#pt-commits"));
 await dropdownShot("unresolved", page.locator("#pt-unresolved"));
-
-const review = page.locator("#pt-review");
-await review.locator("summary").click();
-await review.locator("textarea").fill("Solid work overall — a couple of small comments inline.");
-await clipShot("submit-review", [review, review.locator(".pt-review-panel")]);
-await review.locator("summary").click();
-await page.waitForTimeout(300);
-
-const sugThread = page
-  .locator(".pt-comments-row:visible", { has: page.locator(".pt-sug") })
-  .first();
-await sugThread.scrollIntoViewIfNeeded();
-await page.waitForTimeout(300);
-await elementShot("thread", sugThread);
-
-const cells = page.locator(".pt-unified tr.pt-add td.pt-no:visible", { hasText: /\d/ });
-await cells.nth(2).scrollIntoViewIfNeeded();
-await cells.nth(2).click();
-const form = page.locator(".pt-comment-form").first();
-await form
-  .locator("textarea")
-  .fill("This lock is held across the whole loop — consider copying the slice first.\n\n");
-await elementShot("comment-form", form);
-
-await form.locator('button[title="Insert suggestion"]').click();
-await form
-  .locator("textarea")
-  .evaluate((ta) => (ta.style.height = `${ta.scrollHeight + 4}px`));
-await elementShot("suggestion-editor", form);
-await form.locator("button", { hasText: "Cancel" }).click();
-
-const uiFile = page.locator("section.pt-file", { hasText: "demo/ui.tsx" });
-const uiCells = uiFile.locator(".pt-unified tr.pt-add td.pt-no:visible", { hasText: /\d/ });
-await uiCells.nth(27).scrollIntoViewIfNeeded();
-await uiCells.nth(27).click();
-await uiCells.nth(29).click({ modifiers: ["Shift"] });
-const ranges = uiFile.locator("tr.pt-range:visible");
-await ranges.first().waitFor();
-const mlForm = uiFile.locator(".pt-comment-form").first();
-await mlForm.locator("textarea").fill("These three lines can be replaced by a single helper call.");
-await clipShot("multiline", [ranges.first(), ranges.last(), mlForm]);
-await mlForm.locator("button", { hasText: "Cancel" }).click();
 
 await page.evaluate(() => window.scrollTo(0, 0));
 // the gear menu is taller than the shared viewport and scrolls inside it;
@@ -146,14 +101,6 @@ await menu.waitFor();
 await elementShot("settings", menu);
 await page.setViewportSize({ width: 1440, height: 900 });
 
-await settings.locator(".pt-dd-item", { hasText: "Theme gallery" }).click();
-const gallery = page.locator("#pt-themes-dialog .pt-dialog");
-await gallery.waitFor();
-await page.waitForTimeout(500);
-await elementShot("theme-gallery", gallery);
-await page.keyboard.press("Escape");
-
-await settings.locator('summary[title="Settings"]').click();
 await settings.locator(".pt-dd-item", { hasText: "Keyboard shortcuts" }).click();
 const keymap = page.locator("#pt-keymap-dialog .pt-dialog");
 await keymap.waitFor();

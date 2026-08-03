@@ -12,23 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Regenerates docs/store/ — the Chrome Web Store / AMO listing gallery.
-// Shots are taken at a native 1280x800 with deviceScaleFactor 1, which is
-// exactly what both stores want, so nothing is ever rescaled or cropped.
-// Files are numbered in upload order. Usage: node scripts/store-shots.mjs
+// Regenerates the numbered "scene" frames used by both the README gallery and
+// the store listings. Every scene is shot twice from the same script: at 2x
+// into docs/screenshots/ (crisp on HiDPI, for the README) and at 1x into
+// docs/store/ (exactly the 1280x800 the stores ask for, so nothing is ever
+// rescaled or cropped). Files are numbered in listing upload order.
+// Usage: node scripts/scenes.mjs
 import { chromium } from "@playwright/test";
 import { execSync } from "node:child_process";
 import path from "node:path";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
-const out = path.resolve(import.meta.dirname, "../docs/store");
+const root = path.resolve(import.meta.dirname, "..");
 const url = "https://github.com/danilrwx/patchtree/pull/1.diff";
 const token = process.env.GH_TOKEN || execSync("gh auth token").toString().trim();
 
+// [output dir, device pixel ratio]
+const TARGETS = [
+  ["docs/screenshots", 2],
+  ["docs/store", 1],
+];
+
+for (const [dir, scale] of TARGETS) await shootScenes(path.join(root, dir), scale);
+
+async function shootScenes(out, deviceScaleFactor) {
 const context = await chromium.launchPersistentContext("", {
   headless: false,
   viewport: { width: 1280, height: 800 },
-  deviceScaleFactor: 1,
+  deviceScaleFactor,
   args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
 });
 const page = context.pages()[0] ?? (await context.newPage());
@@ -58,7 +69,7 @@ async function load() {
 
 const shot = async (name) => {
   await page.screenshot({ path: path.join(out, `${name}.png`) });
-  console.log(`${name}.png`);
+  console.log(`${path.basename(out)}/${name}.png @${deviceScaleFactor}x`);
 };
 
 await load();
@@ -106,3 +117,4 @@ await shot("05-themes");
 
 await settings({ theme: "" });
 await context.close();
+}

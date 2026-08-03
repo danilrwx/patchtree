@@ -8,7 +8,7 @@ review workflows for **GitLab** (any instance, including self-hosted) and
 Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 (or click the extension icon on any MR/PR page) and review right there.
 
-![overview](docs/screenshots/overview.png)
+![overview](docs/screenshots/01-overview.png)
 
 ## Features
 
@@ -132,6 +132,9 @@ configured. Firefox MV3 treats host permissions as opt-in — enable
   `.diff` fixture with the adapter mocked (needs `npx playwright install
   chromium`; runs headed, use `xvfb-run` on Linux).
 - `make zip` / `make zip-firefox` — bundle and archive `dist/`.
+- `node scripts/scenes.mjs` — reshoot the numbered gallery frames (2x into
+  `docs/screenshots/`, 1x into `docs/store/` for the store listings);
+  `node scripts/screenshots.mjs` — the detail frames.
 - `make clean` — remove fetched assets, `dist/`, and archives.
 
 CI (`.github/workflows/release.yml`) rebuilds every asset from the pinned
@@ -166,8 +169,24 @@ a tag will carry with `scripts/changelog.sh v1.2.0`.
 
 ## Gallery
 
-Toolbar — commit filter, unresolved badge, source → target branch,
-diffstat, viewed progress and the layout toggles:
+Review threads: replies, resolve, and suggestions with one-click apply:
+
+![review threads](docs/screenshots/02-review-threads.png)
+
+Side-by-side view with word-level diff:
+
+![side-by-side](docs/screenshots/03-side-by-side.png)
+
+Commenting on a range of lines, with a markdown editor:
+
+![inline comments](docs/screenshots/04-inline-comments.png)
+
+Theme gallery over a dark scheme — base24 schemes with live diff previews:
+
+![theme gallery](docs/screenshots/05-themes.png)
+
+Toolbar — commit filter, unresolved badge, source → target branch, diffstat,
+viewed progress and the layout toggles:
 
 ![toolbar](docs/screenshots/toolbar.png)
 
@@ -179,29 +198,9 @@ Commit filter — the diff of a single commit:
 
 ![commit filter](docs/screenshots/commits.png)
 
-A thread with a rendered suggestion:
-
-![thread with a suggestion](docs/screenshots/thread.png)
-
-Comment editor with markdown toolbar and preview:
-
-![comment editor](docs/screenshots/comment-form.png)
-
-Inserting a suggestion prefilled with the commented lines:
-
-![insert suggestion](docs/screenshots/suggestion-editor.png)
-
-Multiline comment — shift-click extends the range:
-
-![multiline comment](docs/screenshots/multiline.png)
-
 Unresolved badge — the dropdown jumps to each open thread:
 
 ![unresolved threads](docs/screenshots/unresolved.png)
-
-Submit review — summary comment plus Comment / Approve / Request changes:
-
-![submit review](docs/screenshots/submit-review.png)
 
 Settings menu — fonts, sizes, view options, shortcuts and tokens:
 
@@ -210,10 +209,6 @@ Settings menu — fonts, sizes, view options, shortcuts and tokens:
 Keyboard shortcuts overlay (`?`):
 
 ![keyboard shortcuts](docs/screenshots/keymap.png)
-
-Theme gallery with live diff previews:
-
-![theme gallery](docs/screenshots/theme-gallery.png)
 
 Access tokens setup:
 
