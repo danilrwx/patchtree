@@ -8,6 +8,11 @@ assets/themes.json
 build/
 patchtree*.zip
 .bg.mjs
+# artifacts the AMO submit step builds (also handy to try locally)
+amo-source.zip
+amo-notes.txt
+amo-metadata.json
+signed/
 
 test-results/
 playwright-report/
