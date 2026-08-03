@@ -1730,8 +1730,10 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
 
 #pt-progress.pt-done { color: var(--pt-success); }
 
-#pt-clear-viewed {
-  margin-left: 4px;
+/* an inline affordance of the counter text, not a bar button — the id
+   doubles to outweigh the generic #pt-bar button frame */
+#pt-bar #pt-clear-viewed#pt-clear-viewed {
+  margin-left: 2px;
   padding: 2px;
   display: inline-flex;
   align-items: center;
@@ -1742,7 +1744,7 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
   cursor: pointer;
   border-radius: 4px;
 }
-#pt-clear-viewed:hover { background: var(--pt-header-bg); color: var(--pt-fg); }
+#pt-bar #pt-clear-viewed#pt-clear-viewed:hover { color: var(--pt-fg); }
 #pt-conflicts { color: var(--pt-danger); }
 #pt-ci[data-state="success"] { color: var(--pt-success); }
 #pt-ci[data-state="failed"] { color: var(--pt-danger); }
