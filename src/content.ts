@@ -291,7 +291,18 @@ async function main() {
   head.id = "pt-tree-head";
   const filterHost = document.createElement("span");
   filterHost.id = "pt-filter-host";
-  head.append(filter, filterHost);
+  const treeBtn = (title: string, icon: string, fn: () => void) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pt-tree-btn";
+    b.title = title;
+    b.innerHTML = icon;
+    b.addEventListener("click", fn);
+    return b;
+  };
+  const collapseAllBtn = treeBtn("Collapse all files", icons.fold, () => foldAll(true));
+  const expandAllBtn = treeBtn("Expand all files", icons.unfold, () => foldAll(false));
+  head.append(filter, filterHost, collapseAllBtn, expandAllBtn);
   tree.append(head, treeList);
   root.appendChild(tree);
   filter.addEventListener("input", () => setFilter(filter.value));
@@ -587,6 +598,10 @@ async function main() {
   };
   addSep();
 
+  const foldAll = (folded: boolean) => {
+    for (const v of views) v.section.classList.toggle("pt-folded", folded);
+  };
+
   let showingRaw = false;
   const rawItem = menuItem(gear.menu, "Raw view", () => {
     showingRaw = !showingRaw;
@@ -605,12 +620,6 @@ async function main() {
     }
     updateProgress();
   });
-  const foldAll = (folded: boolean) => {
-    for (const v of views) v.section.classList.toggle("pt-folded", folded);
-    gear.dd.open = false;
-  };
-  menuItem(gear.menu, "Collapse all files", () => foldAll(true));
-  menuItem(gear.menu, "Expand all files", () => foldAll(false));
   const openTokensDialog = () =>
     mountDialog("pt-tokens-host", (close) => TokensDialog({ onClose: close }));
   const openKeymapDialog = () =>
