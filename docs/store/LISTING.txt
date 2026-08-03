@@ -124,30 +124,92 @@ Open source, Apache-2.0: https://github.com/danilrwx/patchtree
 
 
 --------------------------------------------------------------------------------
-CATEGORY / SINGLE PURPOSE / PERMISSIONS (CWS privacy tab)
+CATEGORY
 --------------------------------------------------------------------------------
-Category: Developer Tools
+Developer Tools
 
-Single purpose:
-Render raw .diff / .patch pages as a code review interface and let the reviewer
-comment on them through the hosting platform's API.
 
-storage — remembers appearance settings, per-file viewed state and the access
-tokens the user enters; tokens stay in local storage and are never synced.
+--------------------------------------------------------------------------------
+CWS "PRIVACY PRACTICES" TAB — every field it refuses to publish without
+--------------------------------------------------------------------------------
+Single purpose description
+--------------------------------
+patchtree renders raw .diff and .patch pages as a code review interface: it
+parses the diff, highlights it with tree-sitter grammars, and lets the reviewer
+comment on lines through the hosting platform's own API (GitLab or GitHub).
+That is the extension's only function.
 
-activeTab — used when the toolbar icon is clicked on a merge/pull request page,
-to open that request's .diff URL in a new tab.
+activeTab justification
+--------------------------------
+When the user clicks the patchtree toolbar icon on a merge request or pull
+request page, the extension reads that tab's URL to derive the corresponding
+.diff URL and opens it in a new tab. activeTab grants this only for the tab the
+user just clicked on, and only at that moment; no other tab is touched.
 
-Host permissions (all sites) — the extension renders .diff and .patch pages
-wherever they are served: github.com, gitlab.com and any self-hosted GitLab
-instance, which live on arbitrary company domains that cannot be enumerated in
-advance. Requests only ever go to the host of the page being viewed and its
-API.
+storage justification
+--------------------------------
+storage keeps the user's own settings and review progress: theme, fonts, sizes,
+inline/side-by-side preference, file tree width, which files are marked viewed,
+and the last position in a diff. It also holds the access tokens the user enters
+for GitLab/GitHub so review actions work after a reload. Tokens are written to
+local storage only — never to synced storage — and are sent to nothing but the
+API of the host they belong to.
 
-Remote code: no. Everything is bundled in the package; nothing is fetched and
-evaluated at runtime.
+Host permission justification
+--------------------------------
+The extension's content script must run on any page that serves a .diff or
+.patch file. Those pages live on github.com, gitlab.com and — crucially — on
+self-hosted GitLab instances, which run on arbitrary company domains that cannot
+be enumerated in advance; a static host list would exclude exactly the
+self-hosted users the extension is built for. Network requests are only ever
+made to the host of the page being viewed and that host's API (to fetch file
+contents for expanding hidden lines, render markdown, and post the user's
+comments). No third-party or analytics endpoint is ever contacted.
 
-Data collection: none.
+Remote code justification
+--------------------------------
+No remote code is used. Everything that executes ships inside the package:
+the bundled scripts, the tree-sitter WebAssembly grammars, highlight queries,
+fonts and theme data are all local files loaded from the extension itself.
+Nothing is fetched from the network and evaluated, there is no eval() of remote
+content, and no external script or CDN is referenced. Network access is used
+solely to read diff data and post review comments through the platform API.
+
+Data usage disclosures (checkboxes at the bottom of the tab)
+--------------------------------
+Certify all three:
+  · I do not sell or transfer user data to third parties, apart from the
+    approved use cases
+  · I do not use or transfer user data for purposes unrelated to my item's
+    single purpose
+  · I do not use or transfer user data to determine creditworthiness or for
+    lending purposes
+
+What to declare under "What user data do you plan to collect?":
+  · Authentication information — YES. The user pastes a personal access token
+    so the extension can act on their behalf; it is stored locally and
+    transmitted only to the GitLab/GitHub host it belongs to.
+  · Everything else (personally identifiable info, health, financial,
+    location, web history, user activity, website content) — NO.
+
+Nothing is collected for the developer: there is no server, no analytics and no
+telemetry of any kind. Declaring the token is what keeps the disclosure honest,
+since it is user credential data the extension handles.
+
+
+--------------------------------------------------------------------------------
+PUBLISHING CHECKLIST (things the store blocks on, outside the listing text)
+--------------------------------------------------------------------------------
+· Developer account: verify the publisher contact email — Chrome Web Store
+  Developer Dashboard → Account/Settings → publisher contact email → verify via
+  the link Google sends. Publishing is blocked until it is confirmed.
+· Privacy Practices tab: fill the five justifications above, then tick the three
+  data-usage certifications.
+· Store listing tab: name, short description, description, category
+  (Developer Tools), language, icon, screenshots, promo tiles.
+· Privacy policy URL — required as soon as any user data is declared:
+  https://github.com/danilrwx/patchtree/blob/main/PRIVACY.md
+· Distribution tab: visibility Public, then "Submit for review".
 
 
 --------------------------------------------------------------------------------

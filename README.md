@@ -1,5 +1,7 @@
 # patchtree
 
+![patchtree](docs/store/promo-marquee-1400x560.jpg)
+
 Chrome/Firefox extension that turns raw `.diff` / `.patch` URLs into a
 full-featured code review UI, with **real tree-sitter syntax highlighting**
 — the same grammars Neovim, Helix and Zed parse with, not regex guesswork —
@@ -8,8 +10,6 @@ and **GitHub**.
 
 Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
 (or click the extension icon on any MR/PR page) and review right there.
-
-![overview](docs/screenshots/01-overview.png)
 
 ## Features
 
@@ -179,6 +179,7 @@ release notes from conventional commits (`scripts/changelog.sh`).
 
 ## Documentation
 
+- [PRIVACY.md](PRIVACY.md) — what is stored locally and where requests go.
 - [docs/user-guide.md](docs/user-guide.md) — using the review UI.
 - [docs/architecture.md](docs/architecture.md) — how the extension is built.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup and conventions.
@@ -191,6 +192,10 @@ unreleased section with `make changelog RANGE=v1.2.0..HEAD`, or the notes
 a tag will carry with `scripts/changelog.sh v1.2.0`.
 
 ## Gallery
+
+The full window: file tree, compact toolbar, parsed and highlighted diff:
+
+![overview](docs/screenshots/01-overview.png)
 
 Review threads: replies, resolve, and suggestions with one-click apply:
 
