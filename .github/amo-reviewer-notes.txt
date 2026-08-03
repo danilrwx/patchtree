@@ -1,0 +1,17 @@
+Built from https://github.com/danilrwx/patchtree at tag @TAG@ (commit @SHA@).
+The attached source archive is that tag, verbatim.
+
+Rebuild (Node 22; network access is needed to fetch the pinned assets):
+
+  make              # fetch pinned wasm/fonts/queries/themes, npm install, bundle into dist/
+  make zip-firefox  # rewrite the manifest for Firefox and archive dist/
+
+esbuild bundles src/ into dist/content.js and dist/background.js without
+minification; assets/ is copied verbatim. The binary assets (tree-sitter wasm
+grammars, highlight queries, fonts, theme data) are fetched from pinned upstream
+releases by scripts/fetch-*.sh — they are not stored in the repository.
+
+The extension talks only to the host serving the .diff page and that host's API
+(GitLab/GitHub) to render diffs and post review actions. Access tokens are
+entered by the user, kept in storage.local, and never sent anywhere else. No
+analytics, no third-party servers — hence data_collection_permissions: none.
