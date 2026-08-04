@@ -67,3 +67,23 @@ test("submitting the review publishes pending drafts", async ({ context, page })
     timeout: 10000,
   });
 });
+
+test("approving with pending drafts publishes them and approves", async ({ context, page }) => {
+  await mockGitlabStateful(context, { seedDraft: true });
+  await seedToken(context, page, DIFF_URL, TOKEN_HOST);
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  await expect(page.locator(".pt-comments-row", { hasText: DRAFT_BODY }).first()).toBeAttached({
+    timeout: 20000,
+  });
+
+  const dd = page.locator("#pt-review");
+  await dd.locator("summary").click();
+  await dd.locator("input[value=approve]").check();
+  await dd.locator("button.pt-primary").click();
+
+  // the drafts go out first, then the approval — neither may report an error
+  await expect(page.locator("#pt-approved")).toBeVisible({ timeout: 10000 });
+  await expect(page.locator("#pt-status")).toContainText("approved");
+  await expect(page.locator("#pt-status")).not.toHaveClass(/pt-error/);
+  await expect(page.locator(".pt-comments-row", { hasText: DRAFT_BODY })).toHaveCount(0);
+});

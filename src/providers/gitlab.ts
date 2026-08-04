@@ -289,9 +289,11 @@ export function gitlab(projectPath: string, iid: string): Provider {
     },
     deleteDraft: (d) =>
       api(`/projects/${project}/merge_requests/${iid}/draft_notes/${d.id}`, { method: "DELETE" }),
+    // bulk_publish is a POST; a PUT here is routed to /draft_notes/:id instead
+    // and rejected with "draft_note_id is invalid"
     publishDrafts: () =>
       api(`/projects/${project}/merge_requests/${iid}/draft_notes/bulk_publish`, {
-        method: "PUT",
+        method: "POST",
       }),
   };
   return P;

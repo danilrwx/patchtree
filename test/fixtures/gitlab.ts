@@ -99,6 +99,14 @@ export async function mockGitlabStateful(
     const base = `/merge_requests/${IID}`;
 
     if (p.includes(`${base}/draft_notes/bulk_publish`)) {
+      // GitLab only accepts POST here; any other verb is routed to
+      // /draft_notes/:draft_note_id and fails on the non-numeric id
+      if (req.method() !== "POST")
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "draft_note_id is invalid" }),
+        });
       drafts.length = 0;
       return json({});
     }
