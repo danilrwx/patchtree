@@ -119,6 +119,13 @@ export function Settings(props: SettingsProps) {
       <Row label="UI font size">
         <input type="number" min={9} max={20} value={(settings.uiFontSize as number) || 14} onChange={num("uiFontSize", 14)} />
       </Row>
+      <Row label="MR/PR description">
+        <input
+          type="checkbox"
+          checked={!settings.noDescription}
+          onChange={(e) => props.patch("noDescription", !e.currentTarget.checked)}
+        />
+      </Row>
       <Row label="Word diff">
         <input type="checkbox" checked={!settings.noWordDiff} onChange={(e) => props.patch("noWordDiff", !e.currentTarget.checked)} />
       </Row>

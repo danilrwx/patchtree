@@ -69,8 +69,9 @@ DIFF RENDERING
 · Any plain-text .diff / .patch page, whatever served it — git-format or a
   plain diff -u, GitLab, GitHub, or a local file.
 · The change explains itself first: a request shows its title and description
-  (rendered markdown, long ones collapsed), and a git format-patch file shows
-  its commit message with mail headers, diffstat and links highlighted.
+  (rendered markdown, long ones collapsed, switchable in settings), and a git
+  format-patch file shows its commit message with mail headers, diffstat and
+  links highlighted.
 · Inline and side-by-side views; fully added or deleted files use the full
   width in split mode.
 · Expand hidden lines between hunks, or switch a file to its full contents.

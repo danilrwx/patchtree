@@ -49,9 +49,9 @@ background worker.
   including **local files** opened via `file://` (git-format or a plain
   `diff -u`; review actions are off since there is no host to talk to).
 - **The change explains itself first**: a merge/pull request shows its title and
-  description (through the platform's markdown API, long ones collapsed), and a
-  `git format-patch` file shows its commit message with mail headers, diffstat
-  and clickable links highlighted.
+  description (through the platform's markdown API, long ones collapsed, and it
+  can be switched off in settings), and a `git format-patch` file shows its
+  commit message with mail headers, diffstat and clickable links highlighted.
 - **Inline and side-by-side** views; fully added/deleted files take the
   full width in split mode.
 - **Word-level diff**: changed words inside modified line pairs get a

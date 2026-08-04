@@ -53,6 +53,22 @@ test("a patch without a provider still shows its own preamble", async ({ context
   await expect(page.locator("#pt-desc")).toBeHidden();
 });
 
+test("the description can be switched off in settings", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator("#pt-desc .pt-desc-title")).toBeVisible({ timeout: 20000 });
+
+  const gear = page.locator("#pt-settings");
+  await gear.locator("> summary").click();
+  await gear.locator(".pt-set-row", { hasText: "MR/PR description" }).locator("input").uncheck();
+
+  await expect(page.locator("#pt-desc")).toBeHidden();
+  await expect(page.locator("html")).toHaveClass(/pt-no-desc/);
+
+  await gear.locator(".pt-set-row", { hasText: "MR/PR description" }).locator("input").check();
+  await expect(page.locator("#pt-desc")).toBeVisible();
+});
+
 test("a patch preamble is highlighted: headers, diffstat, links", async ({ context, page }) => {
   const patch = readFileSync(path.join(__dirname, "../fixtures/mbox.patch"), "utf8");
   const url = "https://example.com/mbox.patch";

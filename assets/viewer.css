@@ -389,6 +389,20 @@ html.pt-on {
 #pt-bar button[hidden],
 #pt-bar summary[hidden] { display: none }
 
+/* icon affordances that live inside text — copy a branch, clear the commit
+   chip — are not controls of their own: no frame, no fixed control height */
+#pt-bar .pt-hbtn,
+#pt-bar .pt-chip-clear {
+  height: auto;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--pt-muted);
+}
+#pt-bar .pt-hbtn:hover,
+#pt-bar .pt-chip-clear:hover { background: none; color: var(--pt-fg) }
+#pt-bar .pt-chip-clear:hover { color: var(--pt-danger) }
+
 #pt-bar button:hover,
 #pt-bar summary:hover,
 .pt-comment-form button:hover {
@@ -972,6 +986,8 @@ html.pt-on {
 
 /* the request's title + description, in the slot a patch's preamble takes */
 #pt-desc:empty { display: none }
+/* switched off in ⚙ → MR/PR description */
+html.pt-no-desc #pt-desc { display: none }
 
 #pt-desc {
   border: 1px solid var(--pt-border);
@@ -1016,6 +1032,9 @@ a.pt-desc-title:hover { color: var(--pt-accent) }
 #pt-preamble .pt-strong { font-weight: 700; color: var(--pt-fg) }
 
 #pt-preamble {
+  /* <pre> defaults to margin: 1em, which stacked on top of #pt-main's gap and
+     left the block floating further from the diff than a description does */
+  margin: 0;
   border: 1px solid var(--pt-border);
   border-radius: 6px;
   background: var(--pt-bg);
