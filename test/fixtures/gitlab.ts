@@ -63,6 +63,7 @@ const mr = {
   source_branch: "feature",
   target_branch: "main",
   head_pipeline: { status: "success", web_url: `${HOST}/pipe` },
+  web_url: `${HOST}/${PROJECT}/-/merge_requests/${IID}`,
   has_conflicts: false,
 };
 

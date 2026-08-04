@@ -698,6 +698,18 @@ export function initReview(P: Provider, view: PtView) {
         cf.textContent = "⚠ has conflicts";
         unresolvedEl.dd.after(cf);
       }
+      // the way back: the request's own title, doubling as a link to its page.
+      // A real <a> keeps cmd/middle-click working; content.ts also binds "b".
+      if (info.webUrl) {
+        const back = document.createElement("a");
+        back.id = "pt-back";
+        back.href = info.webUrl;
+        back.title = `Back to the ${P.kind === "gitlab" ? "merge" : "pull"} request — ${info.title}`;
+        back.innerHTML = `${icons.arrowLeft || "←"}<span class="pt-back-text"></span>`;
+        back.querySelector(".pt-back-text")!.textContent = info.title;
+        select.before(back);
+      }
+
       // inserted last so it sits immediately after the unresolved dropdown
       if (info.sourceBranch) {
         const br = document.createElement("span");

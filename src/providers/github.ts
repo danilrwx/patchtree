@@ -161,6 +161,7 @@ export function github(owner: string, repo: string, num: string): Provider {
       }
       return {
         title: `#${num} ${pr.title}`,
+        webUrl: pr.html_url,
         headSha: pr.head.sha,
         baseSha: pr.base.sha,
         startSha: pr.base.sha,

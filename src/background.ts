@@ -298,13 +298,58 @@ function findChild(node: any, type: string) {
   return null;
 }
 
-chrome.action.onClicked.addListener((tab) => {
-  if (!tab?.url) return;
-  const gl = /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)/.exec(tab.url);
-  const gh = /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+)/.exec(tab.url);
-  const base = gl?.[1] || gh?.[1];
-  if (base) chrome.tabs.create({ url: `${base}.diff`, index: tab.index + 1 });
+// The toolbar icon works both ways: from a merge/pull request it opens the
+// diff, and from a diff it goes back to the request. Diff tabs remember which
+// tab they came from, so going back returns to that tab instead of opening a
+// third one. The map is intentionally in-memory: if the worker is recycled the
+// fallback (open the URL) is still correct.
+const diffOrigin = new Map<number, number>();
+
+// a request page: .../-/merge_requests/N (GitLab) or .../pull/N (GitHub)
+const requestUrl = (url: string) =>
+  /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)(?:[/?#].*)?$/.exec(url)?.[1] ||
+  /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+)(?:[/?#].*)?$/.exec(url)?.[1] ||
+  null;
+
+// the same request, reached from the raw diff we are looking at
+const requestUrlFromDiff = (url: string) => {
+  const m =
+    /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)\.(?:diff|patch)$/.exec(url) ||
+    /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+)\.(?:diff|patch)$/.exec(url);
+  if (m) return m[1];
+  const gh =
+    /^https:\/\/patch-diff\.githubusercontent\.com\/raw\/([^/]+)\/([^/]+)\/pull\/(\d+)\.(?:diff|patch)$/.exec(
+      url
+    );
+  return gh ? `https://github.com/${gh[1]}/${gh[2]}/pull/${gh[3]}` : null;
+};
+
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab?.url || tab.id == null) return;
+
+  const back = requestUrlFromDiff(tab.url);
+  if (back) {
+    const from = diffOrigin.get(tab.id);
+    if (from != null) {
+      const alive = await chrome.tabs.get(from).catch(() => null);
+      if (alive?.id != null && requestUrl(alive.url || "") === back) {
+        await chrome.tabs.update(alive.id, { active: true });
+        if (alive.windowId != null) await chrome.windows.update(alive.windowId, { focused: true });
+        return;
+      }
+      diffOrigin.delete(tab.id);
+    }
+    chrome.tabs.update(tab.id, { url: back });
+    return;
+  }
+
+  const base = requestUrl(tab.url);
+  if (!base) return;
+  const created = await chrome.tabs.create({ url: `${base}.diff`, index: tab.index + 1 });
+  if (created.id != null) diffOrigin.set(created.id, tab.id);
 });
+
+chrome.tabs.onRemoved.addListener((id) => diffOrigin.delete(id));
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "themes") {

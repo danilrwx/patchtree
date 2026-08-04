@@ -43,6 +43,8 @@ export interface CiStatus {
 
 export interface Info {
   title: string;
+  // the merge/pull request page this diff belongs to, for the way back
+  webUrl?: string;
   headSha?: string;
   baseSha?: string;
   startSha?: string;

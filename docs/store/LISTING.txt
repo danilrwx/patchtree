@@ -83,6 +83,9 @@ NAVIGATION
   v viewed, x fold, s inline/side-by-side, e file tree, / filter, ? all
   shortcuts.
 · Per-commit diff filter, copy-path, open-at-head, and line permalinks.
+· The way back: the toolbar carries the request's title as a link to its page,
+  and the toolbar icon works both ways — request to diff, diff to request,
+  re-using the tab you came from.
 
 REVIEW (WITH AN ACCESS TOKEN)
 
@@ -144,10 +147,11 @@ That is the extension's only function.
 
 activeTab justification
 --------------------------------
-When the user clicks the patchtree toolbar icon on a merge request or pull
-request page, the extension reads that tab's URL to derive the corresponding
-.diff URL and opens it in a new tab. activeTab grants this only for the tab the
-user just clicked on, and only at that moment; no other tab is touched.
+When the user clicks the patchtree toolbar icon, the extension reads that tab's
+URL to move between the two views of the same change: from a merge/pull request
+page it opens the corresponding .diff, and from a .diff page it navigates back
+to the request. activeTab grants this only for the tab the user just clicked on,
+and only at that moment; no other tab is read.
 
 storage justification
 --------------------------------

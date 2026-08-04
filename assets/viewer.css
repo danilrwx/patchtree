@@ -1711,6 +1711,22 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
 #pt-diffstat .pt-adds { color: var(--pt-success); }
 #pt-diffstat .pt-dels { color: var(--pt-danger); }
 
+#pt-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: center;
+  max-width: 260px;
+  padding: 0 4px;
+  color: var(--pt-muted);
+  text-decoration: none;
+  font: calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
+  border-radius: 4px;
+}
+#pt-back:hover { color: var(--pt-fg); background: var(--pt-header-bg); }
+#pt-back svg { flex-shrink: 0 }
+#pt-back .pt-back-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
 #pt-branches {
   display: inline-flex;
   align-items: center;

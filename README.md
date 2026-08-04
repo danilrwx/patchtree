@@ -69,6 +69,10 @@ background worker.
   `x` fold, `s` inline/side-by-side, `e` file tree, `/` focus filter,
   `?` shortcuts overlay — bound to physical keys, so they work on any
   keyboard layout.
+- **The way back**: the toolbar shows the request's own title as a link to its
+  page, and the extension icon works both ways — from a merge/pull request it
+  opens the diff, from a diff it returns to the request (re-activating the tab
+  you came from rather than opening another one).
 - **Commit filter** — icon until you pick a commit, then a chip with its
   sha and a reset ×; shows the diff of that commit alone.
 - Compact toolbar: `+N −M · viewed/total` with a one-click reset, an

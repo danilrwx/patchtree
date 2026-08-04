@@ -131,6 +131,7 @@ export function gitlab(projectPath: string, iid: string): Provider {
       const mr = await api(`/projects/${project}/merge_requests/${iid}`);
       return {
         title: `!${iid} ${mr.title}`,
+        webUrl: mr.web_url,
         headSha: mr.diff_refs?.head_sha,
         baseSha: mr.diff_refs?.base_sha,
         startSha: mr.diff_refs?.start_sha,
