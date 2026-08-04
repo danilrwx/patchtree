@@ -41,10 +41,16 @@ export interface CiStatus {
   url: string;
 }
 
+export type RequestState = "open" | "draft" | "merged" | "closed";
+
 export interface Info {
   title: string;
   // the merge/pull request page this diff belongs to, for the way back
   webUrl?: string;
+  state?: RequestState;
+  author?: string;
+  createdAt?: string;
+  description?: string;
   headSha?: string;
   baseSha?: string;
   startSha?: string;

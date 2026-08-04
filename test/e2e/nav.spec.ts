@@ -29,10 +29,13 @@ test("j and k scroll between files", async ({ context, page }) => {
   await open(context, page);
   await toTop(page);
 
+  // j walks down the files; two steps put a file above us, so k has somewhere
+  // to go back to (from the first file it is a no-op by design)
   await page.keyboard.press("j");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-
+  await page.keyboard.press("j");
   const afterJ = await page.evaluate(() => window.scrollY);
+
   await page.keyboard.press("k");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(afterJ);
 });

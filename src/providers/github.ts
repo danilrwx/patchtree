@@ -162,6 +162,10 @@ export function github(owner: string, repo: string, num: string): Provider {
       return {
         title: `#${num} ${pr.title}`,
         webUrl: pr.html_url,
+        state: pr.merged ? "merged" : pr.state === "closed" ? "closed" : pr.draft ? "draft" : "open",
+        author: pr.user?.login,
+        createdAt: pr.created_at,
+        description: pr.body,
         headSha: pr.head.sha,
         baseSha: pr.base.sha,
         startSha: pr.base.sha,

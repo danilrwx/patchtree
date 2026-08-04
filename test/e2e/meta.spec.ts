@@ -23,20 +23,30 @@ test("the PR title and CI status are surfaced", async ({ context, page }) => {
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
   await expect.poll(() => page.title()).toContain("fix dra nil handling");
+
   const ci = page.locator("#pt-ci");
   await expect(ci).toContainText("success");
   await expect(ci).toHaveAttribute("href", /\/checks$/);
 });
 
-test("the source and target branches are shown with a copy button", async ({ context, page }) => {
+test("the bar summarises who is merging what into where, and when", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
   await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 
-  const branches = page.locator("#pt-branches");
-  await expect(branches.locator(".pt-branch-src")).toHaveText("feature");
-  await expect(branches.locator(".pt-branch-tgt")).toHaveText("main");
-  await branches.locator(".pt-branch-copy").click();
+  const row = page.locator("#pt-branches");
+  // the state chip is also the way back to the request
+  const chip = row.locator(".pt-state");
+  await expect(chip).toHaveText("Open");
+  await expect(chip).toHaveAttribute("href", /\/pull\/\d+$/);
+
+  await expect(row.locator(".pt-branch-author")).toHaveText("octocat");
+  await expect(row.locator(".pt-branch-src")).toHaveText("feature");
+  await expect(row.locator(".pt-branch-tgt")).toHaveText("main");
+  // Intl wording varies by locale, so the timestamp tooltip is what we pin
+  await expect(row.locator(".pt-branch-dim[title]")).toHaveAttribute("title", /2026/);
+
+  await row.locator(".pt-branch-copy").click();
   await expect(page.locator("#pt-status")).toContainText("branch name copied");
 });
 

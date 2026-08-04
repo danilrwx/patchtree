@@ -480,6 +480,80 @@ export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+
+// A git-format patch carries its commit message ahead of the diff: mbox line,
+// mail headers, the message body, then a diffstat. Colouring those parts makes
+// the block scannable instead of a wall of grey, and URLs become clickable.
+const AUTOLINK = /(https?:\/\/[^\s<>"')\]]+)/g;
+
+function escLinked(text: string): string {
+  return text
+    .split(AUTOLINK)
+    .map((part, i) =>
+      i % 2
+        ? `<a href="${esc(part)}" target="_blank" rel="noopener">${esc(part)}</a>`
+        : esc(part)
+    )
+    .join("");
+}
+
+export function renderPreambleHTML(text: string): string {
+  const span = (cls: string, s: string) => `<span class="pt-${cls}">${esc(s)}</span>`;
+  let inStat = false;
+
+  return text
+    .split("\n")
+    .map((line) => {
+      // the mbox separator that opens a format-patch file
+      const mbox = /^(From )([0-9a-f]{7,40})( .*)$/.exec(line);
+      if (mbox) return span("keyword", mbox[1]) + span("constant", mbox[2]) + esc(mbox[3]);
+
+      // mail headers: From:, Date:, Subject:, plus trailers like Signed-off-by:
+      const header = /^([A-Za-z][A-Za-z-]*): (.*)$/.exec(line);
+      if (header && !inStat) {
+        const key = span("keyword", `${header[1]}:`);
+        const value = header[1].toLowerCase() === "subject"
+          ? span("strong", header[2])
+          : escLinked(header[2]);
+        return `${key} ${value}`;
+      }
+
+      // "---" ends the message and opens the diffstat
+      if (line.trimEnd() === "---") {
+        inStat = true;
+        return span("punctuation", line);
+      }
+
+      // " path/to/file | 12 ++++----"
+      const stat = /^(\s+)(\S.*?)(\s+\|\s+)(\d+|Bin.*?)( ?)(\+*)(-*)(\s*)$/.exec(line);
+      if (inStat && stat)
+        return (
+          stat[1] +
+          span("property", stat[2]) +
+          span("punctuation", stat[3]) +
+          span("constant", stat[4]) +
+          stat[5] +
+          span("adds", stat[6]) +
+          span("dels", stat[7]) +
+          stat[8]
+        );
+
+      // " 2 files changed, 103 insertions(+), 14 deletions(-)"
+      const summary = /^(\s*\d+ files? changed)(.*)$/.exec(line);
+      if (inStat && summary)
+        return (
+          span("constant", summary[1]) +
+          summary[2]
+            .replace(/(\d+ insertions?\(\+\))/, (m) => span("adds", m))
+            .replace(/(\d+ deletions?\(-\))/, (m) => span("dels", m))
+            .replace(/,/g, (m) => span("punctuation", m))
+        );
+
+      return escLinked(line);
+    })
+    .join("\n");
+}
+
 export function renderLineHTML(
   text: string,
   ranges: Range[] | null | undefined,

@@ -64,6 +64,11 @@ const mr = {
   target_branch: "main",
   head_pipeline: { status: "success", web_url: `${HOST}/pipe` },
   web_url: `${HOST}/${PROJECT}/-/merge_requests/${IID}`,
+  state: "opened",
+  draft: false,
+  author: { name: "Ada Lovelace", username: "ada" },
+  created_at: "2026-07-01T10:00:00Z",
+  description: "Guards the **nil claim** path.\n\n- covered by `dra_test.go`",
   has_conflicts: false,
 };
 

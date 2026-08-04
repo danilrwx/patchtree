@@ -68,6 +68,9 @@ DIFF RENDERING
 
 · Any plain-text .diff / .patch page, whatever served it — git-format or a
   plain diff -u, GitLab, GitHub, or a local file.
+· The change explains itself first: a request shows its title and description
+  (rendered markdown, long ones collapsed), and a git format-patch file shows
+  its commit message with mail headers, diffstat and links highlighted.
 · Inline and side-by-side views; fully added or deleted files use the full
   width in split mode.
 · Expand hidden lines between hunks, or switch a file to its full contents.
@@ -83,9 +86,10 @@ NAVIGATION
   v viewed, x fold, s inline/side-by-side, e file tree, / filter, ? all
   shortcuts.
 · Per-commit diff filter, copy-path, open-at-head, and line permalinks.
-· The way back: the toolbar carries the request's title as a link to its page,
-  and the toolbar icon works both ways — request to diff, diff to request,
-  re-using the tab you came from.
+· Request summary in the toolbar: a state chip (Open / Draft / Merged / Closed)
+  then who is merging which branch into which, and when.
+· The way back: the state chip links to the request, and the toolbar icon works
+  both ways — request to diff, diff to request, re-using the tab you came from.
 
 REVIEW (WITH AN ACCESS TOKEN)
 

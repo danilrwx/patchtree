@@ -43,15 +43,12 @@ test("the tree toggle is pinned far-left, ahead of the other bar controls", asyn
 
   const bar = (await page.locator("#pt-bar").boundingBox())!;
   const toggle = (await page.locator("#pt-collapse").boundingBox())!;
-  const back = (await page.locator("#pt-back").boundingBox())!;
   const commits = (await page.locator("#pt-commits").boundingBox())!;
   const seg = (await page.locator("#pt-bar .pt-seg").first().boundingBox())!;
   // toggle flush against the bar's left edge
   expect(toggle.x - bar.x).toBeLessThan(6);
-  // controls pack from the left — no big empty middle. Order:
-  // toggle → back link → commits → unresolved → branch
-  expect(back.x - (toggle.x + toggle.width)).toBeLessThan(16);
-  expect(commits.x - (back.x + back.width)).toBeLessThan(16);
+  // review controls pack immediately after it — no big empty middle
+  expect(commits.x - (toggle.x + toggle.width)).toBeLessThan(16);
   const unresolved = (await page.locator("#pt-unresolved").boundingBox())!;
   expect(unresolved.x - (commits.x + commits.width)).toBeLessThan(12);
   const branches = (await page.locator("#pt-branches").boundingBox())!;

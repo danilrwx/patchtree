@@ -27,32 +27,31 @@ import {
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-test("the toolbar links back to the pull request, titled", async ({ context, page }) => {
+test("the state chip links back to the pull request", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
 
-  const back = page.locator("#pt-back");
+  const back = page.locator("#pt-branches .pt-state");
   await expect(back).toBeVisible({ timeout: 20000 });
   await expect(back).toHaveAttribute(
     "href",
     `https://github.com/${OWNER}/${REPO}/pull/${NUM}`
   );
-  // the link doubles as the context line: which request this diff is
-  await expect(back).toContainText(`#${NUM}`);
+  await expect(back).toHaveText("Open");
   await expect(back).toHaveAttribute("title", /Back to the pull request/);
 });
 
-test("on GitLab it links to the merge request", async ({ context, page }) => {
+test("on GitLab the state chip links to the merge request", async ({ context, page }) => {
   await mockGitlab(context);
   await seedToken(context, page, GL_DIFF_URL, GL_HOST);
 
-  const back = page.locator("#pt-back");
+  const back = page.locator("#pt-branches .pt-state");
   await expect(back).toBeVisible({ timeout: 20000 });
   await expect(back).toHaveAttribute("href", `${HOST}/${PROJECT}/-/merge_requests/${IID}`);
   await expect(back).toHaveAttribute("title", /Back to the merge request/);
 });
 
-test("a plain patch with no provider has no back link", async ({ context, page }) => {
+test("a plain patch with no provider has no request summary", async ({ context, page }) => {
   const diff = readFileSync(path.join(__dirname, "../fixtures/plain.diff"), "utf8");
   const url = "https://example.com/plain.patch";
   await context.route(url, (route) =>
@@ -61,5 +60,5 @@ test("a plain patch with no provider has no back link", async ({ context, page }
   await page.goto(url);
 
   await expect(page.locator(".pt-file-header").first()).toBeVisible({ timeout: 20000 });
-  await expect(page.locator("#pt-back")).toHaveCount(0);
+  await expect(page.locator("#pt-branches")).toHaveCount(0);
 });

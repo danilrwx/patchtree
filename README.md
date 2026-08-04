@@ -48,6 +48,10 @@ background worker.
 - Renders any plain-text `*.diff` / `*.patch` page, whatever served it —
   including **local files** opened via `file://` (git-format or a plain
   `diff -u`; review actions are off since there is no host to talk to).
+- **The change explains itself first**: a merge/pull request shows its title and
+  description (through the platform's markdown API, long ones collapsed), and a
+  `git format-patch` file shows its commit message with mail headers, diffstat
+  and clickable links highlighted.
 - **Inline and side-by-side** views; fully added/deleted files take the
   full width in split mode.
 - **Word-level diff**: changed words inside modified line pairs get a
@@ -69,10 +73,14 @@ background worker.
   `x` fold, `s` inline/side-by-side, `e` file tree, `/` focus filter,
   `?` shortcuts overlay — bound to physical keys, so they work on any
   keyboard layout.
-- **The way back**: the toolbar shows the request's own title as a link to its
-  page, and the extension icon works both ways — from a merge/pull request it
-  opens the diff, from a diff it returns to the request (re-activating the tab
-  you came from rather than opening another one).
+- **Request summary in the toolbar**: a state chip (Open / Draft / Merged /
+  Closed) followed by who is merging which branch into which, and when — the
+  same line the platforms show under the request title, with a copy button on
+  the source branch.
+- **The way back**: that state chip links to the request, and the extension icon
+  works both ways — from a merge/pull request it opens the diff, from a diff it
+  returns to the request (re-activating the tab you came from rather than
+  opening another one).
 - **Commit filter** — icon until you pick a commit, then a chip with its
   sha and a reset ×; shows the diff of that commit alone.
 - Compact toolbar: `+N −M · viewed/total` with a one-click reset, an

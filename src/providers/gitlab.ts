@@ -132,6 +132,16 @@ export function gitlab(projectPath: string, iid: string): Provider {
       return {
         title: `!${iid} ${mr.title}`,
         webUrl: mr.web_url,
+        state: mr.draft
+          ? "draft"
+          : mr.state === "merged"
+            ? "merged"
+            : mr.state === "closed"
+              ? "closed"
+              : "open",
+        author: mr.author?.name || mr.author?.username,
+        createdAt: mr.created_at,
+        description: mr.description,
         headSha: mr.diff_refs?.head_sha,
         baseSha: mr.diff_refs?.base_sha,
         startSha: mr.diff_refs?.start_sha,

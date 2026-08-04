@@ -14,7 +14,7 @@
 
 "use strict";
 
-import { resolveLang, parseDiff, buildFileModel } from "./diff";
+import { resolveLang, parseDiff, buildFileModel, renderPreambleHTML } from "./diff";
 import { flashCenter, mountDialog, makeDropdown, menuItem } from "./ui";
 import { injectFonts } from "./fonts";
 import { BASE16, applySettings, parseBase16Yaml } from "./theme";
@@ -351,6 +351,12 @@ async function main() {
 
   let views: any[] = [];
 
+  // The request's own title and description, in the slot a patch's preamble
+  // takes — review.ts fills it once the provider answers. Like the discussion
+  // box it lives outside renderDiff, which clears main.
+  const descBox = document.createElement("div");
+  descBox.id = "pt-desc";
+
   // general (non-line) discussion, rendered reactively from the threads store;
   // review.js fills the store. The box survives renderDiff, which clears main.
   const gthreadsBox = document.createElement("div");
@@ -361,12 +367,12 @@ async function main() {
     rawPre.textContent = text;
     main.textContent = "";
     resetDiffState();
-    main.appendChild(gthreadsBox);
+    main.append(descBox, gthreadsBox);
 
     if (parsed.preamble) {
       const pre = document.createElement("pre");
       pre.id = "pt-preamble";
-      pre.textContent = parsed.preamble;
+      pre.innerHTML = renderPreambleHTML(parsed.preamble);
       main.appendChild(pre);
     }
 
@@ -752,6 +758,7 @@ async function main() {
 
   const view: PtView = {
     bar,
+    desc: descBox,
     root,
     renderDiff,
     initialRaw: raw,

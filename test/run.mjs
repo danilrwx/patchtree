@@ -44,6 +44,7 @@ const {
   rowMeta,
   imageMime,
   isImagePath,
+  renderPreambleHTML,
 } = loadTs("src/diff.ts");
 
 let passed = 0;
@@ -247,6 +248,47 @@ t("hljsRows auto-detects code but leaves prose alone", () => {
   assert.ok(Object.keys(sql).length > 0, "sql detected");
   const prose = hljsRows("auto", "This project renders diffs.\nSee the docs for details.");
   assert.deepEqual(prose, {});
+});
+
+t("renderPreambleHTML colours a format-patch message", () => {
+  const html = renderPreambleHTML(
+    [
+      "From 782f63d8f858b1c14df38aaf623438d7ea2f75e1 Mon Sep 17 00:00:00 2001",
+      "From: mihirlad55 <mihirlad55@gmail.com>",
+      "Subject: [PATCH] Add support for managing external status bars",
+      "",
+      "Developed at https://github.com/mihirlad55/dwm-anybar",
+      "---",
+      " config.def.h |  3 ++",
+      " dwm.c        | 20 ++++----",
+      " 2 files changed, 103 insertions(+), 14 deletions(-)",
+    ].join("\n")
+  );
+  const line = (n) => html.split("\n")[n];
+
+  // mbox line: keyword + the commit sha
+  assert.match(line(0), /pt-keyword">From <\/span><span class="pt-constant">782f63d8/);
+  // headers keep their key coloured, and the subject stands out
+  assert.match(line(1), /pt-keyword">From:<\/span>/);
+  assert.match(line(2), /pt-strong">\[PATCH\] Add support/);
+  // the angle brackets in the address survive as text, not markup
+  assert.match(line(1), /&lt;mihirlad55@gmail\.com&gt;/);
+  // urls in the body become links
+  assert.match(line(4), /<a href="https:\/\/github\.com\/mihirlad55\/dwm-anybar"/);
+  // diffstat: path, count, then plus/minus runs in the diff colours
+  assert.match(line(6), /pt-property">config\.def\.h<\/span>/);
+  assert.match(line(6), /pt-adds">\+\+<\/span>/);
+  assert.match(line(7), /pt-adds">\+\+\+\+<\/span><span class="pt-dels">----<\/span>/);
+  assert.match(line(8), /pt-adds">103 insertions\(\+\)<\/span>/);
+  assert.match(line(8), /pt-dels">14 deletions\(-\)<\/span>/);
+});
+
+t("renderPreambleHTML escapes html and leaves plain prose alone", () => {
+  const html = renderPreambleHTML("a <script>alert(1)</script> & co\nplain line");
+  assert.ok(!html.includes("<script>"));
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /&amp; co/);
+  assert.equal(html.split("\n")[1], "plain line");
 });
 
 t("renderLineHTML: identical span keeps the last capture", () => {

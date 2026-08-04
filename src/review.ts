@@ -21,6 +21,8 @@ import type { Provider } from "./types";
 // The imperative surface content.ts builds and hands to the review controller.
 export interface PtView {
   bar: HTMLElement;
+  // slot above the first file for the request's title and description
+  desc: HTMLElement;
   root: HTMLElement;
   renderDiff: (text: string) => void;
   initialRaw: string;
@@ -42,6 +44,79 @@ export function initReview(P: Provider, view: PtView) {
   let drafts: any[] = [];
   let unresolvedEl: any = null;
   let reviewSum: HTMLElement | null = null;
+
+
+
+  const STATE_LABEL: Record<string, string> = {
+    open: "Open",
+    draft: "Draft",
+    merged: "Merged",
+    closed: "Closed",
+  };
+
+  // "5 days ago" — the narrow style renders Russian as "-5 дн.", where the
+  // minus reads like an error; short stays compact and unambiguous. The exact
+  // timestamp lives in the title attribute.
+  function relativeTime(iso: string) {
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto", style: "short" });
+    const secs = (Date.parse(iso) - Date.now()) / 1000;
+    const steps: [Intl.RelativeTimeFormatUnit, number][] = [
+      ["year", 31536000],
+      ["month", 2592000],
+      ["week", 604800],
+      ["day", 86400],
+      ["hour", 3600],
+      ["minute", 60],
+    ];
+    for (const [unit, size] of steps)
+      if (Math.abs(secs) >= size) return rtf.format(Math.round(secs / size), unit);
+    return rtf.format(Math.round(secs), "second");
+  }
+
+
+  // The request's title and description, shown where a git-format patch shows
+  // its commit message — same place, same purpose: what this change is about,
+  // before the diff itself. The body goes through the platform's markdown API,
+  // so checklists, links and code fences render as the author wrote them.
+  async function renderDescription(info: any) {
+    const host = view.desc;
+    if (!host) return;
+    host.textContent = "";
+    if (!info.title) return;
+
+    const title = document.createElement(info.webUrl ? "a" : "h1") as HTMLAnchorElement;
+    title.className = "pt-desc-title";
+    if (info.webUrl) {
+      title.href = info.webUrl;
+      title.title = `Open the ${P.kind === "gitlab" ? "merge" : "pull"} request`;
+    }
+    title.textContent = info.title;
+    host.appendChild(title);
+
+    const body = (info.description || "").trim();
+    if (!body) return;
+
+    const md = document.createElement("div");
+    md.className = "pt-md pt-desc-body";
+    md.innerHTML = await renderMarkdown(body);
+    host.appendChild(md);
+
+    // a long description would push the diff off-screen; clamp it and offer the
+    // rest behind one click, measuring after layout so short bodies stay open
+    requestAnimationFrame(() => {
+      if (md.scrollHeight <= 340) return;
+      md.classList.add("pt-desc-clamped");
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "pt-desc-more";
+      more.textContent = "Show more";
+      more.addEventListener("click", () => {
+        const clamped = md.classList.toggle("pt-desc-clamped");
+        more.textContent = clamped ? "Show more" : "Show less";
+      });
+      host.appendChild(more);
+    });
+  }
 
   function status(text: string, isError?: boolean) {
     const el = document.getElementById("pt-status");
@@ -698,45 +773,72 @@ export function initReview(P: Provider, view: PtView) {
         cf.textContent = "⚠ has conflicts";
         unresolvedEl.dd.after(cf);
       }
-      // the way back: the request's own title, doubling as a link to its page.
-      // A real <a> keeps cmd/middle-click working; content.ts also binds "b".
-      if (info.webUrl) {
-        const back = document.createElement("a");
-        back.id = "pt-back";
-        back.href = info.webUrl;
-        back.title = `Back to the ${P.kind === "gitlab" ? "merge" : "pull"} request — ${info.title}`;
-        back.innerHTML = `${icons.arrowLeft || "←"}<span class="pt-back-text"></span>`;
-        back.querySelector(".pt-back-text")!.textContent = info.title;
-        select.before(back);
-      }
+      renderDescription(info);
 
-      // inserted last so it sits immediately after the unresolved dropdown
-      if (info.sourceBranch) {
-        const br = document.createElement("span");
-        br.id = "pt-branches";
-        const src = document.createElement("span");
-        src.className = "pt-branch-src";
-        src.textContent = info.sourceBranch;
-        const copy = document.createElement("button");
-        copy.type = "button";
-        copy.className = "pt-hbtn pt-branch-copy";
-        copy.title = "Copy branch name";
-        copy.innerHTML = icons.copy || "";
-        copy.addEventListener("click", () => {
-          navigator.clipboard.writeText(info.sourceBranch!);
-          status("branch name copied");
-        });
-        br.append(src, copy);
-        if (info.targetBranch) {
-          const arrow = document.createElement("span");
-          arrow.className = "pt-branch-arrow";
-          arrow.textContent = "→";
-          const tgt = document.createElement("span");
-          tgt.className = "pt-branch-tgt";
-          tgt.textContent = info.targetBranch;
-          br.append(arrow, tgt);
+      // one line saying who is merging what into where, and when — the same
+      // summary GitLab and GitHub put under the request title, sized for the bar
+      if (info.sourceBranch || info.state) {
+        const row = document.createElement("span");
+        row.id = "pt-branches";
+
+        if (info.state) {
+          const chip = document.createElement(info.webUrl ? "a" : "span") as HTMLAnchorElement;
+          chip.className = "pt-state";
+          chip.dataset.state = info.state;
+          chip.textContent = STATE_LABEL[info.state];
+          if (info.webUrl) {
+            chip.href = info.webUrl;
+            chip.title = `Back to the ${P.kind === "gitlab" ? "merge" : "pull"} request — ${info.title}`;
+          }
+          row.appendChild(chip);
         }
-        unresolvedEl.dd.after(br);
+        if (info.author) {
+          const who = document.createElement("span");
+          who.className = "pt-branch-author";
+          who.textContent = info.author;
+          row.appendChild(who);
+        }
+        if (info.sourceBranch) {
+          const verb = document.createElement("span");
+          verb.className = "pt-branch-dim";
+          verb.textContent = "merging";
+          const src = document.createElement("span");
+          src.className = "pt-branch-src";
+          src.textContent = info.sourceBranch;
+          src.title = info.sourceBranch;
+          const copy = document.createElement("button");
+          copy.type = "button";
+          copy.className = "pt-hbtn pt-branch-copy";
+          copy.title = "Copy branch name";
+          copy.innerHTML = icons.copy || "";
+          copy.addEventListener("click", () => {
+            navigator.clipboard.writeText(info.sourceBranch!);
+            status("branch name copied");
+          });
+          row.append(verb, src, copy);
+          if (info.targetBranch) {
+            const into = document.createElement("span");
+            into.className = "pt-branch-dim";
+            into.textContent = "into";
+            const tgt = document.createElement("span");
+            tgt.className = "pt-branch-tgt";
+            tgt.textContent = info.targetBranch;
+            tgt.title = info.targetBranch;
+            row.append(into, tgt);
+          }
+        }
+        if (info.createdAt) {
+          const dot = document.createElement("span");
+          dot.className = "pt-branch-dim";
+          dot.textContent = "·";
+          row.appendChild(dot);
+          const when = document.createElement("span");
+          when.className = "pt-branch-dim";
+          when.textContent = relativeTime(info.createdAt);
+          when.title = new Date(info.createdAt).toLocaleString();
+          row.appendChild(when);
+        }
+        unresolvedEl.dd.after(row);
       }
     } catch (e: any) {
       status(`info unavailable: ${e.message}`, true);
