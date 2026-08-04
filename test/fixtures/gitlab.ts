@@ -168,7 +168,25 @@ index 3333333..4444444 100644
 // GitLab-only extras: the commit selector (commitDiff is a direct page fetch)
 // and the ignore-whitespace toggle (?w=1 re-fetch). Both re-render the diff.
 export async function mockGitlabExtras(context: BrowserContext): Promise<void> {
-  const commits = [{ id: "c0ffee0", short_id: "c0ffee0", title: "isolated commit change" }];
+  // enough entries that the menu's filter field shows up (it hides on short lists)
+  const commits = [
+    {
+      id: "c0ffee0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      short_id: "c0ffee0",
+      title: "isolated commit change",
+      author_name: "Ada Lovelace",
+      committed_date: "2026-07-20T09:00:00Z",
+      web_url: `${HOST}/${PROJECT}/-/commit/c0ffee0`,
+    },
+    ...Array.from({ length: 9 }, (_, i) => ({
+      id: `feed${i}`.padEnd(40, "0"),
+      short_id: `feed${i}00`,
+      title: `unrelated commit ${i}`,
+      author_name: "Grace Hopper",
+      committed_date: "2026-07-19T09:00:00Z",
+      web_url: `${HOST}/${PROJECT}/-/commit/feed${i}`,
+    })),
+  ];
 
   await context.route(`${DIFF_URL}*`, (route) => {
     const body = route.request().url().includes("w=1") ? wsDiff : diff;

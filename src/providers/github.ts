@@ -335,6 +335,9 @@ export function github(owner: string, repo: string, num: string): Provider {
           sha: c.sha,
           short: c.sha.slice(0, 8),
           title: (c.commit?.message || "").split("\n")[0],
+          author: c.commit?.author?.name || c.author?.login,
+          date: c.commit?.author?.date || c.commit?.committer?.date,
+          webUrl: c.html_url,
         }))
       ),
     // check runs cover Actions and most apps; the older commit statuses cover

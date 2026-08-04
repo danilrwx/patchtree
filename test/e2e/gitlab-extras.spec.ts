@@ -31,6 +31,47 @@ test("picking a commit renders that commit's diff", async ({ context, page }) =>
   });
 });
 
+test("filtering and Enter picks the first match", async ({ context, page }) => {
+  await mockGitlabExtras(context);
+  await seedToken(context, page, DIFF_URL, TOKEN_HOST);
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const dd = page.locator("#pt-commits");
+  await dd.locator("summary").click();
+  await dd.locator(".pt-dd-filter").fill("isolated");
+  await dd.locator(".pt-dd-filter").press("Enter");
+
+  await expect(page.locator(".pt-tree-file", { hasText: "commit_only.go" })).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(dd.locator("summary")).toContainText("c0ffee0");
+});
+
+test("the commit menu filters, shows metadata and copies a sha", async ({ context, page }) => {
+  await mockGitlabExtras(context);
+  await seedToken(context, page, DIFF_URL, TOKEN_HOST);
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+
+  const dd = page.locator("#pt-commits");
+  await dd.locator("summary").click();
+  await expect(dd.locator(".pt-commit-all")).toHaveText(/All commits \(10\)/);
+
+  const row = dd.locator(".pt-commit", { hasText: "isolated commit change" });
+  await expect(row.locator(".pt-commit-meta")).toContainText("Ada Lovelace");
+  await expect(row.locator("a.pt-hbtn")).toHaveAttribute("href", /\/-\/commit\/c0ffee0$/);
+
+  await dd.locator(".pt-dd-filter").fill("isolated");
+  await expect(dd.locator(".pt-commit:visible")).toHaveCount(1);
+
+  await row.locator("button.pt-hbtn").click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "c0ffee0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  );
+  // copying must not swap the diff for that commit
+  await expect(dd.locator(".pt-commit-all")).toHaveClass(/pt-active/);
+});
+
 test("the ignore-whitespace toggle re-renders the diff", async ({ context, page }) => {
   await mockGitlabExtras(context);
   await seedToken(context, page, DIFF_URL, TOKEN_HOST);

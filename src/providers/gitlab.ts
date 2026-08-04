@@ -238,7 +238,14 @@ export function gitlab(projectPath: string, iid: string): Provider {
     },
     commits: () =>
       apiPaged(`/projects/${project}/merge_requests/${iid}/commits?`).then((cs) =>
-        cs.map((c) => ({ sha: c.id, short: c.short_id, title: c.title }))
+        cs.map((c) => ({
+          sha: c.id,
+          short: c.short_id,
+          title: c.title,
+          author: c.author_name,
+          date: c.committed_date || c.created_at,
+          webUrl: c.web_url,
+        }))
       ),
     ciJobs: async (ci) => {
       if (ci.ref == null) return [];

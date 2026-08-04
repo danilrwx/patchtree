@@ -259,10 +259,28 @@ await (async () => {
   }
 
   {
-    h.setReply(() => resp([{ id: "sha1", short_id: "sha1sho", title: "c" }]));
+    h.setReply(() =>
+      resp([
+        {
+          id: "sha1",
+          short_id: "sha1sho",
+          title: "c",
+          author_name: "Ada",
+          committed_date: "2026-07-01T00:00:00Z",
+          web_url: "https://gl/c/sha1",
+        },
+      ])
+    );
     const cs = await P.commits();
-    t("gitlab: commits maps id/short_id/title", () => {
-      same(cs[0], { sha: "sha1", short: "sha1sho", title: "c" });
+    t("gitlab: commits maps sha, title, author, date and url", () => {
+      same(cs[0], {
+        sha: "sha1",
+        short: "sha1sho",
+        title: "c",
+        author: "Ada",
+        date: "2026-07-01T00:00:00Z",
+        webUrl: "https://gl/c/sha1",
+      });
     });
   }
 
@@ -631,12 +649,25 @@ await (async () => {
   }
 
   {
-    h.setReply(() => resp([{ sha: "abcdef1234", commit: { message: "msg\nbody" } }]));
+    h.setReply(() =>
+      resp([
+        {
+          sha: "abcdef1234",
+          html_url: "https://gh/c/abcdef1234",
+          commit: { message: "msg\nbody", author: { name: "Ada", date: "2026-07-01T00:00:00Z" } },
+        },
+      ])
+    );
     const cs = await P.commits();
-    t("github: commits maps sha/short/title", () => {
-      assert.equal(cs[0].sha, "abcdef1234");
-      assert.equal(cs[0].short, "abcdef12");
-      assert.equal(cs[0].title, "msg");
+    t("github: commits maps sha, title, author, date and url", () => {
+      same(cs[0], {
+        sha: "abcdef1234",
+        short: "abcdef12",
+        title: "msg",
+        author: "Ada",
+        date: "2026-07-01T00:00:00Z",
+        webUrl: "https://gh/c/abcdef1234",
+      });
     });
   }
 

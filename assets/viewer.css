@@ -775,6 +775,11 @@ html.pt-on {
   text-overflow: ellipsis;
 }
 
+/* flex display would otherwise win over the hidden attribute */
+.pt-dd-item[hidden] {
+  display: none;
+}
+
 .pt-dd-item:hover {
   background: var(--pt-header-bg);
 }
@@ -903,8 +908,81 @@ html.pt-on {
   max-width: 380px;
 }
 
+/* commit rows carry sha + subject + author/date + actions, so the menu is much
+   wider than a plain dropdown, yet still bounded by the viewport */
 #pt-commits .pt-dd-menu {
-  min-width: 340px;
+  min-width: 620px;
+  max-width: min(880px, 92vw);
+}
+
+.pt-dd-filter {
+  position: sticky;
+  /* cancels the menu's own padding so nothing scrolls out above the field */
+  top: -6px;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 5px 8px;
+  background: var(--pt-bg);
+  border: 1px solid var(--pt-border);
+  border-radius: 4px;
+  color: var(--pt-fg);
+  font: var(--pt-ui-size, 14px)/1.4 var(--pt-ui);
+}
+
+.pt-dd-filter:focus {
+  outline: none;
+  border-color: var(--pt-accent);
+}
+
+.pt-commit-all[data-count]::after {
+  content: attr(data-count);
+  margin-left: auto;
+  color: var(--pt-muted);
+  font-size: 12px;
+}
+
+.pt-commit-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-commit-meta {
+  flex-shrink: 0;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--pt-muted);
+  font-size: 12px;
+}
+
+.pt-commit-acts {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  /* kept in the layout so hovering a row never shifts its text */
+  opacity: 0;
+}
+
+.pt-commit:hover .pt-commit-acts,
+.pt-commit-acts:focus-within {
+  opacity: 1;
+}
+
+.pt-commit-acts .pt-hbtn {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--pt-muted);
+  cursor: pointer;
+}
+
+.pt-commit-acts .pt-hbtn:hover {
+  color: var(--pt-fg);
 }
 
 #pt-tree-head {

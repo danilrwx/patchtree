@@ -527,26 +527,107 @@ export function initReview(P: Provider, view: PtView) {
       }
     };
 
-    const addItem = (sha: string, html: string, label: string) => {
-      const item = menuItem(menu, html, (it: any) => choose(sha, label, it));
+    const filter = document.createElement("input");
+    filter.className = "pt-dd-filter";
+    filter.placeholder = "Filter by sha, message, author…";
+    filter.hidden = true;
+    menu.appendChild(filter);
+
+    const all = menuItem(menu, "All commits", (it: any) => choose("", "", it));
+    all.classList.add("pt-active", "pt-commit-all");
+    items.push(all);
+    reset.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      choose("", "", all);
+    });
+
+    const iconBtn = (icon: string, title: string, fn: () => void) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pt-hbtn";
+      b.title = title;
+      b.innerHTML = icons[icon] || "";
+      b.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fn();
+      });
+      return b;
+    };
+
+    const addCommit = (c: any) => {
+      const item = document.createElement("div");
+      item.className = "pt-dd-item pt-commit";
+      const sha = document.createElement("span");
+      sha.className = "pt-sha";
+      sha.textContent = c.short;
+      const title = document.createElement("span");
+      title.className = "pt-commit-title";
+      title.textContent = c.title;
+      title.title = c.title;
+      item.append(sha, title);
+      if (c.author || c.date) {
+        const meta = document.createElement("span");
+        meta.className = "pt-commit-meta";
+        meta.textContent = [c.author, c.date && relativeTime(c.date)].filter(Boolean).join(" · ");
+        if (c.date) meta.title = new Date(c.date).toLocaleString();
+        item.appendChild(meta);
+      }
+      const acts = document.createElement("span");
+      acts.className = "pt-commit-acts";
+      const copy = iconBtn("copy", "Copy the full sha", () => {
+        navigator.clipboard.writeText(c.sha);
+        status(`${c.short} copied`);
+      });
+      acts.appendChild(copy);
+      if (c.webUrl) {
+        const open = document.createElement("a");
+        open.className = "pt-hbtn";
+        open.href = c.webUrl;
+        open.target = "_blank";
+        open.rel = "noreferrer";
+        open.title = "Open the commit on the host";
+        open.innerHTML = icons.external || "";
+        open.addEventListener("click", (e) => e.stopPropagation());
+        acts.appendChild(open);
+      }
+      item.appendChild(acts);
+      item.addEventListener("click", () => choose(c.sha, c.short, item));
+      menu.appendChild(item);
       items.push(item);
       return item;
     };
 
-    addItem("", "All commits", "").classList.add("pt-active");
-    reset.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      choose("", "", items[0]);
+    filter.addEventListener("input", () => {
+      const q = filter.value.trim().toLowerCase();
+      let shown = 0;
+      for (const it of items) {
+        if (it === all) continue;
+        const hit = !q || (it.textContent || "").toLowerCase().includes(q);
+        it.hidden = !hit;
+        if (hit) shown++;
+      }
+      all.dataset.count = q ? `${shown} shown` : "";
     });
+    filter.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") items.find((i) => i !== all && !i.hidden)?.click();
+      else if (e.key === "Escape" && filter.value) {
+        filter.value = "";
+        filter.dispatchEvent(new Event("input"));
+      } else if (e.key === "Escape") dd.open = false;
+      else return;
+      e.preventDefault();
+    });
+    dd.addEventListener("toggle", () => {
+      if (dd.open && !filter.hidden) filter.focus();
+    });
+
     P.commits()
       .then((commits: any[]) => {
-        for (const c of commits)
-          addItem(
-            c.sha,
-            `<span class="pt-sha">${esc(c.short)}</span><span>${esc(c.title)}</span>`,
-            c.short
-          );
+        for (const c of commits) addCommit(c);
+        all.firstChild!.textContent = `All commits (${commits.length})`;
+        filter.hidden = commits.length < 8;
       })
       .catch((e: any) => status(`commits unavailable: ${e.message}`, true));
     return dd;

@@ -76,6 +76,9 @@ export interface Commit {
   sha: string;
   short: string;
   title: string;
+  author?: string;
+  date?: string;
+  webUrl?: string;
 }
 
 export type NoteKind = "line" | "issue";
