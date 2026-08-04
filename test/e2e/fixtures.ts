@@ -42,10 +42,16 @@ export const test = base.extend<{ context: BrowserContext }>({
   // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the destructure even for a no-dependency fixture
   context: async ({}, use) => {
     const context = await chromium.launchPersistentContext("", {
-      // MV3 extensions (service worker + content scripts) load only in headed
-      // Chromium; CI runs this under xvfb.
+      // MV3 extensions never loaded in the old headless mode, hence the historic
+      // "headed under xvfb" setup. Chromium's new headless does support them, so
+      // the run no longer steals focus or flashes windows; PWDEBUG=1 or
+      // PT_HEADED=1 brings the window back when something needs watching.
       headless: false,
-      args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+      args: [
+        ...(process.env.PT_HEADED || process.env.PWDEBUG ? [] : ["--headless=new"]),
+        `--disable-extensions-except=${dist}`,
+        `--load-extension=${dist}`,
+      ],
     });
     await use(context);
     await context.close();

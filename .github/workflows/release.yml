@@ -59,7 +59,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: End-to-end tests
-        run: xvfb-run make e2e
+        run: make e2e
 
       - name: Upload e2e failure traces
         if: failure()

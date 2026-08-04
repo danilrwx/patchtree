@@ -42,7 +42,13 @@ async function shootScenes(out, deviceScaleFactor) {
     headless: false,
     viewport: { width: 1280, height: 800 },
     deviceScaleFactor,
-    args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+    // new headless still loads MV3 extensions and renders the same pixels, so
+    // shooting no longer takes over the screen (PT_HEADED=1 to watch it)
+    args: [
+      ...(process.env.PT_HEADED ? [] : ["--headless=new"]),
+      `--disable-extensions-except=${dist}`,
+      `--load-extension=${dist}`,
+    ],
   });
   const page = context.pages()[0] ?? (await context.newPage());
   const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));

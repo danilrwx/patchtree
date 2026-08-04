@@ -156,7 +156,9 @@ configured. Firefox MV3 treats host permissions as opt-in — enable
 - `make test` — run the pure-logic checks in `test/run.mjs`.
 - `make e2e` — Playwright end-to-end: loads the built extension against a PR
   `.diff` fixture with the adapter mocked (needs `npx playwright install
-  chromium`; runs headed, use `xvfb-run` on Linux).
+  chromium`). Runs in Chromium's new headless mode, which loads MV3
+  extensions, so no window appears and no display is required;
+  `PT_HEADED=1 make e2e` shows the browser when you need to watch it.
 - `make zip` / `make zip-firefox` — bundle and archive `dist/`.
 - `node scripts/scenes.mjs` — reshoot every gallery frame: 2x into
   `docs/screenshots/` for this README, and the first five at 1x into
