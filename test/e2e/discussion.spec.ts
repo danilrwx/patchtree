@@ -23,6 +23,11 @@ import {
   DISCUSSION_BODY,
   MANY_THREAD_BODY,
 } from "../fixtures/github";
+import {
+  mockGitlab,
+  DIFF_URL as GL_DIFF_URL,
+  TOKEN_HOST as GL_TOKEN_HOST,
+} from "../fixtures/gitlab";
 
 test("the unresolved dropdown lists open threads and jumps to one", async ({ context, page }) => {
   await mockGithub(context);
@@ -98,4 +103,38 @@ test("the general discussion block renders and accepts a reply", async ({ contex
   await block.locator(".pt-comment-form button.pt-primary").click();
 
   await expect(block).toContainText(reply, { timeout: 10000 });
+});
+
+test("the unresolved list carries metadata, filters, and resolves in place", async ({
+  context,
+  page,
+}) => {
+  await mockGitlab(context, { manyThreads: true });
+  await seedToken(context, page, GL_DIFF_URL, GL_TOKEN_HOST);
+  await expect(page.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
+
+  const dd = page.locator("#pt-unresolved");
+  await expect(dd.locator(".pt-dd-label")).toHaveText("9", { timeout: 20000 });
+  await dd.locator("summary").click();
+
+  // rows follow the diff's file order, not the alphabet (dra.go before its test)
+  const locs = await dd.locator(".pt-thread-row .pt-sha").allTextContents();
+  expect(locs[0]).toMatch(/^dra\.go:/);
+  expect(locs.findIndex((l) => l.startsWith("dra_test.go"))).toBeGreaterThan(0);
+
+  // author, age, and a reply count when the thread has answers
+  const first = dd.locator(".pt-thread-row").first();
+  await expect(first.locator(".pt-dd-meta")).toContainText("Grace Hopper");
+  await expect(first.locator(".pt-dd-meta")).toContainText("1 reply");
+
+  await dd.locator(".pt-dd-filter").fill("grace");
+  const shown = await dd.locator(".pt-thread-row:not([hidden])").count();
+  expect(shown).toBeGreaterThan(0);
+  expect(shown).toBeLessThan(9);
+  await dd.locator(".pt-dd-filter").fill("");
+
+  // resolving from the list drops the row and the counter, without leaving the bar
+  await first.locator(".pt-dd-acts button").click();
+  await expect(dd.locator(".pt-dd-label")).toHaveText("8");
+  await expect(dd.locator(".pt-thread-row")).toHaveCount(8);
 });

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { setReviewThreads, setComposing, composing, setReviewApi } from "./store";
+import { setReviewThreads, setComposing, composing, setReviewApi, treeFiles } from "./store";
 import { icons } from "./icons";
 import { esc } from "./diff";
-import { flashCenter, makeDropdown, menuItem, surround, prefixLines } from "./ui";
+import { flashCenter, makeDropdown, menuFilter, menuItem, surround, prefixLines } from "./ui";
 import type { Provider } from "./types";
 
 // The imperative surface content.ts builds and hands to the review controller.
@@ -243,31 +243,104 @@ export function initReview(P: Provider, view: PtView) {
     publishThreads();
   }
 
-  function updateUnresolved() {
-    if (!unresolvedEl) return;
-    const open = realThreads.filter((t) => t.resolvable && !t.resolved);
-    unresolvedEl.dd.style.display = open.length ? "" : "none";
-    unresolvedEl.sum.querySelector(".pt-dd-label").textContent = `${open.length}`;
-    unresolvedEl.menu.textContent = "";
-    for (const t of open) {
-      const note = t.notes[0];
-      const loc = t.pos
-        ? `${t.pos.path.split("/").pop()}:${t.pos.newLine || t.pos.oldLine}`
-        : "discussion";
-      const snippet = (note?.body || "").replace(/\s+/g, " ").slice(0, 60);
-      menuItem(
-        unresolvedEl.menu,
-        `<span class="pt-sha">${esc(loc)}</span><span>${esc(snippet)}</span>`,
-        () => {
-          unresolvedEl.dd.open = false;
-          scrollToThread(t);
-        }
-      );
+  // Shared by the thread cards and the unresolved list in the bar, so resolving
+  // from either place updates the store the same way.
+  async function resolveThread(t: any, value: boolean) {
+    try {
+      await P.resolveThread(t, value);
+      replaceThread(t.id, (x) => [
+        { ...x, resolved: value, notes: x.notes.map((n: any) => ({ ...n, resolved: value })) },
+      ]);
+      updateUnresolved();
+      status(value ? "thread resolved" : "thread unresolved");
+    } catch (e: any) {
+      status(`resolve failed: ${e.message}`, true);
     }
   }
 
+  function updateUnresolved() {
+    if (!unresolvedEl) return;
+    const open = realThreads
+      .filter((t) => t.resolvable && !t.resolved)
+      .sort((a, b) => {
+        // file order follows the diff, not the alphabet, so walking the list
+        // walks the review top to bottom; general discussion leads
+        const order = treeFiles().map((f) => f.path);
+        const rank = (t: any) => (t.pos ? order.indexOf(t.pos.path) + 1 : 0);
+        const ra = rank(a);
+        const rb = rank(b);
+        if (ra !== rb) return ra - rb;
+        return (a.pos?.newLine || a.pos?.oldLine || 0) - (b.pos?.newLine || b.pos?.oldLine || 0);
+      });
+    unresolvedEl.dd.style.display = open.length ? "" : "none";
+    unresolvedEl.sum.querySelector(".pt-dd-label").textContent = `${open.length}`;
+    for (const old of unresolvedEl.menu.querySelectorAll(".pt-dd-item")) old.remove();
+
+    for (const t of open) {
+      const note = t.notes[0];
+      const item = document.createElement("div");
+      item.className = "pt-dd-item pt-thread-row";
+
+      const loc = document.createElement("span");
+      loc.className = "pt-sha";
+      loc.textContent = t.pos
+        ? `${t.pos.path.split("/").pop()}:${t.pos.newLine || t.pos.oldLine}`
+        : "discussion";
+      if (t.pos) loc.title = t.pos.path;
+
+      const body = document.createElement("span");
+      body.className = "pt-dd-title";
+      const text = (note?.body || "").replace(/\s+/g, " ").trim();
+      body.textContent = text;
+      body.title = text;
+      item.append(loc, body);
+
+      const meta = document.createElement("span");
+      meta.className = "pt-dd-meta";
+      const replies = t.notes.length - 1;
+      meta.textContent = [
+        note?.author,
+        note?.createdAt && relativeTime(note.createdAt),
+        replies > 0 && `${replies} ${replies === 1 ? "reply" : "replies"}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      item.appendChild(meta);
+
+      if (P.can.resolve) {
+        const acts = document.createElement("span");
+        acts.className = "pt-dd-acts";
+        const done = document.createElement("button");
+        done.type = "button";
+        done.className = "pt-hbtn";
+        done.title = "Resolve this thread";
+        done.innerHTML = icons.check || "";
+        done.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          resolveThread(t, true);
+        });
+        acts.appendChild(done);
+        item.appendChild(acts);
+      }
+
+      item.addEventListener("click", () => {
+        unresolvedEl.dd.open = false;
+        scrollToThread(t);
+      });
+      unresolvedEl.menu.appendChild(item);
+    }
+    unresolvedEl.filter?.refresh();
+  }
+
   function scrollToThread(t: any) {
-    if (!t.pos) return;
+    // general discussion has no line to anchor to — it lives in its own block
+    // above the first file
+    if (!t.pos) {
+      const el = document.getElementById("pt-mr-threads");
+      if (el) flashCenter(el);
+      return;
+    }
     const sel = t.pos.newLine
       ? `tr[data-path="${CSS.escape(t.pos.path)}"][data-new="${t.pos.newLine}"]`
       : `tr[data-path="${CSS.escape(t.pos.path)}"][data-old="${t.pos.oldLine}"]`;
@@ -365,18 +438,7 @@ export function initReview(P: Provider, view: PtView) {
       publishThreads();
       status("added to review");
     },
-    resolve: async (t: any, value: boolean) => {
-      try {
-        await P.resolveThread(t, value);
-        replaceThread(t.id, (x) => [
-          { ...x, resolved: value, notes: x.notes.map((n: any) => ({ ...n, resolved: value })) },
-        ]);
-        updateUnresolved();
-        status(value ? "thread resolved" : "thread unresolved");
-      } catch (e: any) {
-        status(`resolve failed: ${e.message}`, true);
-      }
-    },
+    resolve: resolveThread,
     editNote: async (t: any, note: any, body: string) => {
       const nb = await P.editNote(note, body);
       replaceThread(t.id, (x) => [
@@ -527,14 +589,10 @@ export function initReview(P: Provider, view: PtView) {
       }
     };
 
-    const filter = document.createElement("input");
-    filter.className = "pt-dd-filter";
-    filter.placeholder = "Filter by sha, message, author…";
-    filter.hidden = true;
-    menu.appendChild(filter);
-
     const all = menuItem(menu, "All commits", (it: any) => choose("", "", it));
     all.classList.add("pt-active", "pt-commit-all");
+    all.dataset.filter = "keep";
+    const filter = menuFilter(menu, "Filter by sha, message, author…");
     items.push(all);
     reset.addEventListener("click", (e) => {
       e.preventDefault();
@@ -563,19 +621,19 @@ export function initReview(P: Provider, view: PtView) {
       sha.className = "pt-sha";
       sha.textContent = c.short;
       const title = document.createElement("span");
-      title.className = "pt-commit-title";
+      title.className = "pt-dd-title";
       title.textContent = c.title;
       title.title = c.title;
       item.append(sha, title);
       if (c.author || c.date) {
         const meta = document.createElement("span");
-        meta.className = "pt-commit-meta";
+        meta.className = "pt-dd-meta";
         meta.textContent = [c.author, c.date && relativeTime(c.date)].filter(Boolean).join(" · ");
         if (c.date) meta.title = new Date(c.date).toLocaleString();
         item.appendChild(meta);
       }
       const acts = document.createElement("span");
-      acts.className = "pt-commit-acts";
+      acts.className = "pt-dd-acts";
       const copy = iconBtn("copy", "Copy the full sha", () => {
         navigator.clipboard.writeText(c.sha);
         status(`${c.short} copied`);
@@ -599,35 +657,11 @@ export function initReview(P: Provider, view: PtView) {
       return item;
     };
 
-    filter.addEventListener("input", () => {
-      const q = filter.value.trim().toLowerCase();
-      let shown = 0;
-      for (const it of items) {
-        if (it === all) continue;
-        const hit = !q || (it.textContent || "").toLowerCase().includes(q);
-        it.hidden = !hit;
-        if (hit) shown++;
-      }
-      all.dataset.count = q ? `${shown} shown` : "";
-    });
-    filter.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") items.find((i) => i !== all && !i.hidden)?.click();
-      else if (e.key === "Escape" && filter.value) {
-        filter.value = "";
-        filter.dispatchEvent(new Event("input"));
-      } else if (e.key === "Escape") dd.open = false;
-      else return;
-      e.preventDefault();
-    });
-    dd.addEventListener("toggle", () => {
-      if (dd.open && !filter.hidden) filter.focus();
-    });
-
     P.commits()
       .then((commits: any[]) => {
         for (const c of commits) addCommit(c);
         all.firstChild!.textContent = `All commits (${commits.length})`;
-        filter.hidden = commits.length < 8;
+        filter.refresh();
       })
       .catch((e: any) => status(`commits unavailable: ${e.message}`, true));
     return dd;
@@ -888,6 +922,7 @@ export function initReview(P: Provider, view: PtView) {
     unresolvedEl.dd.id = "pt-unresolved";
     unresolvedEl.sum.title = "Jump to an unresolved thread";
     unresolvedEl.dd.style.display = "none";
+    unresolvedEl.filter = menuFilter(unresolvedEl.menu, "Filter by file, author, text…");
     select.after(unresolvedEl.dd);
 
     if (P.can.whitespace) {

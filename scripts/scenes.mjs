@@ -175,6 +175,9 @@ async function shootScenes(out, deviceScaleFactor) {
   await shot("08-unresolved");
 
   await dropdown("#pt-commits");
+  // hover a row so its copy-sha / open-on-host icons are in the frame
+  await page.locator("#pt-commits .pt-commit").nth(1).hover();
+  await page.waitForTimeout(200);
   await shot("09-commits");
 
   await dropdown(".pt-filter-dd");

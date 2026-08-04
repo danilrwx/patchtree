@@ -57,6 +57,45 @@ const discussions = [
   },
 ];
 
+// several open threads across two files, so the unresolved list has rows to
+// sort, filter and resolve
+export const MANY_THREADS = Array.from({ length: 9 }, (_, i) => ({
+  id: `disc_m${i}`,
+  notes: [
+    {
+      id: 600 + i,
+      system: false,
+      resolvable: true,
+      resolved: false,
+      position: {
+        position_type: "text",
+        new_path: i % 2 ? "pkg/virt-controller/watch/dra/dra_test.go" : "pkg/virt-controller/watch/dra/dra.go",
+        old_path: i % 2 ? "pkg/virt-controller/watch/dra/dra_test.go" : "pkg/virt-controller/watch/dra/dra.go",
+        new_line: 62 + i,
+        old_line: null,
+      },
+      author: { name: i % 3 ? "Ada Lovelace" : "Grace Hopper", id: 7 },
+      created_at: "2026-07-26T00:00:00Z",
+      body: `Thread ${i}: does the nil claim path stay covered when the pool resizes?`,
+      suggestions: null,
+    },
+    ...(i === 0
+      ? [
+          {
+            id: 700,
+            system: false,
+            resolvable: true,
+            resolved: false,
+            author: { name: "Grace Hopper", id: 8 },
+            created_at: "2026-07-27T00:00:00Z",
+            body: "Agreed, let's add a case for it.",
+            suggestions: null,
+          },
+        ]
+      : []),
+  ],
+}));
+
 const mr = {
   title: "fix dra nil handling",
   diff_refs: { head_sha: HEAD, base_sha: BASE, start_sha: BASE },
@@ -212,7 +251,13 @@ export async function mockGitlabExtras(context: BrowserContext): Promise<void> {
   });
 }
 
-export async function mockGitlab(context: BrowserContext): Promise<void> {
+export async function mockGitlab(
+  context: BrowserContext,
+  opts: { manyThreads?: boolean } = {}
+): Promise<void> {
+  // resolving a thread is a PUT the mock has to honour, otherwise the list
+  // cannot be driven from the bar
+  const resolved = new Set<string>();
   await context.route(DIFF_URL, (route) =>
     route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff })
   );
@@ -223,7 +268,20 @@ export async function mockGitlab(context: BrowserContext): Promise<void> {
       route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
     const base = `/merge_requests/${IID}`;
 
-    if (p.includes(`${base}/discussions`)) return json(discussions);
+    const resolveM = /\/discussions\/([^/]+)$/.exec(p);
+    if (resolveM && route.request().method() === "PUT") {
+      resolved.add(resolveM[1]);
+      return json({});
+    }
+    if (p.includes(`${base}/discussions`)) {
+      const list = opts.manyThreads ? MANY_THREADS : discussions;
+      return json(
+        list.map((d) => ({
+          ...d,
+          notes: d.notes.map((n) => ({ ...n, resolved: resolved.has(d.id) })),
+        }))
+      );
+    }
     if (p.includes(`${base}/draft_notes`)) return json([]);
     if (p.includes(`${base}/approvals`)) return json({ approved_by: [] });
     if (p.includes(`${base}/commits`)) return json([]);

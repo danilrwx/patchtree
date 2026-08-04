@@ -59,6 +59,56 @@ export function menuItem(
   return item;
 }
 
+// A filter box at the top of a dropdown menu: it hides the items whose text
+// does not match, and Enter takes the first one still showing. Items marked
+// `data-filter="keep"` are never hidden and carry the match count instead —
+// that is the "All commits" row. Stays hidden while the list is short enough to
+// read at a glance; call `refresh()` after rebuilding the items.
+export function menuFilter(menu: HTMLElement, placeholder: string, minItems = 8) {
+  const input = document.createElement("input");
+  input.className = "pt-dd-filter";
+  input.placeholder = placeholder;
+  input.hidden = true;
+  menu.prepend(input);
+
+  const items = () => [...menu.querySelectorAll<HTMLElement>(".pt-dd-item")];
+  const rows = () => items().filter((i) => i.dataset.filter !== "keep");
+  const apply = () => {
+    const q = input.value.trim().toLowerCase();
+    let shown = 0;
+    for (const it of rows()) {
+      const hit = !q || (it.textContent || "").toLowerCase().includes(q);
+      it.hidden = !hit;
+      if (hit) shown++;
+    }
+    for (const keep of items().filter((i) => i.dataset.filter === "keep"))
+      keep.dataset.count = q ? `${shown} shown` : "";
+  };
+
+  input.addEventListener("input", apply);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") rows().find((i) => !i.hidden)?.click();
+    else if (e.key === "Escape" && input.value) {
+      input.value = "";
+      apply();
+    } else if (e.key === "Escape") menu.closest("details")!.open = false;
+    else return;
+    e.preventDefault();
+  });
+  menu.closest("details")!.addEventListener("toggle", (e) => {
+    if ((e.currentTarget as HTMLDetailsElement).open && !input.hidden) input.focus();
+  });
+
+  return {
+    input,
+    refresh() {
+      input.hidden = rows().length < minItems;
+      if (input.hidden) input.value = "";
+      apply();
+    },
+  };
+}
+
 // Wrap the textarea's selection in `before`/`after` (a Markdown toolbar action).
 export function surround(ta: HTMLTextAreaElement, before: string, after: string = before) {
   const s = ta.selectionStart;

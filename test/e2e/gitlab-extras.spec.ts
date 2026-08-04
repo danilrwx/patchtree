@@ -58,7 +58,7 @@ test("the commit menu filters, shows metadata and copies a sha", async ({ contex
   await expect(dd.locator(".pt-commit-all")).toHaveText(/All commits \(10\)/);
 
   const row = dd.locator(".pt-commit", { hasText: "isolated commit change" });
-  await expect(row.locator(".pt-commit-meta")).toContainText("Ada Lovelace");
+  await expect(row.locator(".pt-dd-meta")).toContainText("Ada Lovelace");
   await expect(row.locator("a.pt-hbtn")).toHaveAttribute("href", /\/-\/commit\/c0ffee0$/);
 
   await dd.locator(".pt-dd-filter").fill("isolated");

@@ -973,14 +973,14 @@ html.pt-on {
   font-size: 12px;
 }
 
-.pt-commit-title {
+.pt-dd-title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pt-commit-meta {
+.pt-dd-meta {
   flex-shrink: 0;
   max-width: 30%;
   overflow: hidden;
@@ -989,7 +989,7 @@ html.pt-on {
   font-size: 12px;
 }
 
-.pt-commit-acts {
+.pt-dd-acts {
   display: flex;
   flex-shrink: 0;
   gap: 2px;
@@ -997,12 +997,12 @@ html.pt-on {
   opacity: 0;
 }
 
-.pt-commit:hover .pt-commit-acts,
-.pt-commit-acts:focus-within {
+.pt-dd-item:hover .pt-dd-acts,
+.pt-dd-acts:focus-within {
   opacity: 1;
 }
 
-.pt-commit-acts .pt-hbtn {
+.pt-dd-acts .pt-hbtn {
   display: inline-flex;
   padding: 2px;
   border: none;
@@ -1011,7 +1011,7 @@ html.pt-on {
   cursor: pointer;
 }
 
-.pt-commit-acts .pt-hbtn:hover {
+.pt-dd-acts .pt-hbtn:hover {
   color: var(--pt-fg);
 }
 
@@ -1890,8 +1890,21 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
   font-weight: 600;
 }
 
+/* thread rows carry location + comment + author/date, so they need the same
+   room as the commit rows */
 #pt-unresolved .pt-dd-menu {
-  min-width: 320px;
+  min-width: 620px;
+  max-width: min(880px, 92vw);
+}
+
+.pt-thread-row .pt-sha {
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-thread-row .pt-dd-acts .pt-hbtn:hover {
+  color: var(--pt-success);
 }
 
 .pt-flash {
