@@ -172,6 +172,9 @@ async function shootScenes(out, deviceScaleFactor) {
   await page.keyboard.press("Escape");
 
   await dropdown("#pt-unresolved");
+  // hover a row so its resolve button is in the frame
+  await page.locator("#pt-unresolved .pt-thread-row").nth(2).hover();
+  await page.waitForTimeout(200);
   await shot("08-unresolved");
 
   await dropdown("#pt-commits");

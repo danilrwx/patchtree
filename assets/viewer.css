@@ -982,6 +982,8 @@ html.pt-on {
 
 .pt-dd-meta {
   flex-shrink: 0;
+  /* a long title fills the row, so keep a visible gap before the metadata */
+  margin-left: 8px;
   max-width: 30%;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -107,8 +107,10 @@ background worker.
   with the commented line; existing suggestions render as a red/green
   widget with **Apply suggestion** (GitLab).
 - **Multiline comments**: shift-click a line number to extend the range.
-- **Resolve/unresolve** threads (GitLab) and an **unresolved badge** in
-  the toolbar that jumps to each open thread.
+- **Resolve/unresolve** threads (GitLab) and an **unresolved badge** in the
+  toolbar listing every open one — location, first comment, author, age and
+  reply count, in the diff's own file order — to jump to it, or resolve it
+  without leaving the bar. Long lists get a filter (file, author or text).
 - **Draft reviews** (GitLab): “Add to review” collects pending comments,
   published together by Submit review.
 - **Submit review** panel: summary comment + Comment / Approve (or
@@ -245,7 +247,8 @@ Keyboard shortcuts overlay (`?`):
 
 ![keyboard shortcuts](docs/screenshots/07-shortcuts.png)
 
-The unresolved badge jumps to each open thread:
+The unresolved badge lists every open thread — where it sits, who opened it and
+how long ago, with a resolve button right in the row:
 
 ![unresolved threads](docs/screenshots/08-unresolved.png)
 

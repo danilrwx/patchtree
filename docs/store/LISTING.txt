@@ -105,7 +105,9 @@ REVIEW (WITH AN ACCESS TOKEN)
 · Suggestions: one click prefills a suggestion block; existing ones render as a
   red/green widget with Apply (GitLab).
 · Multi-line comments — shift-click or drag over line numbers.
-· Resolve/unresolve threads and an unresolved badge that jumps to each open one.
+· Resolve/unresolve threads and an unresolved badge that lists every open one —
+  location, comment, author, age, reply count — to jump to it or resolve it
+  right there, with a filter on long lists.
 · Draft reviews and a Submit-review panel: Comment / Approve / Request changes,
   with the approval state shown as a badge.
 · Pipeline status that opens up: the toolbar badge lists the jobs behind it
