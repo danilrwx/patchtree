@@ -157,9 +157,18 @@ function buildFileView(file: any) {
     status,
     texts: { old: model.oldText, new: model.newText },
     lang: resolveLang(path, `${model.newText}\n${model.oldText}`),
+    markViewed: (checked: boolean) => markViewed(checked),
   };
 
   const setFolded = (f: boolean) => section.classList.toggle("pt-folded", f);
+  const markViewed = (checked: boolean) => {
+    if (checked) viewedSet.add(path);
+    else viewedSet.delete(path);
+    saveViewed();
+    setFolded(checked);
+    setViewed(path, checked);
+    updateProgress();
+  };
   const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter(Boolean);
 
   // rows render immediately; highlighting runs when the section nears the
@@ -189,14 +198,7 @@ function buildFileView(file: any) {
           section.classList.toggle("pt-hunks-hidden", checked);
           if (checked) for (const g of gaps) expandGap(view, g);
         },
-        onToggleViewed: (checked) => {
-          if (checked) viewedSet.add(path);
-          else viewedSet.delete(path);
-          saveViewed();
-          setFolded(checked);
-          setViewed(path, checked);
-          updateProgress();
-        },
+        onToggleViewed: markViewed,
         onExpand: (gap) => expandGap(view, gap),
       }),
     section
@@ -264,7 +266,17 @@ async function main() {
       if (chrome.runtime?.id) write();
     } catch {}
   };
-  saveViewed = () => persist(() => chrome.storage.local.set({ [viewedKey]: [...viewedSet] }));
+  // marking a folder viewed touches every file in it, so coalesce the writes
+  // into one per tick instead of one per file
+  let savePending = false;
+  saveViewed = () => {
+    if (savePending) return;
+    savePending = true;
+    queueMicrotask(() => {
+      savePending = false;
+      persist(() => chrome.storage.local.set({ [viewedKey]: [...viewedSet] }));
+    });
+  };
   let lastActive = "";
   const saveActive = (p: string) => {
     if (p && p !== lastActive) {
@@ -405,6 +417,7 @@ async function main() {
           else v.section.scrollIntoView();
         },
         textLower: () => (`${v.texts?.new || ""}\n${v.texts?.old || ""}`).toLowerCase(),
+        markViewed: v.markViewed,
       }))
     );
     for (const v of views) setViewed(v.path, viewedSet.has(v.path));

@@ -166,12 +166,12 @@ html.pt-on body {
   line-height: 1.5;
 }
 
-#pt-tree-list details {
-  padding-left: 14px;
-}
-
-#pt-tree-list > details {
-  padding-left: 0;
+/* a guide line down each nesting level, so a file reads as being inside the
+   folder above it rather than just indented by a few pixels */
+.pt-tree-kids {
+  margin-left: 9px;
+  padding-left: 8px;
+  border-left: 1px solid var(--pt-border);
 }
 
 html.pt-on {
@@ -233,13 +233,46 @@ html.pt-on {
 .pt-tree-file.pt-st-renamed .pt-tree-name { color: var(--pt-warning); }
 .pt-tree-file.pt-st-deleted .pt-tree-name { color: var(--pt-danger); }
 
-.pt-tree-file.pt-active {
+/* the current file highlights across the whole row — checkbox, icon, stats —
+   instead of only the button that holds its name */
+.pt-tree-row:has(> .pt-tree-file.pt-active) {
   background: var(--pt-hunk-bg);
-  box-shadow: inset 2px 0 0 var(--pt-accent);
+  border-radius: 4px;
 }
 
 #pt-tree-list summary:hover {
   background: var(--pt-header-bg);
+}
+
+/* the viewed box sits outside the row's button (no nesting interactive
+   elements), so the row itself carries the indent the button used to own */
+.pt-tree-row {
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+}
+
+#pt-tree-list > .pt-tree-row {
+  padding-left: 0;
+}
+
+.pt-tree-check {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0.35;
+  accent-color: var(--pt-btn);
+}
+
+.pt-tree-check:checked,
+.pt-tree-check:indeterminate,
+.pt-tree-check:hover,
+.pt-tree-check:focus-visible,
+.pt-tree-row:hover .pt-tree-check,
+#pt-tree-list summary:hover .pt-tree-check {
+  opacity: 1;
 }
 
 .pt-tree-file {
@@ -248,7 +281,7 @@ html.pt-on {
   gap: 8px;
   width: 100%;
   box-sizing: border-box;
-  padding: 2px 6px 2px 14px;
+  padding: 2px 6px;
   border: 0;
   border-radius: 4px;
   background: none;
@@ -264,9 +297,6 @@ html.pt-on {
   background: var(--pt-header-bg);
 }
 
-#pt-tree-list > .pt-tree-file {
-  padding-left: 6px;
-}
 
 .pt-tree-file:hover .pt-tree-name {
   text-decoration: underline;

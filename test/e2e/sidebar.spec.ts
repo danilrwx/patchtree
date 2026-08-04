@@ -98,6 +98,93 @@ test("the funnel can hide viewed files from the tree", async ({ context, page })
   await expect(page.locator(".pt-tree-file:visible")).toHaveCount(1);
 });
 
+test("the tree's viewed box folds the file and drives the header box", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-tree-file:visible")).toHaveCount(2);
+
+  const row = page.locator(".pt-tree-row").first();
+  const path = await row.locator(".pt-tree-file").getAttribute("data-path");
+  await row.locator(".pt-tree-check").check();
+
+  const section = page.locator(`section.pt-file[data-path="${path}"]`);
+  await expect(section).toHaveClass(/pt-folded/);
+  await expect(section.locator("label.pt-viewed:not(.pt-fullfile) input")).toBeChecked();
+  await expect(page.locator("#pt-progress")).toHaveAttribute("title", /1 of 2 files viewed/);
+
+  await row.locator(".pt-tree-check").uncheck();
+  await expect(page.locator("section.pt-file.pt-folded")).toHaveCount(0);
+});
+
+test("a folder's box marks every file under it and collapses it", async ({
+  context,
+  page,
+}) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+  await expect(page.locator(".pt-tree-file:visible")).toHaveCount(2);
+
+  const dirBox = page.locator("#pt-tree-list summary .pt-tree-check").last();
+  const fileBoxes = page.locator(".pt-tree-row .pt-tree-check");
+
+  // one file viewed leaves the folder box in the mixed state
+  await fileBoxes.first().check();
+  await expect(dirBox).not.toBeChecked();
+  expect(await dirBox.evaluate((el: HTMLInputElement) => el.indeterminate)).toBe(true);
+
+  await dirBox.click();
+  await expect(fileBoxes.first()).toBeChecked();
+  await expect(fileBoxes.last()).toBeChecked();
+  await expect(dirBox).toBeChecked();
+  await expect(page.locator("#pt-progress")).toHaveAttribute("title", /2 of 2 files viewed/);
+  // a folder that is done collapses; unmarking it opens back up
+  const details = page.locator("#pt-tree-list details").last();
+  await expect(details).not.toHaveAttribute("open", "");
+
+  // the viewed set is read from storage after the tree mounts, so a reload has
+  // to fold the folder again on its own
+  await page.reload();
+  await expect(page.locator("#pt-tree-list details").last()).not.toHaveAttribute("open", "");
+
+  await page.locator("#pt-tree-list summary .pt-tree-check").last().click();
+  await expect(page.locator(".pt-tree-row .pt-tree-check").first()).not.toBeChecked();
+  await expect(page.locator(".pt-tree-row .pt-tree-check").last()).not.toBeChecked();
+  await expect(page.locator("#pt-progress")).toHaveAttribute("title", /0 of 2 files viewed/);
+  await expect(page.locator("#pt-tree-list details").last()).toHaveAttribute("open", "");
+});
+
+test("the current file highlights across the row, with a guide for its folder", async ({
+  context,
+  page,
+}) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+
+  const row = page.locator(".pt-tree-row").first();
+  await row.locator(".pt-tree-file").click();
+  await expect(row.locator(".pt-tree-file")).toHaveClass(/pt-active/);
+  // park the pointer away from the tree, otherwise the row's hover fill is
+  // what gets measured
+  await page.mouse.move(900, 600);
+
+  const style = await row.evaluate((el) => {
+    const row = getComputedStyle(el);
+    const btn = getComputedStyle(el.querySelector(".pt-tree-file")!);
+    const guide = getComputedStyle(el.closest(".pt-tree-kids")!);
+    return {
+      rowBg: row.backgroundColor,
+      btnBg: btn.backgroundColor,
+      // the accent bar that used to sit left of the name is gone
+      btnShadow: btn.boxShadow,
+      guide: guide.borderLeftWidth,
+    };
+  });
+  expect(style.rowBg).not.toBe("rgba(0, 0, 0, 0)");
+  expect(style.btnBg).toBe("rgba(0, 0, 0, 0)");
+  expect(style.btnShadow).toBe("none");
+  expect(style.guide).toBe("1px");
+});
+
 test("dragging the splitter resizes the file tree", async ({ context, page }) => {
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");

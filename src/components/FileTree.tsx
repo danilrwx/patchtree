@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { For, createMemo, createEffect } from "solid-js";
+import { For, createMemo, createEffect, batch } from "solid-js";
 import { icons } from "../icons";
 import {
   treeFiles,
@@ -62,9 +62,11 @@ function collectFiles(node: Node, out: TreeFile[] = []): TreeFile[] {
   return out;
 }
 
-function isVisible(f: TreeFile, q: string): boolean {
+// `ignoreViewed` keeps a folder's checkbox acting on the files it stands for
+// even while the "Viewed files" filter hides the ones already marked
+function isVisible(f: TreeFile, q: string, ignoreViewed = false): boolean {
   if (hiddenExts[extOf(f.path)]) return false;
-  if (!showViewed() && viewed[f.path]) return false;
+  if (!ignoreViewed && !showViewed() && viewed[f.path]) return false;
   if (!showDeleted() && f.status === "deleted") return false;
   if (!q) return true;
   if (f.path.toLowerCase().includes(q)) return true;
@@ -88,40 +90,88 @@ function TreeNode(props: { node: Node }) {
         {([name, child]) => {
           const inside = collectFiles(child);
           const anyVisible = () => inside.some((f) => isVisible(f, q()));
+          const targets = createMemo(() => inside.filter((f) => isVisible(f, q(), true)));
+          const allViewed = () => {
+            const t = targets();
+            return t.length > 0 && t.every((f) => viewed[f.path]);
+          };
+          const someViewed = () => targets().some((f) => viewed[f.path]);
+          let details!: HTMLDetailsElement;
+          // A folder with nothing left to read collapses out of the way, like a
+          // viewed file's section does. Driven by an effect, not by the checkbox,
+          // so a reload folds what was already viewed — the viewed set is read
+          // from storage after the tree mounts. Counted over every file in the
+          // folder, ignoring the filter, so narrowing the search never folds
+          // away the rows it just matched.
+          createEffect(() => {
+            details.open = !inside.every((f) => viewed[f.path]);
+          });
           return (
-            <details open style={{ display: anyVisible() ? "" : "none" }}>
-              <summary>{name}</summary>
-              <TreeNode node={child} />
+            <details ref={details} open style={{ display: anyVisible() ? "" : "none" }}>
+              <summary>
+                <input
+                  type="checkbox"
+                  class="pt-tree-check"
+                  title={`Mark every file under ${name} viewed`}
+                  checked={allViewed()}
+                  ref={(el) =>
+                    createEffect(() => {
+                      el.indeterminate = someViewed() && !allViewed();
+                    })
+                  }
+                  // a click reaching the <summary> would fold the folder;
+                  // preventDefault is not an option, it also rolls the box back
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    const next = e.currentTarget.checked;
+                    batch(() => {
+                      for (const f of targets()) f.markViewed(next);
+                    });
+                  }}
+                />
+                {name}
+              </summary>
+              <div class="pt-tree-kids">
+                <TreeNode node={child} />
+              </div>
             </details>
           );
         }}
       </For>
       <For each={files()}>
         {(f) => (
-          <button
-            type="button"
-            class="pt-tree-file"
-            classList={{ "pt-viewed-file": !!viewed[f.path], [`pt-st-${f.status}`]: true }}
-            data-path={f.path}
-            style={{ display: isVisible(f, q()) ? "" : "none" }}
-            onClick={(e) => {
-              if ((e.target as Element).closest(".pt-tree-cmt")) f.selectComment();
-              else f.select();
-            }}
-          >
-            <span class="pt-tree-name">{f.path.split("/").pop()}</span>
-            <span
-              class="pt-tree-cmt"
-              innerHTML={
-                counts[f.path]
-                  ? (icons.comment ?? "") + counts[f.path]
-                  : ""
-              }
+          <div class="pt-tree-row" style={{ display: isVisible(f, q()) ? "" : "none" }}>
+            <input
+              type="checkbox"
+              class="pt-tree-check"
+              title="Mark viewed"
+              checked={!!viewed[f.path]}
+              onChange={(e) => f.markViewed(e.currentTarget.checked)}
             />
-            <span class="pt-tree-stats">
-              <span class="pt-adds">+{f.adds}</span> <span class="pt-dels">−{f.dels}</span>
-            </span>
-          </button>
+            <button
+              type="button"
+              class="pt-tree-file"
+              classList={{ "pt-viewed-file": !!viewed[f.path], [`pt-st-${f.status}`]: true }}
+              data-path={f.path}
+              onClick={(e) => {
+                if ((e.target as Element).closest(".pt-tree-cmt")) f.selectComment();
+                else f.select();
+              }}
+            >
+              <span class="pt-tree-name">{f.path.split("/").pop()}</span>
+              <span
+                class="pt-tree-cmt"
+                innerHTML={
+                  counts[f.path]
+                    ? (icons.comment ?? "") + counts[f.path]
+                    : ""
+                }
+              />
+              <span class="pt-tree-stats">
+                <span class="pt-adds">+{f.adds}</span> <span class="pt-dels">−{f.dels}</span>
+              </span>
+            </button>
+          </div>
         )}
       </For>
     </>
