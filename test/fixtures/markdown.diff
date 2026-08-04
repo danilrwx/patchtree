@@ -1,0 +1,28 @@
+diff --git a/README.md b/README.md
+new file mode 100644
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,22 @@
++# patchtree
++
++Renders **raw diffs** with `tree-sitter` and a [file tree](https://example.com).
++
++## Install
++
++```sh
++make && npx playwright install chromium
++```
++
++```go
++func main() {
++	const greeting = "hello"
++	fmt.Println(greeting)
++}
++```
++
++```yaml
++spec:
++  replicas: 4
++```
++
++> A quote with *emphasis*.

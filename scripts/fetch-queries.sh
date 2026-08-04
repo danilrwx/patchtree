@@ -41,6 +41,8 @@ SOURCES=(
   "hcl $RAW/helix-editor/helix/25.07.1/runtime/queries/hcl/highlights.scm"
   "gotmpl $RAW/ngalaiko/tree-sitter-go-template/aa71f63de226c5592dfbfc1f29949522d7c95fac/queries/highlights.scm"
   "dockerfile $RAW/camdencheek/tree-sitter-dockerfile/v0.2.0/queries/highlights.scm"
+  "markdown $RAW/tree-sitter-grammars/tree-sitter-markdown/v0.5.3/tree-sitter-markdown/queries/highlights.scm"
+  "markdown_inline $RAW/tree-sitter-grammars/tree-sitter-markdown/v0.5.3/tree-sitter-markdown-inline/queries/highlights.scm"
   "zig $RAW/tree-sitter-grammars/tree-sitter-zig/v1.1.2/queries/highlights.scm"
   "elixir $RAW/elixir-lang/tree-sitter-elixir/v0.3.5/queries/highlights.scm"
   "scala $RAW/tree-sitter/tree-sitter-scala/v0.24.0/queries/highlights.scm"

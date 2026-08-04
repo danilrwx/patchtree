@@ -49,16 +49,19 @@ compiled to WebAssembly and executed in the extension's background worker.
 · A real parse tree per file, so nesting is never guessed: JSX inside
   TypeScript, generics, Rust macros, bash heredocs, f-strings and Helm/Go
   template actions inside YAML all keep their structure.
-· 28 grammars, each pinned to the revision its highlight queries were written
+· 30 grammars, each pinned to the revision its highlight queries were written
   for: Go, JS/TS/TSX, Python, Bash, JSON, YAML, Rust, C, C++, Java, Ruby, PHP,
   C#, Lua, TOML, HCL/Terraform, CSS, HTML, Kotlin, Scala, Dart, Groovy, Elixir,
-  Haskell, Zig, Dockerfile/Containerfile, and Helm/Go templates.
+  Haskell, Zig, Markdown, Dockerfile/Containerfile, and Helm/Go templates.
+· Language injection, the way editors do it: a ```go block inside a Markdown
+  file is parsed as Go, prose goes through the inline grammar, and Helm template
+  actions layer over the YAML underneath.
 · Parsing runs off the main thread and grammars load lazily, one per language a
   diff actually contains, so a 10 000-line diff never blocks scrolling.
 · Word-level diff sits under the syntax colours: you see what changed and what
   it means at once.
-· Anything without a grammar falls back to highlight.js (Swift, SQL, Markdown,
-  Makefile, Perl, R, Protobuf, Objective-C, …); files with no extension go by
+· Anything without a grammar falls back to highlight.js (Swift, SQL, Makefile,
+  Perl, R, Protobuf, Objective-C, …); files with no extension go by
   shebang, then auto-detection.
 
 DIFF RENDERING

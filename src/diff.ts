@@ -117,6 +117,8 @@ const LANG_BY_EXT: Record<string, string> = {
   scala: "scala",
   sbt: "scala",
   hs: "haskell",
+  md: "markdown",
+  markdown: "markdown",
 };
 
 export function langFor(path: string | null | undefined): string | null {
@@ -172,8 +174,6 @@ const HLJS_BY_EXT: Record<string, string> = {
   ini: "ini",
   cfg: "ini",
   cmake: "cmake",
-  md: "markdown",
-  markdown: "markdown",
 };
 
 const HLJS_BY_BASENAME: Record<string, string> = {

@@ -24,19 +24,22 @@ background worker.
 - **A real parse tree per file**, so nesting is never guessed: JSX inside
   TypeScript, generics, Rust macros, bash heredocs, f-strings, and Helm/Go
   template actions embedded in YAML all keep their structure.
-- **28 grammars**, each pinned to the revision its highlight queries were
+- **30 grammars**, each pinned to the revision its highlight queries were
   written for: go, js/ts/tsx, python, bash, json, yaml, rust, c, c++, java,
   ruby, php, c#, lua, toml, hcl/terraform, css, html, kotlin, scala, dart,
-  groovy, elixir, haskell, zig, Dockerfile/Containerfile, and Helm/Go
-  templates (`.tpl`, and any `.yaml` carrying `{{ … }}` actions).
+  groovy, elixir, haskell, zig, markdown, Dockerfile/Containerfile, and
+  Helm/Go templates (`.tpl`, and any `.yaml` carrying `{{ … }}` actions).
+- **Language injection**, the way editors do it: a ` ```go ` block inside a
+  markdown file is parsed *as Go*, prose runs through the inline grammar, and
+  Helm actions layer over the yaml underneath — one file, several grammars.
 - **Off the main thread**: wasm grammars load lazily, one per language a diff
   actually contains, and parsing happens in the background worker — a
   10 000-line diff never blocks scrolling.
 - **Layered with the diff itself**: word-level diff tints sit under the syntax
   colours, so you see both what changed and what it means.
-- Anything without a grammar falls back to highlight.js (swift, sql, markdown,
-  makefile, perl, r, protobuf, objective-c, ocaml, erlang, clojure, …); files
-  with no extension go by shebang, then auto-detection.
+- Anything without a grammar falls back to highlight.js (swift, sql, makefile,
+  perl, r, protobuf, objective-c, ocaml, erlang, clojure, …); files with no
+  extension go by shebang, then auto-detection.
 - Every colour comes from the active theme, so highlighting follows the
   base24 scheme you pick (see Appearance).
 

@@ -1667,6 +1667,11 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
 .pt-escape { color: var(--pt-escape); }
 .pt-label { color: var(--pt-label); }
 .pt-module, .pt-namespace { color: var(--pt-module); }
+/* markdown prose: weight and slant carry the meaning, not a palette colour */
+.pt-strong { font-weight: 700; }
+.pt-em { font-style: italic; }
+.pt-warning { color: var(--pt-warning); }
+.pt-danger { color: var(--pt-danger); }
 
 #pt-approved {
   color: var(--pt-success);

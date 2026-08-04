@@ -72,10 +72,25 @@ async function loadLang(name: string): Promise<Lang> {
   return p;
 }
 
+// markdown's queries come from nvim-treesitter, whose "text.*" family carries
+// the meaning: text.strong is bold, text.title a heading. Collapsing them to a
+// bare "text" would paint prose in one flat colour.
+const CAPTURE_ALIAS: Record<string, string> = {
+  "text.title": "keyword",
+  "text.strong": "strong",
+  "text.emphasis": "em",
+  "text.literal": "string",
+  "text.uri": "property",
+  "text.reference": "constant",
+  "text.quote": "comment",
+  "string.escape": "escape",
+};
+
 function cssClass(captureName: string): string {
   // mapping keys / struct fields get their own color, not the generic variable
   if (captureName.startsWith("variable.other.member")) return "property";
-  return captureName.split(".")[0];
+  const two = captureName.split(".").slice(0, 2).join(".");
+  return CAPTURE_ALIAS[captureName] || CAPTURE_ALIAS[two] || captureName.split(".")[0];
 }
 
 function lineStartsOf(text: string): number[] {
@@ -104,6 +119,7 @@ function highlight(langName: string, text: string) {
   if (langName.startsWith("hljs:"))
     return Promise.resolve({ rows: hljsRows(langName.slice(5), text) });
   if (langName === "gotmpl") return highlightGotmpl(text);
+  if (langName === "markdown") return highlightMarkdown(text);
   return init()
     .then(() => loadLang(langName))
     .then(({ language, query }: Lang) => {
@@ -143,6 +159,143 @@ function highlightGotmpl(text: string) {
 
       return { rows };
     });
+}
+
+// Markdown is three passes over one text, mirroring the grammar's own
+// injections.scm: the block structure, the inline grammar it injects into every
+// paragraph, and — the point of the exercise — each fenced block re-parsed with
+// the grammar its info string names, so ```go really is highlighted as Go.
+const FENCE_LANG: Record<string, string> = {
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  console: "bash",
+  js: "javascript",
+  jsx: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  ts: "typescript",
+  tsx: "typescript",
+  py: "python",
+  rs: "rust",
+  golang: "go",
+  yml: "yaml",
+  "c++": "cpp",
+  cs: "c_sharp",
+  csharp: "c_sharp",
+  kt: "kotlin",
+  tf: "hcl",
+  terraform: "hcl",
+  dockerfile: "dockerfile",
+  docker: "dockerfile",
+  ex: "elixir",
+  exs: "elixir",
+  hs: "haskell",
+  gotemplate: "gotmpl",
+  helm: "gotmpl",
+};
+
+const KNOWN_FENCE_LANGS = new Set([
+  "bash", "c", "cpp", "c_sharp", "css", "dart", "dockerfile", "elixir", "go",
+  "gotmpl", "groovy", "haskell", "hcl", "html", "java", "javascript", "json",
+  "kotlin", "lua", "php", "python", "ruby", "rust", "scala", "toml",
+  "typescript", "yaml", "zig",
+]);
+
+function fenceLang(info: string): string | null {
+  // an info string can carry attributes: ```go title="main.go"
+  const first = info.trim().split(/[\s,{]/)[0].toLowerCase();
+  const name = FENCE_LANG[first] || first;
+  return KNOWN_FENCE_LANGS.has(name) ? name : null;
+}
+
+// merge a nested parse (own row numbering, own columns) into the outer rows
+function mergeRows(rows: Rows, nested: Rows, rowOffset: number, colOffset: number) {
+  for (const [row, ranges] of Object.entries(nested)) {
+    const target = (rows[+row + rowOffset] ||= []);
+    for (const r of ranges as Row[]) target.push({ s: r.s + colOffset, e: r.e + colOffset, c: r.c });
+  }
+}
+
+function captureInto(rows: Rows, lang: Lang, text: string) {
+  const tree = parseWith(lang.language, text);
+  if (!tree) return;
+  const lineStarts = lineStartsOf(text);
+  for (const { name, node } of lang.query.captures(tree.rootNode).slice(0, MAX_CAPTURES))
+    pushNode(rows, node, cssClass(name), lineStarts, text);
+  tree.delete();
+}
+
+async function highlightMarkdown(text: string) {
+  await init();
+  const [md, mdInline] = await Promise.all([loadLang("markdown"), loadLang("markdown_inline")]);
+  const rows: Rows = {};
+  const lineStarts = lineStartsOf(text);
+
+  const tree = parseWith(md.language, text);
+  if (!tree) return { rows };
+  // the block query paints whole fenced blocks (@text.literal) and marks their
+  // content @none; both would win over the injected highlight, since
+  // renderLineHTML keeps the outermost span of a line
+  const SMOTHERS = new Set(["fenced_code_block", "code_fence_content"]);
+  for (const { name, node } of md.query.captures(tree.rootNode).slice(0, MAX_CAPTURES)) {
+    if (name === "none" || SMOTHERS.has(node.type)) continue;
+    pushNode(rows, node, cssClass(name), lineStarts, text);
+  }
+
+  // walk the block tree for the two injection sites we care about
+  const fences: { lang: string; row: number; col: number; text: string }[] = [];
+  const inlines: { row: number; col: number; text: string }[] = [];
+  const visit = (node: any) => {
+    if (node.type === "inline") {
+      inlines.push({
+        row: node.startPosition.row,
+        col: node.startPosition.column,
+        text: node.text,
+      });
+      return;
+    }
+    if (node.type === "fenced_code_block") {
+      const info = node.childForFieldName?.("info_string") ?? findChild(node, "info_string");
+      const content = findChild(node, "code_fence_content");
+      const lang = info && content ? fenceLang(info.text) : null;
+      if (lang && content)
+        fences.push({
+          lang,
+          row: content.startPosition.row,
+          col: content.startPosition.column,
+          text: content.text,
+        });
+      return;
+    }
+    for (let i = 0; i < node.childCount; i++) visit(node.child(i));
+  };
+  visit(tree.rootNode);
+  tree.delete();
+
+  for (const inl of inlines) {
+    const nested: Rows = {};
+    captureInto(nested, mdInline, inl.text);
+    mergeRows(rows, nested, inl.row, inl.col);
+  }
+
+  for (const f of fences) {
+    let nested: Rows;
+    try {
+      nested = (await highlight(f.lang, f.text)).rows;
+    } catch {
+      continue; // a missing grammar just leaves the block plain
+    }
+    // an indented fence (inside a list) shifts every column by the same amount
+    mergeRows(rows, nested, f.row, f.col);
+  }
+
+  return { rows };
+}
+
+function findChild(node: any, type: string) {
+  for (let i = 0; i < node.childCount; i++) if (node.child(i).type === type) return node.child(i);
+  return null;
 }
 
 chrome.action.onClicked.addListener((tab) => {

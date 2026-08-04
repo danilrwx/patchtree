@@ -24,6 +24,9 @@ WEB_TREE_SITTER=0.26.11
 GOTMPL_SHA=aa71f63de226c5592dfbfc1f29949522d7c95fac
 # camdencheek/tree-sitter-dockerfile v0.2.0
 DOCKERFILE_SHA=868e44ce378deb68aac902a9db68ff82d2299dd0
+# tree-sitter-grammars/tree-sitter-markdown v0.5.3 — two grammars: the block
+# structure and the inline one it injects into itself
+MARKDOWN_SHA=f969cd3ae3f9fbd4e43205431d0ae286014c05b5
 GRAMMARS=(
   "tree-sitter-go@0.25.0 tree-sitter-go.wasm"
   "tree-sitter-javascript@0.25.0 tree-sitter-javascript.wasm"
@@ -65,6 +68,8 @@ if [ "${FORCE:-}" != "1" ]; then
   [ -s assets/vendor/wasm/tree-sitter-dart.wasm ] || missing=1
   [ -s assets/vendor/wasm/tree-sitter-groovy.wasm ] || missing=1
   [ -s assets/vendor/wasm/tree-sitter-kotlin.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-markdown.wasm ] || missing=1
+  [ -s assets/vendor/wasm/tree-sitter-markdown_inline.wasm ] || missing=1
   for entry in "${GRAMMARS[@]}"; do [ -s "assets/vendor/wasm/${entry#* }" ] || missing=1; done
   if [ "$missing" = 0 ]; then
     echo "assets/vendor/ up to date (FORCE=1 to refetch)"
@@ -116,5 +121,16 @@ build_from_source camdencheek/tree-sitter-dockerfile "$DOCKERFILE_SHA" tree-sitt
 build_from_source murtaza64/tree-sitter-groovy "$GROOVY_SHA" tree-sitter-groovy.wasm
 build_from_source fwcd/tree-sitter-kotlin "$KOTLIN_REF" tree-sitter-kotlin.wasm
 build_from_npm "$DART_NPM" tree-sitter-dart.wasm
+
+# markdown ships its block and inline grammars as two subdirectories
+md_src="$tmp/tree-sitter-markdown-$MARKDOWN_SHA"
+curl -sfL "https://github.com/tree-sitter-grammars/tree-sitter-markdown/archive/$MARKDOWN_SHA.tar.gz" | tar xz -C "$tmp"
+for sub in markdown markdown-inline; do
+  out_name=tree-sitter-$(echo "$sub" | tr - _).wasm
+  echo "tree-sitter-markdown@${MARKDOWN_SHA:0:10} ($sub) -> $out_name"
+  ( cd "$md_src/tree-sitter-$sub" &&
+    npx --yes tree-sitter-cli@$WEB_TREE_SITTER build --wasm \
+      -o "$OLDPWD/assets/vendor/wasm/$out_name" . )
+done
 
 echo "assets/vendor/ done"

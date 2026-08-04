@@ -22,7 +22,6 @@ import erlang from "highlight.js/lib/languages/erlang";
 import ini from "highlight.js/lib/languages/ini";
 import julia from "highlight.js/lib/languages/julia";
 import makefile from "highlight.js/lib/languages/makefile";
-import markdown from "highlight.js/lib/languages/markdown";
 import objectivec from "highlight.js/lib/languages/objectivec";
 import ocaml from "highlight.js/lib/languages/ocaml";
 import perl from "highlight.js/lib/languages/perl";
@@ -38,7 +37,6 @@ const LANGS = {
   ini,
   julia,
   makefile,
-  markdown,
   objectivec,
   ocaml,
   perl,
