@@ -15,7 +15,7 @@
 // PR metadata (title, CI, blob links, permalinks) plus the no-token read-only
 // mode and the do-nothing path for a page that only looks like a diff URL.
 import { test, expect, seedToken } from "./fixtures";
-import { mockGithub, DIFF_URL } from "../fixtures/github";
+import { mockGithub, mockGithubRedCi, DIFF_URL } from "../fixtures/github";
 
 test("the PR title and CI status are surfaced", async ({ context, page }) => {
   await mockGithub(context);
@@ -26,7 +26,46 @@ test("the PR title and CI status are surfaced", async ({ context, page }) => {
 
   const ci = page.locator("#pt-ci");
   await expect(ci).toContainText("success");
-  await expect(ci).toHaveAttribute("href", /\/checks$/);
+  await expect(ci).toHaveAttribute("data-state", "success");
+});
+
+test("the CI badge opens into the jobs behind it", async ({ context, page }) => {
+  await mockGithub(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+
+  const ci = page.locator("#pt-ci");
+  await expect(ci).toBeVisible({ timeout: 20000 });
+  await ci.locator("summary").click();
+
+  // check runs and the older commit statuses both show up, each with its state
+  const jobs = ci.locator(".pt-job");
+  await expect(jobs.filter({ hasText: "build" })).toContainText("success");
+  await expect(jobs.filter({ hasText: "lint" })).toContainText("success");
+  await expect(jobs.filter({ hasText: "legacy-ci" })).toBeAttached();
+  await expect(ci.locator(".pt-job-all")).toContainText("full pipeline");
+});
+
+test("a red pipeline is called out where the approval is chosen", async ({ context, page }) => {
+  await mockGithubRedCi(context);
+  await seedToken(context, page, DIFF_URL, "github.com");
+
+  const ci = page.locator("#pt-ci");
+  await expect(ci).toHaveAttribute("data-state", "failed", { timeout: 20000 });
+
+  const dd = page.locator("#pt-review");
+  await dd.locator("summary").click();
+  const approve = dd.locator("label.pt-radio", { has: page.locator("input[value=approve]") });
+  await expect(approve.locator(".pt-ci-warn")).toContainText("failing");
+  // warned, not blocked — the failure may be unrelated to the change
+  await expect(dd.locator("input[value=approve]")).toBeEnabled();
+
+  // the note must survive the approval state arriving, which rewrites the prose
+  await page.waitForTimeout(1500);
+  await expect(approve.locator(".pt-ci-warn")).toBeVisible();
+
+  // and the failing job is marked in the badge's own list
+  await ci.locator("summary").click();
+  await expect(ci.locator('.pt-job-dot[data-state="failed"]')).toHaveCount(1);
 });
 
 test("the bar summarises who is merging what into where, and when", async ({ context, page }) => {

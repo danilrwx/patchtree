@@ -69,7 +69,19 @@ export async function mockGithubManyThread(context: BrowserContext): Promise<voi
       return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") {
       const b = (route.request().postDataJSON?.() ?? {}) as { text?: string };
       return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
@@ -142,6 +154,25 @@ const pull = {
 // Stateful variant for the write path: starts with no threads, records posted
 // review comments and reflects them back through the GraphQL threads query, so
 // a freshly posted comment shows up after refreshThreads().
+// same as mockGithub, but the head commit's pipeline is red
+export async function mockGithubRedCi(context: BrowserContext) {
+  await mockGithub(context);
+  await context.route("https://api.github.com/**", async (route) => {
+    const p = new URL(route.request().url()).pathname;
+    const json = (o: unknown) =>
+      route.fulfill({ contentType: "application/json", body: JSON.stringify(o) });
+    if (p.endsWith("/status")) return json({ state: "failure", total_count: 1, statuses: [] });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "e2e", status: "completed", conclusion: "failure", html_url: "https://gh/e2e" },
+        ],
+      });
+    await route.fallback();
+  });
+}
+
 export async function mockGithubStateful(context: BrowserContext): Promise<void> {
   const posted: { path: string; line: number; side: string; body: string }[] = [];
   await context.route(DIFF_URL, (route) =>
@@ -180,7 +211,19 @@ export async function mockGithubStateful(context: BrowserContext): Promise<void>
     }
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") {
       const b = (req.postDataJSON?.() ?? {}) as { text?: string };
       return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
@@ -249,7 +292,19 @@ export async function mockGithubThreads(context: BrowserContext): Promise<void> 
     }
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 42, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") {
       const b = (req.postDataJSON?.() ?? {}) as { text?: string };
       return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
@@ -291,7 +346,19 @@ export async function mockGithubSuggestion(context: BrowserContext): Promise<voi
       return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") return route.fulfill({ contentType: "text/html", body: "<p></p>" });
     // apply-suggestion commits to the head branch: read the file, then PUT it back
     if (p.includes("/contents/")) {
@@ -335,7 +402,19 @@ export async function mockGithubMultiSuggestion(context: BrowserContext): Promis
       return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [node] } } } } });
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") {
       const b = (route.request().postDataJSON?.() ?? {}) as { text?: string };
       return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });
@@ -363,7 +442,19 @@ export async function mockGithubImage(context: BrowserContext): Promise<void> {
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === `/repos/${OWNER}/${REPO}/contents/logo.png`) return json({ content: PNG_B64 });
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     return json([]);
   });
 }
@@ -384,7 +475,19 @@ export async function mockGithubAddedImage(context: BrowserContext): Promise<voi
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === `/repos/${OWNER}/${REPO}/contents/added.png`) return json({ content: PNG_B64 });
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     return json([]);
   });
 }
@@ -404,7 +507,19 @@ export async function mockGithubRename(context: BrowserContext): Promise<void> {
       return json({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     return json([]);
   });
 }
@@ -423,7 +538,19 @@ export async function mockGithub(context: BrowserContext): Promise<void> {
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
     if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}/comments`) return json(restComments);
     if (p === "/user") return json({ id: 42, login: "reviewer" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") {
       // note bodies are rendered through GitHub's markdown API (text/html)
       const body = (route.request().postDataJSON?.() ?? {}) as { text?: string };
@@ -473,7 +600,19 @@ export async function mockGithubDiscussion(context: BrowserContext): Promise<voi
       return json(issues);
     }
     if (p === "/user") return json({ id: 9, login: "me" });
-    if (p.endsWith("/status")) return json({ state: "success", total_count: 1 });
+    if (p.endsWith("/status"))
+      return json({
+        state: "success",
+        total_count: 1,
+        statuses: [{ context: "legacy-ci", state: "success", target_url: "https://ci.example/1" }],
+      });
+    if (p.endsWith("/check-runs"))
+      return json({
+        check_runs: [
+          { name: "build", status: "completed", conclusion: "success", html_url: "https://gh/build" },
+          { name: "lint", status: "completed", conclusion: "success", html_url: "https://gh/lint" },
+        ],
+      });
     if (p === "/markdown") {
       const b = (req.postDataJSON?.() ?? {}) as { text?: string };
       return route.fulfill({ contentType: "text/html", body: `<p>${b.text ?? ""}</p>` });

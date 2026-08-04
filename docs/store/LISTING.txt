@@ -103,7 +103,10 @@ REVIEW (WITH AN ACCESS TOKEN)
 · Resolve/unresolve threads and an unresolved badge that jumps to each open one.
 · Draft reviews and a Submit-review panel: Comment / Approve / Request changes,
   with the approval state shown as a badge.
-· Pipeline/checks status and a merge-conflict indicator in the toolbar.
+· Pipeline status that opens up: the toolbar badge lists the jobs behind it
+  (name, stage, state, a click to the log), and the Approve option warns while
+  the pipeline is red — so a broken build is hard to approve by accident.
+· Merge-conflict indicator in the toolbar.
 
 APPEARANCE
 

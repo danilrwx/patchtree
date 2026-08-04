@@ -84,9 +84,11 @@ background worker.
 - **Commit filter** — icon until you pick a commit, then a chip with its
   sha and a reset ×; shows the diff of that commit alone.
 - Compact toolbar: `+N −M · viewed/total` with a one-click reset, an
-  unresolved-threads badge, source → target branch with a copy button,
-  pipeline/checks status, and single buttons that fold every file or
+  unresolved-threads badge, and single buttons that fold every file or
   flip inline ⇄ side-by-side (each labelled by what it will do).
+- **Pipeline status that opens up**: the badge lists the jobs behind it — name,
+  stage, state, one click to the job's log — and **Approve carries a warning
+  while the pipeline is red**, so a broken build is hard to approve by accident.
 - Alt-click a line number → copy a **permalink** to that line's blob.
 - Copy-path and open-at-head buttons in every file header.
 

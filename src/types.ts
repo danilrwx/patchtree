@@ -39,6 +39,17 @@ export interface Me {
 export interface CiStatus {
   state: string;
   url: string;
+  // pipeline id (GitLab) / head sha (GitHub) — what ciJobs() needs to expand
+  ref?: string | number;
+}
+
+// one job / check of the head pipeline, for the toolbar's CI dropdown
+export interface CiJob {
+  name: string;
+  state: string;
+  url?: string;
+  // GitLab groups jobs by stage; GitHub has no equivalent
+  stage?: string;
 }
 
 export type RequestState = "open" | "draft" | "merged" | "closed";
@@ -163,6 +174,8 @@ export interface Provider {
   review(input: ReviewInput): Promise<void>;
   approvedByMe(meId?: number): Promise<boolean>;
   commits(): Promise<Commit[]>;
+  // the jobs behind info().ci, listed when the CI badge is opened
+  ciJobs(ci: CiStatus): Promise<CiJob[]>;
   commitDiff(sha: string): Promise<string>;
   fetchFile(path: string): Promise<string[]>;
   markdown(text: string): Promise<string>;

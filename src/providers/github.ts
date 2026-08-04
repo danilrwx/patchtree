@@ -148,16 +148,33 @@ export function github(owner: string, repo: string, num: string): Provider {
     me: () => api("/user").then((u) => ({ id: u.id, name: u.login })),
     info: async () => {
       const pr = await api(`${base}/pulls/${num}`);
+      // Actions report through check-runs while older CI uses commit statuses;
+      // a PR built by Actions alone has total_count 0 on the status endpoint, so
+      // looking only there reported "no CI" for most repositories today
       let ci = null;
       try {
-        const s = await api(`${base}/commits/${pr.head.sha}/status`);
-        if (s.total_count > 0)
+        const [s, runs] = await Promise.all([
+          api(`${base}/commits/${pr.head.sha}/status`).catch(() => ({ total_count: 0 })),
+          api(`${base}/commits/${pr.head.sha}/check-runs`).catch(() => ({ check_runs: [] })),
+        ]);
+        const states: string[] = [];
+        if (s.total_count > 0) states.push(s.state === "failure" ? "failed" : s.state);
+        for (const r of runs.check_runs || [])
+          states.push(r.status === "completed" ? r.conclusion : r.status);
+        if (states.length)
           ci = {
-            state: s.state === "failure" ? "failed" : s.state,
+            state: states.some((x) => ["failed", "failure", "timed_out", "cancelled"].includes(x))
+              ? "failed"
+              : states.some((x) => ["pending", "queued", "in_progress"].includes(x))
+                ? "pending"
+                : states.every((x) => ["success", "neutral", "skipped"].includes(x))
+                  ? "success"
+                  : "pending",
             url: `https://github.com/${owner}/${repo}/pull/${num}/checks`,
+            ref: pr.head.sha,
           };
       } catch {
-        // status may be unavailable without token
+        // checks may be unavailable without a token
       }
       return {
         title: `#${num} ${pr.title}`,
@@ -320,6 +337,28 @@ export function github(owner: string, repo: string, num: string): Provider {
           title: (c.commit?.message || "").split("\n")[0],
         }))
       ),
+    // check runs cover Actions and most apps; the older commit statuses cover
+    // external CI that never migrated, so both are listed
+    ciJobs: async (ci) => {
+      if (!ci.ref) return [];
+      const [runs, statuses] = await Promise.all([
+        api(`${base}/commits/${ci.ref}/check-runs`).catch(() => ({ check_runs: [] })),
+        api(`${base}/commits/${ci.ref}/status`).catch(() => ({ statuses: [] })),
+      ]);
+      const jobs: any[] = (runs.check_runs || []).map((r: any) => ({
+        name: r.name,
+        // a queued run has no conclusion yet; its status is the honest answer
+        state: r.conclusion || r.status,
+        url: r.html_url,
+      }));
+      for (const s of statuses.statuses || [])
+        jobs.push({
+          name: s.context,
+          state: s.state === "failure" ? "failed" : s.state,
+          url: s.target_url,
+        });
+      return jobs;
+    },
     commitDiff: async (sha) => {
       const r = await chrome.runtime.sendMessage({
         type: "fetchText",

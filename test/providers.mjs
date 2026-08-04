@@ -419,6 +419,7 @@ await (async () => {
   {
     h.setReply((url) => {
       if (/\/status$/.test(url)) return resp({ state: "success", total_count: 1 });
+      if (/check-runs$/.test(url)) return resp({ check_runs: [] });
       return resp({
         title: "PR",
         head: { sha: "H", ref: "feat", repo: { full_name: "owner/repo" } },
@@ -432,6 +433,69 @@ await (async () => {
       assert.equal(info.headSha, "H");
       assert.equal(info.ci.state, "success");
       assert.equal(info.conflicts, true);
+    });
+  }
+
+  // A PR built by Actions alone reports total_count 0 on the status endpoint, so
+  // the state has to come from check-runs — otherwise most repositories today
+  // look like they have no CI at all.
+  const ciStateFor = async (runs, statusReply = { state: "pending", total_count: 0 }) => {
+    h.setReply((url) => {
+      if (/\/status$/.test(url)) return resp(statusReply);
+      if (/check-runs$/.test(url)) return resp({ check_runs: runs });
+      return resp({
+        title: "PR",
+        head: { sha: "H", ref: "feat", repo: { full_name: "owner/repo" } },
+        base: { sha: "B" },
+      });
+    });
+    return (await P.info()).ci;
+  };
+
+  {
+    const ok = await ciStateFor([
+      { name: "build", status: "completed", conclusion: "success" },
+      { name: "lint", status: "completed", conclusion: "skipped" },
+    ]);
+    t("github: ci state comes from check-runs when no commit statuses exist", () => {
+      assert.equal(ok.state, "success");
+      assert.equal(ok.ref, "H");
+    });
+
+    const bad = await ciStateFor([
+      { name: "build", status: "completed", conclusion: "success" },
+      { name: "e2e", status: "completed", conclusion: "failure" },
+    ]);
+    t("github: one failed check makes the whole pipeline failed", () =>
+      assert.equal(bad.state, "failed"));
+
+    const running = await ciStateFor([
+      { name: "build", status: "completed", conclusion: "success" },
+      { name: "e2e", status: "in_progress", conclusion: null },
+    ]);
+    t("github: an unfinished check keeps the pipeline pending", () =>
+      assert.equal(running.state, "pending"));
+
+    const none = await ciStateFor([]);
+    t("github: no checks and no statuses means no ci at all", () => assert.equal(none, null));
+  }
+
+  {
+    h.setReply((url) => {
+      if (/check-runs$/.test(url))
+        return resp({
+          check_runs: [
+            { name: "build", status: "completed", conclusion: "success", html_url: "u1" },
+          ],
+        });
+      return resp({ statuses: [{ context: "legacy", state: "failure", target_url: "u2" }] });
+    });
+    const jobs = await P.ciJobs({ ref: "H", url: "p" });
+    t("github: ciJobs lists check runs and legacy commit statuses together", () => {
+      assert.deepEqual(jobs.map((j) => [j.name, j.state]), [
+        ["build", "success"],
+        ["legacy", "failed"],
+      ]);
     });
   }
 

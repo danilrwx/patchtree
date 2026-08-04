@@ -148,7 +148,11 @@ export function gitlab(projectPath: string, iid: string): Provider {
         sourceBranch: mr.source_branch,
         targetBranch: mr.target_branch,
         ci: mr.head_pipeline
-          ? { state: mr.head_pipeline.status, url: mr.head_pipeline.web_url }
+          ? {
+              state: mr.head_pipeline.status,
+              url: mr.head_pipeline.web_url,
+              ref: mr.head_pipeline.id,
+            }
           : null,
         conflicts: !!mr.has_conflicts,
       };
@@ -236,6 +240,16 @@ export function gitlab(projectPath: string, iid: string): Provider {
       apiPaged(`/projects/${project}/merge_requests/${iid}/commits?`).then((cs) =>
         cs.map((c) => ({ sha: c.id, short: c.short_id, title: c.title }))
       ),
+    ciJobs: async (ci) => {
+      if (ci.ref == null) return [];
+      const jobs = await apiPaged(`/projects/${project}/pipelines/${ci.ref}/jobs?`);
+      return jobs.map((j: any) => ({
+        name: j.name,
+        state: j.status,
+        url: j.web_url,
+        stage: j.stage,
+      }));
+    },
     commitDiff: async (sha) => {
       const r = await fetch(`${location.origin}/${projectPath}/-/commit/${sha}.diff`);
       if (!r.ok) throw new Error(`${r.status}`);

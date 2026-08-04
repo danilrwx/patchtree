@@ -38,9 +38,15 @@ export function initReview(P: Provider, view: PtView) {
   // any here to avoid fighting the provider-Thread vs ReviewThread mismatch
   let me: { id: any; name: string } | null = null;
   let refs: any = null;
+  let ciState = "";
   let currentCommit = "";
   let approvedByMe = false;
-  let approveEls: { b: HTMLElement | null; small: HTMLElement | null } | null = null;
+  let approveEls: {
+    b: HTMLElement | null;
+    small: HTMLElement | null;
+    // the prose only; the CI note is a sibling so rewriting one keeps the other
+    hint: HTMLElement | null;
+  } | null = null;
   let drafts: any[] = [];
   let unresolvedEl: any = null;
   let reviewSum: HTMLElement | null = null;
@@ -115,6 +121,75 @@ export function initReview(P: Provider, view: PtView) {
         more.textContent = clamped ? "Show more" : "Show less";
       });
       host.appendChild(more);
+    });
+  }
+
+
+  // Approving a red pipeline is the mistake worth guarding against, so the note
+  // sits under the Approve description, inside that same text column — a block
+  // in the label itself would land in the empty space to the right.
+  function markReviewCiWarning() {
+    const small = approveEls?.small;
+    if (!small || small.querySelector(".pt-ci-warn")) return;
+    const warn = document.createElement("span");
+    warn.className = "pt-ci-warn";
+    warn.textContent = ciState === "failed" ? "⚠ pipeline failing" : "⚠ pipeline not green yet";
+    small.appendChild(warn);
+  }
+
+  // Job states differ per platform; these are the buckets the UI colours by.
+  const CI_BAD = new Set(["failed", "failure", "canceled", "cancelled", "timed_out", "error"]);
+  const CI_RUNNING = new Set(["running", "pending", "queued", "in_progress", "created", "waiting_for_resource", "preparing"]);
+  const ciClass = (state: string) =>
+    CI_BAD.has(state) ? "failed" : CI_RUNNING.has(state) ? "running" : state === "success" ? "success" : "other";
+
+  // The pipeline badge opens into its jobs, so a red pipeline can be inspected
+  // (and understood) without leaving the diff — the point being not to approve
+  // something that is broken.
+  function buildCiDropdown(ci: any) {
+    const { dd, sum, menu } = makeDropdown(
+      `<span class="pt-dd-label">● ${esc(ci.state)}</span>`
+    );
+    dd.id = "pt-ci";
+    dd.dataset.state = ciClass(ci.state);
+    sum.title = `Pipeline ${ci.state} — open the jobs`;
+    unresolvedEl.dd.after(dd);
+
+    let loaded = false;
+    dd.addEventListener("toggle", async () => {
+      if (!dd.open || loaded) return;
+      loaded = true;
+      menu.textContent = "Loading jobs…";
+      try {
+        const jobs = await P.ciJobs(ci);
+        menu.textContent = "";
+        if (!jobs.length) {
+          menu.textContent = "no jobs reported";
+        } else {
+          for (const j of jobs) {
+            const row = menuItem(
+              menu,
+              `<span class="pt-job-dot" data-state="${ciClass(j.state)}">●</span>` +
+                `<span class="pt-job-name">${esc(j.name)}</span>` +
+                (j.stage ? `<span class="pt-sha">${esc(j.stage)}</span>` : "") +
+                `<span class="pt-job-state">${esc(j.state)}</span>`,
+              () => {
+                dd.open = false;
+                if (j.url) window.open(j.url, "_blank", "noopener");
+              }
+            );
+            row.classList.add("pt-job");
+          }
+        }
+        const open = menuItem(menu, "Open the full pipeline ↗", () => {
+          dd.open = false;
+          window.open(ci.url, "_blank", "noopener");
+        });
+        open.classList.add("pt-job-all");
+      } catch (e: any) {
+        menu.textContent = `jobs unavailable: ${e.message}`;
+        loaded = false;
+      }
     });
   }
 
@@ -384,7 +459,7 @@ export function initReview(P: Provider, view: PtView) {
     if (badge) (badge as HTMLElement).hidden = !v;
     if (approveEls) {
       approveEls.b!.textContent = v ? "Unapprove" : "Approve";
-      approveEls.small!.textContent = v
+      approveEls.hint!.textContent = v
         ? "Revoke your approval of these changes."
         : "Submit feedback and approve these changes.";
     }
@@ -509,11 +584,15 @@ export function initReview(P: Provider, view: PtView) {
       if (value === "comment") input.checked = true;
       lab.appendChild(input);
       const txt = document.createElement("span");
-      txt.innerHTML = `<b>${label}</b><br><small>${hint}</small>`;
+      txt.innerHTML = `<b>${label}</b><br><small><span class="pt-radio-hint">${hint}</span></small>`;
       lab.appendChild(txt);
       panel.appendChild(lab);
       if (value === "approve")
-        approveEls = { b: txt.querySelector("b"), small: txt.querySelector("small") };
+        approveEls = {
+          b: txt.querySelector("b"),
+          small: txt.querySelector("small"),
+          hint: txt.querySelector(".pt-radio-hint"),
+        };
     }
 
     const submit = document.createElement("button");
@@ -521,6 +600,8 @@ export function initReview(P: Provider, view: PtView) {
     submit.textContent = "Submit review";
     panel.appendChild(submit);
     dd.appendChild(panel);
+
+    if (ciState && ciState !== "success") markReviewCiWarning();
 
     submit.addEventListener("click", async () => {
       submit.disabled = true;
@@ -758,14 +839,9 @@ export function initReview(P: Provider, view: PtView) {
       P.setRefs(info as any);
       document.title = info.title;
       if (info.ci) {
-        const ci = document.createElement("a");
-        ci.id = "pt-ci";
-        ci.href = info.ci.url;
-        ci.target = "_blank";
-        ci.rel = "noopener";
-        ci.dataset.state = info.ci.state;
-        ci.textContent = `● ${info.ci.state}`;
-        unresolvedEl.dd.after(ci);
+        ciState = ciClass(info.ci.state);
+        buildCiDropdown(info.ci);
+        if (ciState !== "success") markReviewCiWarning();
       }
       if (info.conflicts) {
         const cf = document.createElement("span");
