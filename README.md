@@ -68,7 +68,9 @@ background worker.
   content), folder icons, per-file `+N −M`, comment-count badge.
 - **Viewed** checkboxes with a progress counter, fold/unfold,
   auto-collapsed `generated` files (lock files, `*.pb.go`, `vendor/`,
-  minified assets).
+  minified assets). The tree carries them too — per file, or per folder to
+  cover everything under it; a folder folds itself once it is fully read, and
+  comes back folded after a reload.
 - **Keyboard**: `j`/`k` files, `n`/`p` threads (centered), `v` viewed,
   `x` fold, `s` inline/side-by-side, `e` file tree, `/` focus filter,
   `?` shortcuts overlay — bound to physical keys, so they work on any
@@ -81,8 +83,11 @@ background worker.
   works both ways — from a merge/pull request it opens the diff, from a diff it
   returns to the request (re-activating the tab you came from rather than
   opening another one).
-- **Commit filter** — icon until you pick a commit, then a chip with its
-  sha and a reset ×; shows the diff of that commit alone.
+- **Commit picker** — icon until you pick a commit, then a chip with its sha and
+  a reset ×; shows the diff of that commit alone. Rows carry the subject, author
+  and date, copy the full sha, or open the commit on the host, and a filter
+  field appears on long branches (sha, message or author; Enter takes the first
+  match).
 - Compact toolbar: `+N −M · viewed/total` with a one-click reset, an
   unresolved-threads badge, and single buttons that fold every file or
   flip inline ⇄ side-by-side (each labelled by what it will do).
@@ -244,9 +249,10 @@ The unresolved badge jumps to each open thread:
 
 ![unresolved threads](docs/screenshots/08-unresolved.png)
 
-Commit filter — review the diff of a single commit:
+Commit picker — review a single commit's diff; each row carries its author and
+date, copies the full sha, or opens the commit on the host:
 
-![commit filter](docs/screenshots/09-commits.png)
+![commit picker](docs/screenshots/09-commits.png)
 
 Tree filter — by extension, or hide viewed and deleted files:
 
@@ -255,6 +261,19 @@ Tree filter — by extension, or hide viewed and deleted files:
 Access tokens, stored locally and never synced:
 
 ![access tokens](docs/screenshots/11-tokens.png)
+
+Pipeline status in the bar, with the jobs behind it:
+
+![pipeline jobs](docs/screenshots/12-ci-jobs.png)
+
+Submitting a review — approving a failing pipeline is called out, not blocked:
+
+![submit review](docs/screenshots/13-submit-review.png)
+
+Reading progress in the tree: mark a file or a whole folder viewed, and a
+finished folder folds itself away:
+
+![viewed files in the tree](docs/screenshots/14-tree-viewed.png)
 
 ## License
 

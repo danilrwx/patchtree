@@ -82,11 +82,15 @@ NAVIGATION
 · Resizable, filterable file tree: the filter matches paths and diff content,
   with status icons, per-file +N -M and comment-count badges.
 · Viewed checkboxes with a progress counter, one-click reset, fold/unfold, and
-  auto-collapsed generated files (lock files, *.pb.go, vendor/, minified).
+  auto-collapsed generated files (lock files, *.pb.go, vendor/, minified). The
+  tree carries them per file and per folder — a folder covers everything under
+  it and folds itself once fully read, reload included.
 · Keyboard, bound to physical keys so any layout works: j/k files, n/p threads,
   v viewed, x fold, s inline/side-by-side, e file tree, / filter, ? all
   shortcuts.
-· Per-commit diff filter, copy-path, open-at-head, and line permalinks.
+· Per-commit diff picker: rows show subject, author and date, copy the full sha
+  or open the commit on the host, with a filter field on long branches.
+· Copy-path, open-at-head, and line permalinks.
 · Request summary in the toolbar: a state chip (Open / Draft / Merged / Closed)
   then who is merging which branch into which, and when.
 · The way back: the state chip links to the request, and the toolbar icon works

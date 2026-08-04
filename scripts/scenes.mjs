@@ -42,6 +42,9 @@ async function shootScenes(out, deviceScaleFactor) {
     headless: false,
     viewport: { width: 1280, height: 800 },
     deviceScaleFactor,
+    // relative dates in the bar follow the browser locale — pin it so the
+    // gallery doesn't come out half-translated on a non-English machine
+    locale: "en-US",
     // new headless still loads MV3 extensions and renders the same pixels, so
     // shooting no longer takes over the screen (PT_HEADED=1 to watch it)
     args: [
@@ -182,6 +185,36 @@ async function shootScenes(out, deviceScaleFactor) {
   await page.locator("#pt-tokens-dialog").waitFor();
   await shot("11-tokens");
   await page.keyboard.press("Escape");
+
+  // the pipeline chip and its jobs — only there when the host reports CI
+  if (await page.locator("#pt-ci").count()) {
+    await dropdown("#pt-ci");
+    await page.locator("#pt-ci .pt-job").first().waitFor({ timeout: 15000 });
+    await page.waitForTimeout(300);
+    await shot("12-ci-jobs");
+    await closeMenus();
+  } else console.log("no CI on this request — skipping 12-ci-jobs");
+
+  // the review panel, with the red-pipeline warning under Approve. Its body is
+  // a .pt-review-panel, not one of the shared dropdown menus
+  await closeMenus();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator("#pt-review > summary").click();
+  await page.locator("#pt-review .pt-review-panel").waitFor();
+  await page.waitForTimeout(400);
+  await shot("13-submit-review");
+  await closeMenus();
+
+  // the tree tracking progress: some files done, the folder box part-way. Every
+  // file here lives in one folder, so marking the folder would fold the tree
+  // into a single row and show nothing
+  await page.evaluate(() => {
+    const rows = [...document.querySelectorAll(".pt-tree-row .pt-tree-check")];
+    for (const b of rows.slice(0, 3)) b.click();
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  await shot("14-tree-viewed");
 
   await context.close();
 }
