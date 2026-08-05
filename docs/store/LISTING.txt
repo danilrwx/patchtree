@@ -8,6 +8,12 @@ same text reads fine there, so both listings can share it.
 
 Fields below are ready to paste as-is.
 
+Do not turn the feature bullets back into lists of language names. A rejection
+under "Yellow Argon" (keyword stuffing, 2026-08) was caused by exactly that:
+enumerating every supported grammar reads as keyword stuffing to CWS review,
+whatever the intent. Describe what the feature does and point at the README for
+the list.
+
 
 --------------------------------------------------------------------------------
 NAME (45 chars max on CWS)
@@ -46,23 +52,24 @@ a nested generic or a bash heredoc quietly falls apart. patchtree runs the real
 grammars instead — the same tree-sitter parsers Neovim, Helix and Zed use —
 compiled to WebAssembly and executed in the extension's background worker.
 
-· A real parse tree per file, so nesting is never guessed: JSX inside
-  TypeScript, generics, Rust macros, bash heredocs, f-strings and Helm/Go
-  template actions inside YAML all keep their structure.
-· 30 grammars, each pinned to the revision its highlight queries were written
-  for: Go, JS/TS/TSX, Python, Bash, JSON, YAML, Rust, C, C++, Java, Ruby, PHP,
-  C#, Lua, TOML, HCL/Terraform, CSS, HTML, Kotlin, Scala, Dart, Groovy, Elixir,
-  Haskell, Zig, Markdown, Dockerfile/Containerfile, and Helm/Go templates.
-· Language injection, the way editors do it: a ```go block inside a Markdown
-  file is parsed as Go, prose goes through the inline grammar, and Helm template
-  actions layer over the YAML underneath.
+· A real parse tree per file, so nesting is never guessed: markup embedded in
+  code, generics, macros, shell heredocs and template actions inside config
+  files all keep their structure.
+· 30 bundled grammars, each pinned to the revision its highlight queries were
+  written for, covering the mainstream compiled and scripting languages plus the
+  config, markup and infrastructure formats a review touches. The current list
+  is in the project README.
+· Language injection, the way editors do it: a fenced code block inside a
+  document is parsed with that language's own grammar, the prose around it with
+  the document grammar, and template actions layer over the config file beneath
+  them.
 · Parsing runs off the main thread and grammars load lazily, one per language a
   diff actually contains, so a 10 000-line diff never blocks scrolling.
 · Word-level diff sits under the syntax colours: you see what changed and what
   it means at once.
-· Anything without a grammar falls back to highlight.js (Swift, SQL, Makefile,
-  Perl, R, Protobuf, Objective-C, …); files with no extension go by
-  shebang, then auto-detection.
+· A language with no bundled grammar still gets highlighted, through
+  highlight.js. Files with no extension are identified by their shebang, then by
+  auto-detection.
 
 DIFF RENDERING
 
@@ -231,6 +238,9 @@ PUBLISHING CHECKLIST (things the store blocks on, outside the listing text)
 · Privacy policy URL — required as soon as any user data is declared:
   https://github.com/danilrwx/patchtree/blob/main/PRIVACY.md
 · Distribution tab: visibility Public, then "Submit for review".
+· After a rejection, paste the corrected description and resubmit from the same
+  version — CWS re-reviews the listing, no new package upload is needed unless
+  the code changed.
 
 
 --------------------------------------------------------------------------------
