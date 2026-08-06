@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { For, createMemo, createEffect, batch } from "solid-js";
+import { cmpName } from "../diff";
 import { icons } from "../icons";
 import {
   treeFiles,
@@ -76,11 +77,11 @@ function isVisible(f: TreeFile, q: string, ignoreViewed = false): boolean {
 function TreeNode(props: { node: Node }) {
   const dirs = createMemo(() =>
     [...props.node.dirs]
-      .sort((a, b) => a[0].localeCompare(b[0]))
+      .sort((a, b) => cmpName(a[0], b[0]))
       .map(([name, child]) => mergeChain(name, child))
   );
   const files = createMemo(() =>
-    props.node.files.slice().sort((a, b) => a.path.localeCompare(b.path))
+    props.node.files.slice().sort((a, b) => cmpName(a.path, b.path))
   );
   const q = () => filter().trim().toLowerCase();
 
