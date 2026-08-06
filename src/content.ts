@@ -14,7 +14,7 @@
 
 "use strict";
 
-import { resolveLang, parseDiff, buildFileModel, renderPreambleHTML } from "./diff";
+import { resolveLang, parseDiff, buildFileModel, renderPreambleHTML, treeOrder } from "./diff";
 import { flashCenter, mountDialog, makeDropdown, menuItem } from "./ui";
 import { injectFonts } from "./fonts";
 import { BASE16, applySettings, parseBase16Yaml } from "./theme";
@@ -376,6 +376,9 @@ async function main() {
 
   function renderDiff(text: string) {
     const parsed = parseDiff(text);
+    parsed.files.sort((a, b) =>
+      treeOrder(a.newPath || a.oldPath || "", b.newPath || b.oldPath || "")
+    );
     rawPre.textContent = text;
     main.textContent = "";
     resetDiffState();
