@@ -33,7 +33,13 @@ test("j and k scroll between files", async ({ context, page }) => {
   // to go back to (from the first file it is a no-op by design)
   await page.keyboard.press("j");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  const afterFirst = await page.evaluate(() => window.scrollY);
+
+  // wait for the second jump to land before capturing where it went: reading
+  // scrollY straight after the keypress can still return the first file's
+  // offset, and k then goes back to exactly that offset with nothing to beat
   await page.keyboard.press("j");
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(afterFirst);
   const afterJ = await page.evaluate(() => window.scrollY);
 
   await page.keyboard.press("k");
