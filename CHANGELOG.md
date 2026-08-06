@@ -2,6 +2,46 @@
 
 All notable changes, grouped from [conventional commits](https://www.conventionalcommits.org).
 
+## v1.3.0
+
+### 🚀 Features
+
+- **review:** unresolved list shows who and where, and resolves in place (`e24b41d`)
+- **tree:** mark files and whole folders viewed from the sidebar (`ac8195a`)
+- **ui:** richer commit picker with filter, metadata and sha copy (`b7a47be`)
+- **settings:** make the MR/PR description optional (`5924db6`)
+- **ci:** pipeline status in the bar, with its jobs and a red-pipeline guard (`15485c4`)
+- show what the request is about before the diff (`550ec21`)
+- **nav:** a way back from the diff to its request (`99cc02f`)
+- **highlight:** markdown via tree-sitter, with language injection (`5ea8e74`)
+
+### 🐛 Fixes
+
+- **gitlab:** publish drafts with POST, as bulk_publish requires (`7a2bbc2`)
+
+### 📖 Documentation
+
+- describe grammar coverage instead of listing every language (`b528ab3`)
+- gallery frames for the wider commit picker and thread list (`093e9d5`)
+- refresh the gallery with the pipeline, review and viewed-tree frames (`c0beb4f`)
+- promo banner up top, privacy policy, CWS privacy-tab copy (`d82df20`)
+- store promo images and plain-text listing copy (`4efa2c2`)
+- lead with tree-sitter as the reason patchtree renders code correctly (`f53e376`)
+- full-window frames replace the cropped menu shots (`5ae84b5`)
+- one scene set for the README and both store listings (`fcf10cf`)
+- native 1280x800 store gallery, numbered in upload order (`90e7839`)
+- 1280x800 store screenshots for the Chrome Web Store listing (`f890f20`)
+
+### ✅ Tests
+
+- **nav:** wait for the second jump before reading where it landed (`72009fd`)
+- run e2e and screenshots in Chromium's new headless mode (`207a75b`)
+
+### 🔧 Chores
+
+- ignore the artifacts the AMO submit step builds (`bb85d07`)
+- **ci:** attach sources and reviewer notes to AMO submissions (`c93dc2e`)
+
 ## v1.2.1
 
 ### 🐛 Fixes

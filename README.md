@@ -200,7 +200,7 @@ from the repository, so artifact contents are fully traceable:
 - Themes — tinted-theming schemes at a pinned commit
   (`scripts/fetch-themes.sh`).
 
-To release: `git tag v1.2.0 && git push --tags`. CI generates the
+To release: `git tag v1.3.0 && git push --tags`. CI generates the
 release notes from conventional commits (`scripts/changelog.sh`).
 
 ## Documentation
@@ -214,8 +214,8 @@ release notes from conventional commits (`scripts/changelog.sh`).
 
 See [CHANGELOG.md](CHANGELOG.md). It is grouped from
 [conventional commits](https://www.conventionalcommits.org) — preview the
-unreleased section with `make changelog RANGE=v1.2.0..HEAD`, or the notes
-a tag will carry with `scripts/changelog.sh v1.2.0`.
+unreleased section with `make changelog RANGE=v1.3.0..HEAD`, or the notes
+a tag will carry with `scripts/changelog.sh v1.3.0`.
 
 ## Gallery
 
