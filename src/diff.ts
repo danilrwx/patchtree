@@ -217,9 +217,10 @@ export function resolveLang(path: string | null | undefined, text: string | null
 const diffPath = (s: string) => s.replace(/\t.*$/, "");
 
 // One path order for both panes: folders before files at every level (the
-// tree's shape), names in plain code-point order (git's — localeCompare would
-// flip e.g. dra_test.go before dra.go). Shared by the file tree and the diff
-// body, which git interleaves (root files between directories).
+// tree's shape), names in plain UTF-16 code unit order — matches git's byte
+// order except for astral-plane names, unlike localeCompare which would flip
+// e.g. dra_test.go before dra.go. Shared by the file tree and the diff body,
+// which git interleaves (root files between directories).
 export const cmpName = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 export function treeOrder(a: string, b: string): number {

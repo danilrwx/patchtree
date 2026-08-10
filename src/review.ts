@@ -263,7 +263,7 @@ export function initReview(P: Provider, view: PtView) {
     const open = realThreads
       .filter((t) => t.resolvable && !t.resolved)
       .sort((a, b) => {
-        // file order follows the diff, not the alphabet, so walking the list
+        // file order follows the rendered diff body, so walking the list
         // walks the review top to bottom; general discussion leads
         const order = treeFiles().map((f) => f.path);
         const rank = (t: any) => (t.pos ? order.indexOf(t.pos.path) + 1 : 0);

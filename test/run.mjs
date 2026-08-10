@@ -340,11 +340,11 @@ t("changelog.sh groups commits by type", () => {
   assert.ok(/^- (\*\*[\w.-]+:\*\* )?.+ \(`[0-9a-f]+`\)$/m.test(out), out);
 });
 
-t("treeOrder: folders before files, names in code-point order", () => {
+t("treeOrder: folders before files, names in code unit order", () => {
   const paths = ["go.work.sum", "src/app/main.go", "go.work", "src/go.mod", "templates/a.yaml"];
   paths.sort(treeOrder);
   assert.deepEqual(paths, ["src/app/main.go", "src/go.mod", "templates/a.yaml", "go.work", "go.work.sum"]);
-  // code-point order like git, not locale order (which puts _ before .)
+  // plain UTF-16 order like git's bytes, not locale order (which puts _ before .)
   assert.deepEqual(["pkg/dra_test.go", "pkg/dra.go"].sort(treeOrder), ["pkg/dra.go", "pkg/dra_test.go"]);
 });
 

@@ -376,9 +376,13 @@ async function main() {
 
   function renderDiff(text: string) {
     const parsed = parseDiff(text);
-    parsed.files.sort((a, b) =>
-      treeOrder(a.newPath || a.oldPath || "", b.newPath || b.oldPath || "")
-    );
+    // In a multi-commit mbox (a GitHub PR .patch) file order is the only
+    // commit boundary parseDiff keeps — sorting would interleave commits
+    const multiCommit = (text.match(/^From [0-9a-f]{7,40} /gm)?.length ?? 0) > 1;
+    if (!multiCommit)
+      parsed.files.sort((a, b) =>
+        treeOrder(a.newPath || a.oldPath || "(unknown)", b.newPath || b.oldPath || "(unknown)")
+      );
     rawPre.textContent = text;
     main.textContent = "";
     resetDiffState();
