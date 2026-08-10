@@ -10,12 +10,12 @@
     "lint": "biome lint && node scripts/check-headers.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.6",
-    "@playwright/test": "1.62.0",
-    "@types/chrome": "0.0.287",
+    "@biomejs/biome": "2.5.7",
+    "@playwright/test": "1.62.1",
+    "@types/chrome": "0.2.5",
     "@types/node": "22.20.1",
     "c8": "12.0.0",
-    "esbuild": "0.25.12",
+    "esbuild": "0.28.1",
     "esbuild-plugin-solid": "0.6.0",
     "highlight.js": "11.11.1",
     "solid-js": "1.9.14",
