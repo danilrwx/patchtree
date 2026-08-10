@@ -17,20 +17,15 @@
 # download against its pinned sha256 — a moved tag or re-uploaded release
 # asset fails loudly instead of shipping different bytes. After a version
 # bump, PRINT_SUMS=1 FORCE=1 prints the new pins to paste below.
-# Every monospace family comes from the Nerd Fonts release (JetBrains Mono
-# included) and is converted to woff2 with the ttf2woff2 npm package; Inter
-# is the one non-mono face, fetched from its own upstream.
+# Every bundled font comes from the Nerd Fonts release and is converted to
+# woff2 with the ttf2woff2 npm package — one upstream for all of them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-INTER=v4.1
 NERD=v3.4.0
 TTF2WOFF2=8.0.1
-RAW=https://raw.githubusercontent.com
 
 SUMS=(
-  "InterVariable.woff2 693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3"
-  "InterVariable-Italic.woff2 e564f652916db6c139570fefb9524a77c4d48f30c92928de9db19b6b5c7a262a"
   "JetBrainsMono.tar.xz ef552a3e638f25125c6ad4c51176a6adcdce295ab1d2ffacf0db060caf8c1582"
   "FiraCode.tar.xz d83fb093e0e05a531cd6f19886a6ceb884a4fa5ea3b53cf099fc1f30c5b3e47d"
   "Hack.tar.xz 1d00a1435638084174516975840854368a45ac30bb0bad2c0c49db713b5925f0"
@@ -55,7 +50,6 @@ fetch_checked() {
 }
 
 EXPECTED=(
-  InterVariable InterVariable-Italic
   JetBrainsMonoNerdFontMono-Regular JetBrainsMonoNerdFontMono-Italic JetBrainsMonoNerdFontMono-Bold
   FiraCodeNerdFontMono-Regular FiraCodeNerdFontMono-Bold
   HackNerdFontMono-Regular HackNerdFontMono-Bold
@@ -74,12 +68,6 @@ fi
 mkdir -p assets/fonts
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-
-echo "Inter $INTER"
-for f in InterVariable InterVariable-Italic; do
-  fetch_checked "$RAW/rsms/inter/$INTER/docs/font-files/$f.woff2" "$f.woff2"
-  cp "$tmp/$f.woff2" "assets/fonts/$f.woff2"
-done
 
 echo "Nerd Fonts $NERD"
 for family in JetBrainsMono FiraCode Hack Meslo Iosevka; do

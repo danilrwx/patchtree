@@ -20,8 +20,6 @@ const FONT_FACES = [
   ["JetBrains Mono", "400", "normal", "JetBrainsMonoNerdFontMono-Regular.woff2"],
   ["JetBrains Mono", "400", "italic", "JetBrainsMonoNerdFontMono-Italic.woff2"],
   ["JetBrains Mono", "700", "normal", "JetBrainsMonoNerdFontMono-Bold.woff2"],
-  ["Inter", "100 900", "normal", "InterVariable.woff2"],
-  ["Inter", "100 900", "italic", "InterVariable-Italic.woff2"],
   ["JetBrainsMono Nerd Font Mono", "400", "normal", "JetBrainsMonoNerdFontMono-Regular.woff2"],
   ["JetBrainsMono Nerd Font Mono", "400", "italic", "JetBrainsMonoNerdFontMono-Italic.woff2"],
   ["JetBrainsMono Nerd Font Mono", "700", "normal", "JetBrainsMonoNerdFontMono-Bold.woff2"],

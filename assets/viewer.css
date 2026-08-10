@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 html.pt-on {
-  --pt-ui: "JetBrains Mono", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pt-ui: "JetBrains Mono", system-ui, -apple-system, "Segoe UI", sans-serif;
   --pt-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --pt-bg: #ffffff;
   --pt-fg: #1f2328;

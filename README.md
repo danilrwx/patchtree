@@ -129,8 +129,8 @@ background worker.
   [tinted-theming](https://github.com/tinted-theming/schemes) (MIT) with live
   code previews — including how added/removed diff lines look — search and a
   light/dark filter, plus paste-your-own scheme yaml.
-- Bundled fonts: JetBrains Mono, Inter and Nerd Font Mono builds of
-  JetBrainsMono / FiraCode / Hack / MesloLGS / Iosevka; any local font by
+- Bundled fonts: Nerd Font Mono builds of JetBrainsMono / FiraCode / Hack /
+  MesloLGS / Iosevka (JetBrains Mono is the default face); any local font by
   name; separate UI/code font sizes, tab width, italic comments and
   ligatures toggles.
 
@@ -290,6 +290,6 @@ finished folder folds itself away:
 
 Apache License 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)) — copies must
 retain the copyright and license notices. Bundled third-party assets keep their own licenses: web-tree-sitter and
-the grammars (MIT), highlight.js (BSD-3-Clause), JetBrains Mono / Inter
-(OFL), Nerd Fonts patched fonts (MIT + upstream font licenses),
+the grammars (MIT), highlight.js (BSD-3-Clause), Nerd Fonts patched
+fonts (MIT + upstream font licenses, JetBrains Mono is OFL),
 tinted-theming schemes (MIT).

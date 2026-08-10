@@ -47,7 +47,7 @@ Open a diff URL such as `https://gitlab.example.com/group/project/-/merge_reques
 **Appearance**
 
 - Theme gallery with the base24 schemes from tinted-theming, live code previews (including how added/removed lines look), light/dark filter, and paste-your-own scheme YAML.
-- Bundled fonts (JetBrains Mono, Inter, and Nerd Font builds), or any local font by name; separate UI/code font sizes, tab width, italic-comment and ligature toggles.
+- Bundled fonts (Nerd Font builds, JetBrains Mono by default), or any local font by name; separate UI/code font sizes, tab width, italic-comment and ligature toggles.
 
 **Setup**
 
