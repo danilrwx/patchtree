@@ -1,5 +1,8 @@
 # patchtree
 
+[![build](https://github.com/danilrwx/patchtree/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/danilrwx/patchtree/actions/workflows/release.yml)
+![unit coverage](https://img.shields.io/badge/unit_coverage-%E2%89%A590%25-brightgreen)
+
 ![patchtree](docs/store/promo-marquee-1400x560.jpg)
 
 Chrome/Firefox extension that turns raw `.diff` / `.patch` URLs into a

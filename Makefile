@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: all deps vendor queries fonts themes build node_modules typecheck lint hooks zip zip-firefox check test e2e changelog clean
+.PHONY: all deps vendor queries fonts themes build node_modules typecheck lint hooks zip zip-firefox check test coverage e2e changelog clean
 
 all: build
 
@@ -61,6 +61,16 @@ check:
 test: check lint typecheck
 	node test/run.mjs
 	node test/providers.mjs
+
+# unit-test coverage of the logic core (diff/hljs/providers), remapped to
+# src/*.ts through the source maps the test runners emit; the floor here is
+# what the README badge claims
+coverage:
+	rm -rf test-results/v8cov
+	NODE_V8_COVERAGE=test-results/v8cov node test/run.mjs >/dev/null
+	NODE_V8_COVERAGE=test-results/v8cov node test/providers.mjs >/dev/null
+	npx c8 report --temp-directory test-results/v8cov --include 'src/**' --include 'test-results/covtmp/src/**' \
+		--exclude-after-remap --reporter=text --check-coverage --lines 90
 
 # Playwright end-to-end: loads the built extension against the PR .diff fixture
 # with the adapter mocked. MV3 extensions load in Chromium's new headless mode,

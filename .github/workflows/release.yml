@@ -27,6 +27,9 @@ jobs:
       - run: npm install
       - name: Lint + license headers + types
         run: make lint typecheck
+      # enforces the coverage floor the README badge claims
+      - name: Unit coverage
+        run: make coverage
 
   build:
     runs-on: ubuntu-latest
