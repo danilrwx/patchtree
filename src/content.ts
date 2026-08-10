@@ -514,8 +514,8 @@ async function main() {
 
   // ---- viewed state + reload scroll restore (chrome.storage.local) ----
   const stored = await localP;
-  viewedSet = new Set(stored[viewedKey] || []);
-  const restoreTo: string = stored[scrollKey] || "";
+  viewedSet = new Set((stored[viewedKey] as string[]) || []);
+  const restoreTo = (stored[scrollKey] as string) || "";
   for (const v of views)
     if (viewedSet.has(v.path)) {
       v.section.classList.add("pt-folded");
@@ -544,8 +544,8 @@ async function main() {
   if (sync.treeWidth) tree.style.width = `${sync.treeWidth}px`;
   root.classList.toggle("pt-tree-hidden", !!sync.sidebarHidden);
   syncCollapse();
-  applyMode(sync.view || "unified");
-  customThemes = sync.customThemes || {};
+  applyMode((sync.view as string) || "unified");
+  customThemes = (sync.customThemes as Record<string, string>) || {};
   setSettings(sync.settings || {});
   applySettings(sync.settings || {}, customThemes);
 
