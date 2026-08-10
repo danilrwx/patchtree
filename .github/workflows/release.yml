@@ -49,7 +49,7 @@ jobs:
           cache: npm
 
       - name: Cache pinned binary assets
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             assets/vendor
@@ -71,7 +71,7 @@ jobs:
 
       - name: Cache Playwright Chromium
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
