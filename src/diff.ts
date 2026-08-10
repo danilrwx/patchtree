@@ -216,6 +216,26 @@ export function resolveLang(path: string | null | undefined, text: string | null
 // strip the tab-separated timestamp some diff tools append to a ---/+++ path
 const diffPath = (s: string) => s.replace(/\t.*$/, "");
 
+// One path order for both panes: folders before files at every level (the
+// tree's shape), names in plain UTF-16 code unit order — matches git's byte
+// order except for astral-plane names, unlike localeCompare which would flip
+// e.g. dra_test.go before dra.go. Shared by the file tree and the diff body,
+// which git interleaves (root files between directories).
+export const cmpName = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+export function treeOrder(a: string, b: string): number {
+  const A = a.split("/");
+  const B = b.split("/");
+  for (let i = 0; i < Math.min(A.length, B.length); i++) {
+    const dirA = i < A.length - 1;
+    const dirB = i < B.length - 1;
+    if (dirA !== dirB) return dirA ? -1 : 1;
+    const c = cmpName(A[i], B[i]);
+    if (c) return c;
+  }
+  return A.length - B.length;
+}
+
 export function parseDiff(text: string): ParsedDiff {
   const lines = text.split("\n");
   const files: DiffFile[] = [];

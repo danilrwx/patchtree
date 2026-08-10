@@ -74,14 +74,12 @@ function isVisible(f: TreeFile, q: string, ignoreViewed = false): boolean {
 }
 
 function TreeNode(props: { node: Node }) {
+  // treeFiles arrives in treeOrder and build() preserves it at every node,
+  // so renderDiff is the single ordering authority for both panes
   const dirs = createMemo(() =>
-    [...props.node.dirs]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([name, child]) => mergeChain(name, child))
+    [...props.node.dirs].map(([name, child]) => mergeChain(name, child))
   );
-  const files = createMemo(() =>
-    props.node.files.slice().sort((a, b) => a.path.localeCompare(b.path))
-  );
+  const files = createMemo(() => props.node.files);
   const q = () => filter().trim().toLowerCase();
 
   return (
