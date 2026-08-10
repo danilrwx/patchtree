@@ -14,23 +14,31 @@
 
 // Checks for the pure logic in src/diff.ts (transpiled with esbuild and loaded
 // as a CommonJS module) plus the changelog script and provider URL routing.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { transformSync } from "esbuild";
 import assert from "node:assert/strict";
 
 const root = new URL("..", import.meta.url);
 const require = createRequire(import.meta.url);
+const covDir = fileURLToPath(new URL("test-results/covtmp", root));
+mkdirSync(covDir, { recursive: true });
 
+// the transpiled module goes through a real file with an inline source map so
+// NODE_V8_COVERAGE (make coverage) can attribute hits back to src/*.ts
 function loadTs(rel) {
-  const { code } = transformSync(readFileSync(new URL(rel, root), "utf8"), {
+  const srcPath = fileURLToPath(new URL(rel, root));
+  const { code } = transformSync(readFileSync(srcPath, "utf8"), {
     loader: "ts",
     format: "cjs",
+    sourcemap: "inline",
+    sourcefile: srcPath,
   });
-  const module = { exports: {} };
-  new Function("module", "exports", "require", code)(module, module.exports, require);
-  return module.exports;
+  const out = `${covDir}/${rel.replace(/[/.]/g, "_")}.cjs`;
+  writeFileSync(out, code);
+  return require(out);
 }
 
 const {

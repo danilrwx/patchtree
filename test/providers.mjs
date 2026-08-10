@@ -16,6 +16,7 @@
 // storage token, then drive every Provider method and assert the request it
 // issues (url, method, auth header, body) and how it normalizes the response.
 import { fileURLToPath } from "node:url";
+import { writeFileSync, mkdirSync } from "node:fs";
 import { buildSync } from "esbuild";
 import vm from "node:vm";
 import assert from "node:assert/strict";
@@ -30,8 +31,15 @@ const { outputFiles } = buildSync({
   platform: "browser",
   write: false,
   logLevel: "silent",
+  sourcemap: "inline",
 });
 const code = outputFiles[0].text;
+// the bundle runs from a real file so NODE_V8_COVERAGE (make coverage) can
+// attribute hits back to src/providers/*.ts through the inline source map
+const covDir = fileURLToPath(new URL("test-results/covtmp", root));
+mkdirSync(covDir, { recursive: true });
+const bundlePath = `${covDir}/providers_bundle.cjs`;
+writeFileSync(bundlePath, code);
 const sandboxRequire = (id) => {
   throw new Error(`unexpected require: ${id}`);
 };
@@ -91,7 +99,7 @@ async function harness({ location, tokenHost, token = "SEKRET", sendMessage } = 
     console,
   };
   vm.createContext(sandbox);
-  vm.runInContext(code, sandbox);
+  new vm.Script(code, { filename: bundlePath }).runInContext(sandbox);
   const P = mod.exports.makeProvider();
   await P.init();
   return {
