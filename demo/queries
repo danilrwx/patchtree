@@ -1,0 +1,5 @@
+SELECT node, COUNT(*) AS gpus, SUM(memory_gb) AS total_memory
+FROM inventory
+WHERE status = 'ready'
+GROUP BY node
+ORDER BY total_memory DESC;
