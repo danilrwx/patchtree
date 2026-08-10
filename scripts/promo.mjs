@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Renders the Chrome Web Store promo images (small tile 440x280 and marquee
-// 1400x560) from an HTML template, using the extension's own fonts and a real
-// screenshot. Output is JPEG because the store rejects PNGs with an alpha
-// channel. Usage: node scripts/promo.mjs (after scripts/scenes.mjs).
+// Renders the Chrome Web Store promo images (small tile 440x280, marquee
+// 1400x560) and the GitHub social preview card (1280x640) from an HTML
+// template, using the extension's own fonts and a real screenshot. Store
+// output is JPEG because the store rejects PNGs with an alpha channel.
+// Usage: node scripts/promo.mjs (after scripts/scenes.mjs).
 import { chromium } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -111,16 +112,22 @@ ${
 `;
 
 const browser = await chromium.launch();
-for (const [w, h, scale, name, compact] of [
-  [440, 280, 3.1, "promo-small-440x280", true],
-  [1400, 560, 5, "promo-marquee-1400x560", false],
+for (const [w, h, scale, file, compact] of [
+  [440, 280, 3.1, "promo-small-440x280.jpg", true],
+  [1400, 560, 5, "promo-marquee-1400x560.jpg", false],
+  [1280, 640, 5, "../social-preview-1280x640.png", false],
 ]) {
   const p = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
   await p.setContent(page(scale, compact));
   if (compact) await p.evaluate(() => document.body.classList.add("compact"));
   await p.evaluate(() => document.fonts.ready);
-  await p.screenshot({ path: path.join(out, `${name}.jpg`), type: "jpeg", quality: 92 });
-  console.log(`${name}.jpg ${w}x${h}`);
+  const type = file.endsWith(".png") ? "png" : "jpeg";
+  await p.screenshot({
+    path: path.join(out, file),
+    type,
+    ...(type === "jpeg" ? { quality: 92 } : {}),
+  });
+  console.log(`${file} ${w}x${h}`);
   await p.close();
 }
 await browser.close();
