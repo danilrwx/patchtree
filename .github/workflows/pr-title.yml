@@ -1,0 +1,26 @@
+name: pr-title
+
+# The PR title becomes the squash-commit subject and picks the changelog
+# label, so it must be a conventional commit. Kept as its own workflow so
+# the check can be required by the main ruleset.
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions: {}
+
+jobs:
+  conventional-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check conventional title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if printf '%s' "$TITLE" | grep -qE '^(feat|fix|perf|refactor|docs|test|build|ci|chore|style)(\([^)]+\))?!?: .+'; then
+            echo "ok: $TITLE"
+          else
+            echo "PR title must be a conventional commit: type(scope): description"
+            echo "types: feat fix perf refactor docs test build ci chore style"
+            exit 1
+          fi
