@@ -79,6 +79,9 @@ jobs:
             build/patchtree.zip
             build/patchtree-firefox.zip
 
+      # AMO release notes stay commit-based (changelog.sh); the GitHub release
+      # body is generated from merged PRs per .github/release.yml, so each
+      # line carries its PR link and author.
       - name: Changelog
         if: startsWith(github.ref, 'refs/tags/v')
         run: ./scripts/changelog.sh "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
@@ -91,7 +94,7 @@ jobs:
             build/patchtree.zip
             build/patchtree-firefox.zip
             build/checksums.txt
-          body_path: RELEASE_NOTES.md
+          generate_release_notes: true
 
       # submits the version for review on the public AMO listing and returns
       # immediately (--approval-timeout 0): a signed xpi only exists after a

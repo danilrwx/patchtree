@@ -1,0 +1,52 @@
+name: label
+
+# Maps the conventional-commit prefix of a PR title to the label that
+# .github/release.yml groups release notes by. Runs on pull_request_target so
+# it never checks out or executes PR code.
+on:
+  pull_request_target:
+    types: [opened, edited]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const map = {
+              feat: "feature",
+              fix: "fix",
+              perf: "performance",
+              refactor: "refactor",
+              docs: "documentation",
+              test: "test",
+              build: "build",
+              ci: "build",
+              chore: "chore",
+              style: "chore",
+            };
+            const pr = context.payload.pull_request;
+            const m = pr.title.match(/^([a-z]+)(\([^)]*\))?!?:/);
+            const want = m ? map[m[1]] : undefined;
+            const managed = new Set(Object.values(map));
+            const have = pr.labels.map((l) => l.name);
+            for (const name of have) {
+              if (managed.has(name) && name !== want) {
+                await github.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: pr.number,
+                  name,
+                });
+              }
+            }
+            if (want && !have.includes(want)) {
+              await github.rest.issues.addLabels({
+                ...context.repo,
+                issue_number: pr.number,
+                labels: [want],
+              });
+            }
