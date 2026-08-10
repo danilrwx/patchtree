@@ -15,12 +15,15 @@
 // @font-face lives here, not in the injected CSS: extension-resource URLs
 // need runtime.getURL to work on both chrome-extension:// and moz-extension://
 const FONT_FACES = [
-  ["JetBrains Mono", "400", "normal", "JetBrainsMono-Regular.woff2"],
-  ["JetBrains Mono", "400", "italic", "JetBrainsMono-Italic.woff2"],
-  ["JetBrains Mono", "700", "normal", "JetBrainsMono-Bold.woff2"],
+  // the default code face is the Nerd Fonts build of JetBrains Mono, so one
+  // upstream covers every bundled mono family (and icons render out of the box)
+  ["JetBrains Mono", "400", "normal", "JetBrainsMonoNerdFontMono-Regular.woff2"],
+  ["JetBrains Mono", "400", "italic", "JetBrainsMonoNerdFontMono-Italic.woff2"],
+  ["JetBrains Mono", "700", "normal", "JetBrainsMonoNerdFontMono-Bold.woff2"],
   ["Inter", "100 900", "normal", "InterVariable.woff2"],
   ["Inter", "100 900", "italic", "InterVariable-Italic.woff2"],
   ["JetBrainsMono Nerd Font Mono", "400", "normal", "JetBrainsMonoNerdFontMono-Regular.woff2"],
+  ["JetBrainsMono Nerd Font Mono", "400", "italic", "JetBrainsMonoNerdFontMono-Italic.woff2"],
   ["JetBrainsMono Nerd Font Mono", "700", "normal", "JetBrainsMonoNerdFontMono-Bold.woff2"],
   ["FiraCode Nerd Font Mono", "400", "normal", "FiraCodeNerdFontMono-Regular.woff2"],
   ["FiraCode Nerd Font Mono", "700", "normal", "FiraCodeNerdFontMono-Bold.woff2"],

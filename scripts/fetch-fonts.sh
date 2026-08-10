@@ -13,20 +13,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Fetch bundled web fonts from pinned upstream releases.
-# Nerd Font ttf files are converted to woff2 with the ttf2woff2 npm package.
+# Fetch bundled web fonts from pinned upstream releases and verify every
+# download against its pinned sha256 — a moved tag or re-uploaded release
+# asset fails loudly instead of shipping different bytes. After a version
+# bump, PRINT_SUMS=1 FORCE=1 prints the new pins to paste below.
+# Every monospace family comes from the Nerd Fonts release (JetBrains Mono
+# included) and is converted to woff2 with the ttf2woff2 npm package; Inter
+# is the one non-mono face, fetched from its own upstream.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-JB=v2.304
 INTER=v4.1
 NERD=v3.4.0
+TTF2WOFF2=8.0.1
 RAW=https://raw.githubusercontent.com
 
+SUMS=(
+  "InterVariable.woff2 693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3"
+  "InterVariable-Italic.woff2 e564f652916db6c139570fefb9524a77c4d48f30c92928de9db19b6b5c7a262a"
+  "JetBrainsMono.tar.xz ef552a3e638f25125c6ad4c51176a6adcdce295ab1d2ffacf0db060caf8c1582"
+  "FiraCode.tar.xz d83fb093e0e05a531cd6f19886a6ceb884a4fa5ea3b53cf099fc1f30c5b3e47d"
+  "Hack.tar.xz 1d00a1435638084174516975840854368a45ac30bb0bad2c0c49db713b5925f0"
+  "Meslo.tar.xz a57936d96aefb5cfff0660f3294210ee04705529af6cf811e2274b0923a03939"
+  "Iosevka.tar.xz 213ee24cda99ca84d0a8326de133e7e8b2baf9ba23659ce829f589f771d357d2"
+)
+
+# download $1 into $tmp/$2 and require the pinned sha256
+fetch_checked() {
+  local url=$1 name=$2 want="" got e
+  curl -sfL "$url" -o "$tmp/$name"
+  got=$(shasum -a 256 "$tmp/$name" | awk '{print $1}')
+  if [ "${PRINT_SUMS:-}" = 1 ]; then
+    echo "  \"$name $got\""
+    return
+  fi
+  for e in "${SUMS[@]}"; do [ "${e%% *}" = "$name" ] && want=${e#* }; done
+  if [ "$got" != "$want" ]; then
+    echo "sha256 mismatch for $name: expected ${want:-<no pin>}, got $got" >&2
+    exit 1
+  fi
+}
+
 EXPECTED=(
-  JetBrainsMono-Regular JetBrainsMono-Italic JetBrainsMono-Bold
   InterVariable InterVariable-Italic
-  JetBrainsMonoNerdFontMono-Regular JetBrainsMonoNerdFontMono-Bold
+  JetBrainsMonoNerdFontMono-Regular JetBrainsMonoNerdFontMono-Italic JetBrainsMonoNerdFontMono-Bold
   FiraCodeNerdFontMono-Regular FiraCodeNerdFontMono-Bold
   HackNerdFontMono-Regular HackNerdFontMono-Bold
   MesloLGSNerdFontMono-Regular MesloLGSNerdFontMono-Bold
@@ -45,31 +75,27 @@ mkdir -p assets/fonts
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-echo "JetBrains Mono $JB"
-for f in JetBrainsMono-Regular JetBrainsMono-Italic JetBrainsMono-Bold; do
-  curl -sfL "$RAW/JetBrains/JetBrainsMono/$JB/fonts/webfonts/$f.woff2" -o "assets/fonts/$f.woff2"
-done
-
 echo "Inter $INTER"
 for f in InterVariable InterVariable-Italic; do
-  curl -sfL "$RAW/rsms/inter/$INTER/docs/font-files/$f.woff2" -o "assets/fonts/$f.woff2"
+  fetch_checked "$RAW/rsms/inter/$INTER/docs/font-files/$f.woff2" "$f.woff2"
+  cp "$tmp/$f.woff2" "assets/fonts/$f.woff2"
 done
 
 echo "Nerd Fonts $NERD"
 for family in JetBrainsMono FiraCode Hack Meslo Iosevka; do
-  curl -sfL "https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD/$family.tar.xz" \
-    -o "$tmp/$family.tar.xz"
+  fetch_checked "https://github.com/ryanoasis/nerd-fonts/releases/download/$NERD/$family.tar.xz" "$family.tar.xz"
   mkdir -p "$tmp/$family"
   tar xf "$tmp/$family.tar.xz" -C "$tmp/$family"
 done
 for ttf in \
-  JetBrainsMono/JetBrainsMonoNerdFontMono-Regular JetBrainsMono/JetBrainsMonoNerdFontMono-Bold \
+  JetBrainsMono/JetBrainsMonoNerdFontMono-Regular JetBrainsMono/JetBrainsMonoNerdFontMono-Italic \
+  JetBrainsMono/JetBrainsMonoNerdFontMono-Bold \
   FiraCode/FiraCodeNerdFontMono-Regular FiraCode/FiraCodeNerdFontMono-Bold \
   Hack/HackNerdFontMono-Regular Hack/HackNerdFontMono-Bold \
   Meslo/MesloLGSNerdFontMono-Regular Meslo/MesloLGSNerdFontMono-Bold \
   Iosevka/IosevkaNerdFontMono-Regular Iosevka/IosevkaNerdFontMono-Bold; do
   base=$(basename "$ttf")
   echo "  $base.woff2"
-  npx --yes ttf2woff2 < "$tmp/$ttf.ttf" > "assets/fonts/$base.woff2"
+  npx --yes "ttf2woff2@$TTF2WOFF2" < "$tmp/$ttf.ttf" > "assets/fonts/$base.woff2"
 done
 echo "assets/fonts/ done"
