@@ -14,12 +14,13 @@
 # limitations under the License.
 
 # Build assets/themes.json from the tinted-theming schemes collection (MIT licensed),
-# pinned to a commit. Only base24 schemes are included; base10–base17 (darker
-# backgrounds and bright accents) are kept when present.
+# pinned to a commit and verified by sha256. Only base24 schemes are included;
+# base10–base17 (darker backgrounds and bright accents) are kept when present.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 REF=9bd28ed313560db3c5b605c63bc4e309e78e3fc8
+SHA=78f0dd01a854e0a88ce8d87c57f15195aba2ab5d372300448bfeaef43164aa18
 
 if [ "${FORCE:-}" != "1" ] && [ -s assets/themes.json ]; then
   echo "assets/themes.json up to date (FORCE=1 to refetch)"
@@ -30,7 +31,13 @@ mkdir -p assets
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-curl -sfL "https://github.com/tinted-theming/schemes/archive/$REF.tar.gz" | tar xz -C "$tmp"
+curl -sfL "https://github.com/tinted-theming/schemes/archive/$REF.tar.gz" -o "$tmp/schemes.tar.gz"
+got=$(shasum -a 256 "$tmp/schemes.tar.gz" | awk '{print $1}')
+if [ "$got" != "$SHA" ]; then
+  echo "sha256 mismatch for schemes.tar.gz: expected $SHA, got $got" >&2
+  exit 1
+fi
+tar xzf "$tmp/schemes.tar.gz" -C "$tmp"
 src="$tmp/schemes-$REF"
 
 node - "$src" > assets/themes.json <<'EOF'
