@@ -21,13 +21,14 @@ import type { Refs, Side } from "../types";
 // tokens live in storage.local (never synced to the browser vendor's cloud);
 // migrate any previously sync-stored tokens on first read
 export async function readTokens(): Promise<Record<string, { token?: string }>> {
+  type Tokens = Record<string, { token?: string }>;
   const local = await chrome.storage.local.get("gitlabs");
-  if (local.gitlabs) return local.gitlabs;
+  if (local.gitlabs) return local.gitlabs as Tokens;
   const { gitlabs } = await chrome.storage.sync.get("gitlabs");
   if (gitlabs) {
     await chrome.storage.local.set({ gitlabs });
     chrome.storage.sync.remove("gitlabs");
-    return gitlabs;
+    return gitlabs as Tokens;
   }
   return {};
 }
