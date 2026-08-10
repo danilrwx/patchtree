@@ -27,8 +27,8 @@ const out = path.join(root, "docs/store");
 const dataUrl = (rel, mime) =>
   `data:${mime};base64,${readFileSync(path.join(root, rel)).toString("base64")}`;
 
-const mono = dataUrl("assets/fonts/JetBrainsMono-Regular.woff2", "font/woff2");
-const monoBold = dataUrl("assets/fonts/JetBrainsMono-Bold.woff2", "font/woff2");
+const mono = dataUrl("assets/fonts/JetBrainsMonoNerdFontMono-Regular.woff2", "font/woff2");
+const monoBold = dataUrl("assets/fonts/JetBrainsMonoNerdFontMono-Bold.woff2", "font/woff2");
 const icon = dataUrl("assets/icons/icon128.png", "image/png");
 const shot = dataUrl("docs/store/01-overview.png", "image/png");
 

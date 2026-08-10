@@ -127,7 +127,7 @@ APPEARANCE
 · Theme gallery with the base24 schemes from tinted-theming, live code previews
   (including how added and removed lines look), light/dark filter, and
   paste-your-own scheme YAML.
-· Bundled fonts (JetBrains Mono, Inter, Nerd Font builds) or any local font by
+· Bundled fonts (Nerd Font builds, JetBrains Mono by default) or any local font by
   name; separate UI and code font sizes, tab width, italic-comment and ligature
   toggles.
 

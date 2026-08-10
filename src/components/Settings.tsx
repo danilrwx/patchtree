@@ -101,7 +101,7 @@ export function Settings(props: SettingsProps) {
         Theme gallery…
       </div>
       <Row label="UI font">
-        <FontControl field="uiFont" bundled={["Inter"]} patch={props.patch} />
+        <FontControl field="uiFont" bundled={[]} patch={props.patch} />
       </Row>
       <Row label="Code font">
         <FontControl field="codeFont" bundled={CODE_FONTS} patch={props.patch} />
