@@ -30,11 +30,12 @@ export function TokensDialog(props: { onClose: () => void }) {
   onMount(async () => {
     let { gitlabs } = await chrome.storage.local.get("gitlabs");
     if (!gitlabs) ({ gitlabs = {} } = await chrome.storage.sync.get("gitlabs"));
-    const gl = Object.entries(gitlabs as Record<string, { token?: string }>)
+    const all = (gitlabs || {}) as Record<string, { token?: string }>;
+    const gl = Object.entries(all)
       .filter(([h]) => h !== "github.com")
       .map(([host, v]) => ({ host, token: v.token || "" }));
     setHosts(gl.length ? gl : [{ host: "", token: "" }]);
-    setGh("token", (gitlabs["github.com"] as { token?: string })?.token || "");
+    setGh("token", all["github.com"]?.token || "");
   });
 
   const save = () => {
