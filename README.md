@@ -2,6 +2,8 @@
 
 [![build](https://github.com/danilrwx/patchtree/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/danilrwx/patchtree/actions/workflows/release.yml)
 ![unit coverage](https://img.shields.io/badge/unit_coverage-%E2%89%A590%25-brightgreen)
+[![chrome web store](https://img.shields.io/chrome-web-store/v/dgpflholobnbgomakjbkdmcnfccdjone?label=chrome%20web%20store)](https://chromewebstore.google.com/detail/patchtree/dgpflholobnbgomakjbkdmcnfccdjone)
+[![firefox add-on](https://img.shields.io/amo/v/patchtree?label=firefox%20add-on)](https://addons.mozilla.org/en-US/firefox/addon/patchtree/)
 
 ![patchtree](docs/store/promo-marquee-1400x560.jpg)
 
@@ -134,9 +136,12 @@ background worker.
 
 ## Install
 
-Binary assets (wasm grammars, fonts, highlight queries, theme data) are
-not stored in git — the default make target fetches them from pinned
-upstream releases, then bundles the sources into `dist/`:
+[![Available in the Chrome Web Store](docs/store/badge-cws.png)](https://chromewebstore.google.com/detail/patchtree/dgpflholobnbgomakjbkdmcnfccdjone)&nbsp;&nbsp;[![Get the Add-on for Firefox](docs/store/badge-amo.png)](https://addons.mozilla.org/en-US/firefox/addon/patchtree/)
+
+Or build from source: binary assets (wasm grammars, fonts, highlight
+queries, theme data) are not stored in git — the default make target
+fetches them from pinned upstream releases, then bundles the sources
+into `dist/`:
 
 ```sh
 git clone https://github.com/danilrwx/patchtree
