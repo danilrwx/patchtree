@@ -90,7 +90,7 @@ jobs:
 
       - name: Upload e2e failure traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-results
           path: test-results/
@@ -99,7 +99,7 @@ jobs:
       - name: Checksums
         run: cd build && shasum -a 256 patchtree.zip patchtree-firefox.zip | tee checksums.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: patchtree
           path: |
