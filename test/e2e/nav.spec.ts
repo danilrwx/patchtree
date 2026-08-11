@@ -28,21 +28,23 @@ const toTop = (page: any) => page.evaluate(() => window.scrollTo(0, 0));
 test("j and k scroll between files", async ({ context, page }) => {
   await open(context, page);
   await toTop(page);
+  const activePath = () =>
+    page.evaluate(() => document.querySelector(".pt-tree-file.pt-active")?.getAttribute("data-path"));
 
-  // j walks down the files; two steps put a file above us, so k has somewhere
-  // to go back to (from the first file it is a no-op by design)
-  await page.keyboard.press("j");
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-  const afterFirst = await page.evaluate(() => window.scrollY);
-
-  // wait for the second jump to land before capturing where it went: reading
-  // scrollY straight after the keypress can still return the first file's
-  // offset, and k then goes back to exactly that offset with nothing to beat
-  await page.keyboard.press("j");
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(afterFirst);
+  // pixel offsets lie here: the PR description above the diff renders async and
+  // shifts every section down, so a single j can re-anchor the file it is
+  // already on; retry until the scroll spy reports the next file instead
+  await expect(async () => {
+    await page.keyboard.press("j");
+    expect(await activePath()).toBe("pkg/virt-controller/watch/dra/dra_test.go");
+  }).toPass();
   const afterJ = await page.evaluate(() => window.scrollY);
+  expect(afterJ).toBeGreaterThan(0);
 
-  await page.keyboard.press("k");
+  await expect(async () => {
+    await page.keyboard.press("k");
+    expect(await activePath()).toBe("pkg/virt-controller/watch/dra/dra.go");
+  }).toPass();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(afterJ);
 });
 
