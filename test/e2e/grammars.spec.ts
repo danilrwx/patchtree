@@ -54,3 +54,22 @@ test("added tree-sitter grammars and the markdown fallback produce tokens", asyn
   const md = page.locator("section.pt-file", { hasText: "NOTES.md" });
   await expect(md.locator(".pt-keyword").first()).toBeVisible({ timeout: 20000 });
 });
+
+// a hunk from deep inside a yaml document dedents below its first line; the
+// per-segment parse must still colour the keys after the dedent
+test("a yaml hunk that dedents below its opening line still highlights", async ({
+  context,
+  page,
+}) => {
+  const body = readFileSync(path.join(__dirname, "../fixtures/yaml-fragment.diff"), "utf8");
+  const url = "https://example.com/yaml-fragment.diff";
+  await context.route(url, (route) =>
+    route.fulfill({ contentType: "text/plain; charset=utf-8", body })
+  );
+  await page.goto(url);
+  const section = page.locator("section.pt-file", { hasText: "crds/machines.yaml" });
+  await expect(section.locator(".pt-property", { hasText: "gpus" }).first()).toBeVisible({
+    timeout: 20000,
+  });
+  await expect(section.locator(".pt-property", { hasText: "gpuClassName" }).first()).toBeVisible();
+});

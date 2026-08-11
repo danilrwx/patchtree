@@ -120,6 +120,10 @@ function highlight(langName: string, text: string) {
     return Promise.resolve({ rows: hljsRows(langName.slice(5), text) });
   if (langName === "gotmpl") return highlightGotmpl(text);
   if (langName === "markdown") return highlightMarkdown(text);
+  if (langName === "yaml")
+    return init()
+      .then(() => loadLang("yaml"))
+      .then((yaml: Lang) => ({ rows: yamlFragmentRows(yaml, text) }));
   return init()
     .then(() => loadLang(langName))
     .then(({ language, query }: Lang) => {
@@ -134,6 +138,36 @@ function highlight(langName: string, text: string) {
     });
 }
 
+// yaml roots its document at the first line's indent, so a diff fragment that
+// later dedents below it — any hunk that starts deep inside a document — turns
+// the rest of the parse into one ERROR node with no captures. Parse each
+// maximal run of lines that never dedents below its opening indent as its own
+// document and shift the captured rows back into place; an ordinary full file
+// is a single segment, i.e. exactly one parse like before.
+function yamlFragmentRows(yaml: Lang, text: string): Rows {
+  const lines = text.split("\n");
+  const starts: number[] = [];
+  let open = Infinity;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+    const indent = line.length - line.trimStart().length;
+    if (indent < open) {
+      starts.push(i);
+      open = indent;
+    }
+  }
+  const rows: Rows = {};
+  for (let k = 0; k < starts.length; k++) {
+    const from = starts[k];
+    const to = k + 1 < starts.length ? starts[k + 1] : lines.length;
+    const nested: Rows = {};
+    captureInto(nested, yaml, lines.slice(from, to).join("\n"));
+    mergeRows(rows, nested, from, 0);
+  }
+  return rows;
+}
+
 // Helm/Go templates: highlight as yaml with the {{ … }} actions on top
 // (like nvim-treesitter's gotmpl setup). The yaml grammar chokes on inline
 // template syntax, so it parses a copy with every action blanked out — same
@@ -146,11 +180,9 @@ function highlightGotmpl(text: string) {
       const lineStarts = lineStartsOf(text);
       const rows: Rows = {};
 
+      // masking keeps every line length, so the fragment rows line up 1:1
       const masked = text.replace(/\{\{[\s\S]*?\}\}/g, (m) => m.replace(/[^\n]/g, " "));
-      const yamlTree = parseWith(yaml.language, masked);
-      for (const { name, node } of yaml.query.captures(yamlTree.rootNode).slice(0, MAX_CAPTURES))
-        pushNode(rows, node, cssClass(name), lineStarts, text);
-      yamlTree.delete();
+      mergeRows(rows, yamlFragmentRows(yaml, masked), 0, 0);
 
       const gtTree = parseWith(gt.language, text);
       for (const { name, node } of gt.query.captures(gtTree.rootNode).slice(0, MAX_CAPTURES))

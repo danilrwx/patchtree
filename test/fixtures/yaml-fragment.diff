@@ -1,0 +1,13 @@
+diff --git a/crds/machines.yaml b/crds/machines.yaml
+--- a/crds/machines.yaml
++++ b/crds/machines.yaml
+@@ -1067,3 +1067,9 @@ spec:
+                       name:
+                         description: |
+                           The name of the device.
++                gpus:
++                  type: array
++                  items:
++                    properties:
++                      gpuClassName:
++                        type: string
