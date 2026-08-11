@@ -17,7 +17,7 @@ import { settings, themeOptions } from "../store";
 import { clickable } from "../a11y";
 import { Select } from "./Select";
 
-const CODE_FONTS = [
+const BUNDLED_FONTS = [
   "JetBrains Mono",
   "JetBrainsMono Nerd Font Mono",
   "FiraCode Nerd Font Mono",
@@ -101,10 +101,10 @@ export function Settings(props: SettingsProps) {
         Theme gallery…
       </div>
       <Row label="UI font">
-        <FontControl field="uiFont" bundled={[]} patch={props.patch} />
+        <FontControl field="uiFont" bundled={BUNDLED_FONTS} patch={props.patch} />
       </Row>
       <Row label="Code font">
-        <FontControl field="codeFont" bundled={CODE_FONTS} patch={props.patch} />
+        <FontControl field="codeFont" bundled={BUNDLED_FONTS} patch={props.patch} />
       </Row>
       <Row label="Tab width">
         <Select
