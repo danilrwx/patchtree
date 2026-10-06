@@ -2,6 +2,60 @@
 
 All notable changes, grouped from [conventional commits](https://www.conventionalcommits.org).
 
+## v1.4.0
+
+### 🚀 Features
+
+- offer the bundled font list for the UI font too (#30) (`2d16452`)
+
+### 🐛 Fixes
+
+- keep the toolbar on one line when the window is narrow (#41) (`2eb78f0`)
+- **highlight:** parse yaml diff fragments per indentation segment (#29) (`3cb6356`)
+- order diff files like the tree, folders first (#2) (`1fd79e2`)
+
+### 📖 Documentation
+
+- make the README pitch the extension to users (#38) (`1188dde`)
+- store buttons and live version badges for the CWS and AMO listings (#19) (`493547b`)
+- render a 1280x640 GitHub social preview card (#3) (`4a969a5`)
+
+### ✅ Tests
+
+- deflake j/k navigation e2e by asserting the active file (#31) (`a166c04`)
+- unit coverage with a CI-enforced floor and a README badge (#18) (`f636fd3`)
+
+### 👷 Build & CI
+
+- Bump brace-expansion from 5.0.9 to 5.0.12 (#40) (`3978c1b`)
+- Bump the npm-minor group across 1 directory with 5 updates (#37) (`4b62f79`)
+- Bump the npm-minor group with 2 updates (#33) (`7deb89d`)
+- build every grammar from pinned, sha256-verified sources (#26) (`caf093e`)
+- verify font downloads by sha256, source all mono fonts from Nerd Fonts (#23) (`47abcd8`)
+- verify the schemes archive against pinned sha256 (#25) (`094c5b8`)
+- verify fetched highlight queries against pinned sha256 (#24) (`8ba2359`)
+- Bump @types/node from 22.20.1 to 26.1.2 (#17) (`a5fd7f9`)
+- Bump the npm-minor group across 1 directory with 3 updates (#20) (`de65833`)
+- Bump typescript from 5.9.3 to 7.0.2 (#16) (`8951b38`)
+- bump @types/chrome to 0.2.5 and type the storage reads (#21) (`a0b8ea7`)
+
+- Bump actions/setup-node from 4 to 7 (#32) (`dd6993c`)
+- Bump actions/github-script from 7 to 9 (#12) (`cc01e7b`)
+- Bump actions/upload-artifact from 4 to 7 (#11) (`ade9361`)
+- Bump softprops/action-gh-release from 2 to 3 (#14) (`bd1df3f`)
+- Bump actions/checkout from 4 to 7 (#13) (`4153c80`)
+- Bump actions/cache from 4 to 6 (#10) (`26870ab`)
+- require a conventional-commit PR title (#9) (`454fa7c`)
+- weekly dependabot for actions and npm (#8) (`03e5a8a`)
+- cancel superseded runs, cache npm and the Playwright browser (#6) (`4082258`)
+- label PRs by conventional title and build release notes from them (#4) (`33aab9a`)
+
+### 🔧 Chores
+
+- migrate biome config to 2.5.7 (#27) (`e192482`)
+- release.sh cuts the version-bump PR in one command (#7) (`429df17`)
+- issue forms and a minimal PR template (#5) (`f6ab883`)
+
 ## v1.3.0
 
 ### 🚀 Features
