@@ -148,7 +148,7 @@ export function initReview(P: Provider, view: PtView) {
   // something that is broken.
   function buildCiDropdown(ci: any) {
     const { dd, sum, menu } = makeDropdown(
-      `<span class="pt-dd-label">● ${esc(ci.state)}</span>`
+      `<span class="pt-dd-label">●<span class="pt-ci-text"> ${esc(ci.state)}</span></span>`
     );
     dd.id = "pt-ci";
     dd.dataset.state = ciClass(ci.state);
@@ -197,6 +197,7 @@ export function initReview(P: Provider, view: PtView) {
     const el = document.getElementById("pt-status");
     if (!el) return;
     el.textContent = text;
+    el.title = text;
     el.classList.toggle("pt-error", !!isError);
     if (!isError) setTimeout(() => (el.textContent = ""), 5000);
   }
@@ -946,6 +947,7 @@ export function initReview(P: Provider, view: PtView) {
       const hint = document.createElement("span");
       hint.id = "pt-hint";
       hint.textContent = P.tokenHint;
+      hint.title = P.tokenHint;
       st.after(hint);
     }
 
@@ -967,7 +969,7 @@ export function initReview(P: Provider, view: PtView) {
       }
       renderDescription(info);
 
-      // one line saying who is merging what into where, and when — the same
+      // one line saying who merges what into where, and when — the same
       // summary GitLab and GitHub put under the request title, sized for the bar
       if (info.sourceBranch || info.state) {
         const row = document.createElement("span");
@@ -991,29 +993,26 @@ export function initReview(P: Provider, view: PtView) {
           row.appendChild(who);
         }
         if (info.sourceBranch) {
-          const verb = document.createElement("span");
-          verb.className = "pt-branch-dim";
-          verb.textContent = "merging";
           const src = document.createElement("span");
-          src.className = "pt-branch-src";
+          src.className = "pt-branch-src pt-branch-ref";
           src.textContent = info.sourceBranch;
           src.title = info.sourceBranch;
           const copy = document.createElement("button");
           copy.type = "button";
-          copy.className = "pt-hbtn pt-branch-copy";
+          copy.className = "pt-hbtn pt-branch-copy pt-branch-ref";
           copy.title = "Copy branch name";
           copy.innerHTML = icons.copy || "";
           copy.addEventListener("click", () => {
             navigator.clipboard.writeText(info.sourceBranch!);
             status("branch name copied");
           });
-          row.append(verb, src, copy);
+          row.append(src, copy);
           if (info.targetBranch) {
             const into = document.createElement("span");
-            into.className = "pt-branch-dim";
-            into.textContent = "into";
+            into.className = "pt-branch-dim pt-branch-ref";
+            into.textContent = "→";
             const tgt = document.createElement("span");
-            tgt.className = "pt-branch-tgt";
+            tgt.className = "pt-branch-tgt pt-branch-ref";
             tgt.textContent = info.targetBranch;
             tgt.title = info.targetBranch;
             row.append(into, tgt);
@@ -1021,11 +1020,11 @@ export function initReview(P: Provider, view: PtView) {
         }
         if (info.createdAt) {
           const dot = document.createElement("span");
-          dot.className = "pt-branch-dim";
+          dot.className = "pt-branch-dim pt-branch-when";
           dot.textContent = "·";
           row.appendChild(dot);
           const when = document.createElement("span");
-          when.className = "pt-branch-dim";
+          when.className = "pt-branch-dim pt-branch-when";
           when.textContent = relativeTime(info.createdAt);
           when.title = new Date(info.createdAt).toLocaleString();
           row.appendChild(when);

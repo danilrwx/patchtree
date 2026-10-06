@@ -45,7 +45,10 @@ export function Toolbar(props: {
         classList={{ "pt-done": done() }}
         title={`${viewedDone()} of ${viewedTotal()} files viewed`}
       >
-        <Show when={viewedTotal() > 0}>{`· ${viewedDone()}/${viewedTotal()}`}</Show>
+        <Show when={viewedTotal() > 0}>
+          <span class="pt-sep">· </span>
+          {`${viewedDone()}/${viewedTotal()}`}
+        </Show>
         <Show when={viewedDone() > 0}>
           <button
             type="button"
