@@ -67,7 +67,7 @@ background worker.
   `?` shortcuts overlay — bound to physical keys, so they work on any
   keyboard layout.
 - **Request summary in the toolbar**: a state chip (Open / Draft / Merged /
-  Closed) followed by who is merging which branch into which, and when — the
+  Closed) followed by who is merging which branch into which (`src → main`), and when — the
   same line the platforms show under the request title, with a copy button on
   the source branch.
 - **The way back**: that state chip links to the request, and the extension icon

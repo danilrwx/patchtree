@@ -378,6 +378,9 @@ html.pt-on {
   background: var(--pt-bg);
   z-index: 4;
 }
+/* controls keep their size; only the text slots (hint, request summary) give
+   way when the bar is crowded */
+#pt-bar > * { flex-shrink: 0 }
 
 #pt-bar,
 #pt-tree,
@@ -1418,16 +1421,32 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
 .pt-void { background: var(--pt-header-bg); }
 .pt-split .pt-code { border-left: 1px solid var(--pt-border); }
 
+/* status text (an API error can be long) is clipped to one line, full text in
+   the title, so it never pushes the bar wider than the page */
 #pt-status {
   align-self: center;
   color: var(--pt-muted);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #pt-status.pt-error { color: var(--pt-danger); }
 
+/* the hint is the least important text in the bar: with a zero basis it only
+   takes the room left over, so it gives way completely (one line, ellipsis)
+   before the request summary loses a pixel */
 #pt-hint {
   align-self: center;
   color: var(--pt-muted);
+  flex: 1 1 0;
+  max-width: max-content;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pt-comments-row td,
@@ -1939,8 +1958,13 @@ html.pt-no-wd :is(.pt-word-add, .pt-word-del):not(.pt-sug *) {
   align-self: center;
   font: calc(var(--pt-ui-size, 14px) - 1px)/1.55 var(--pt-ui);
   color: var(--pt-fg);
+  flex-shrink: 1;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
+/* only the branch names give way (with an ellipsis); words and time never wrap */
+#pt-branches > * { flex-shrink: 0 }
 
 .pt-state {
   font-weight: 600;
@@ -1967,6 +1991,7 @@ a.pt-state:hover { background: var(--pt-btn-hover) }
   border-radius: 5px;
   background: var(--pt-hunk-bg);
   max-width: 200px;
+  flex-shrink: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2012,6 +2037,29 @@ a.pt-state:hover { background: var(--pt-btn-hover) }
 #pt-ci[data-state="failed"] > summary { color: var(--pt-danger) }
 #pt-ci[data-state="running"] > summary { color: var(--pt-warning) }
 #pt-ci[data-state="other"] > summary { color: var(--pt-muted) }
+
+/* a cramped bar keeps the coloured dot and drops the word; the title still
+   names the state */
+#pt-bar { container-type: inline-size }
+/* the bar sheds detail as it narrows, least useful first: the pipeline word,
+   the time and the token hint (still in ⚙), the branches, then the author and
+   the line counts */
+@container (max-width: 1200px) {
+  #pt-ci .pt-ci-text { display: none }
+}
+@container (max-width: 900px) {
+  #pt-branches .pt-branch-when,
+  #pt-bar #pt-hint { display: none }
+}
+@container (max-width: 640px) {
+  #pt-branches .pt-branch-ref { display: none }
+}
+@container (max-width: 560px) {
+  #pt-branches .pt-branch-author,
+  #pt-diffstat { display: none }
+  #pt-progress { margin-left: auto }
+  #pt-progress .pt-sep { display: none }
+}
 
 #pt-ci .pt-dd-menu { min-width: 340px; max-height: 60vh; padding: 4px }
 
