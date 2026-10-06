@@ -5,18 +5,74 @@
 [![chrome web store](https://img.shields.io/chrome-web-store/v/dgpflholobnbgomakjbkdmcnfccdjone?label=chrome%20web%20store)](https://chromewebstore.google.com/detail/patchtree/dgpflholobnbgomakjbkdmcnfccdjone)
 [![firefox add-on](https://img.shields.io/amo/v/patchtree?label=firefox%20add-on)](https://addons.mozilla.org/en-US/firefox/addon/patchtree/)
 
-![patchtree](docs/store/promo-marquee-1400x560.jpg)
+**Code review that feels like your editor — right in the browser.**
+Open any merge request or pull request as a `.diff`, and patchtree turns it into
+a fast review UI with real tree-sitter highlighting, a file tree, inline
+threads, suggestions and approvals. For **GitLab** (self-hosted too) and
+**GitHub**.
 
-Chrome/Firefox extension that turns raw `.diff` / `.patch` URLs into a
-full-featured code review UI, with **real tree-sitter syntax highlighting**
-— the same grammars Neovim, Helix and Zed parse with, not regex guesswork —
-and review workflows for **GitLab** (any instance, including self-hosted)
-and **GitHub**.
+[![Available in the Chrome Web Store](docs/store/badge-cws.png)](https://chromewebstore.google.com/detail/patchtree/dgpflholobnbgomakjbkdmcnfccdjone)&nbsp;&nbsp;[![Get the Add-on for Firefox](docs/store/badge-amo.png)](https://addons.mozilla.org/en-US/firefox/addon/patchtree/)
 
-Open `https://gitlab.example.com/group/project/-/merge_requests/104.diff`
-(or click the extension icon on any MR/PR page) and review right there.
+![patchtree](docs/screenshots/01-overview.png)
 
-## Features
+## Try it in 10 seconds
+
+1. Install from the store above.
+2. Open any PR or MR and add `.diff` to the URL — or just click the extension
+   icon on the page:
+   `https://github.com/owner/repo/pull/123.diff`
+3. Review.
+
+Reading works right away, no setup. Want to comment and approve? Add a token
+once in ⚙ → **Access tokens**.
+
+## Why patchtree
+
+- **Highlighting that actually parses the code.** The same tree-sitter grammars
+  Neovim, Helix and Zed use — 30 languages, JSX in TypeScript, Helm templates in
+  YAML, Go blocks in Markdown. No regex guesswork.
+- **Big diffs stay fast.** Parsing runs off the main thread and only visible
+  files render — a 10 000-line diff scrolls like a small one.
+- **Keyboard-first.** `j`/`k` between files, `n`/`p` between threads, `v` to mark
+  viewed, `?` for the rest. Works on any keyboard layout.
+- **The whole review, one page.** Threads, multiline comments, suggestions with
+  one-click apply, resolve, draft reviews, approve / request changes, pipeline
+  status, all on the diff page.
+- **Your colours, your font.** Nearly 200 base24 themes with live previews,
+  bundled Nerd Fonts, ligatures.
+- **Private by design.** No server, no account, no telemetry. Tokens stay in
+  your browser and only talk to your own GitLab/GitHub. See
+  [PRIVACY.md](PRIVACY.md).
+
+![review threads](docs/screenshots/02-review-threads.png)
+
+![side-by-side](docs/screenshots/03-side-by-side.png)
+
+![theme gallery](docs/screenshots/05-themes.png)
+
+## Install
+
+[![Available in the Chrome Web Store](docs/store/badge-cws.png)](https://chromewebstore.google.com/detail/patchtree/dgpflholobnbgomakjbkdmcnfccdjone)&nbsp;&nbsp;[![Get the Add-on for Firefox](docs/store/badge-amo.png)](https://addons.mozilla.org/en-US/firefox/addon/patchtree/)
+
+That's it for reading diffs. Two optional extras:
+
+- **Review actions** — on any diff page open ⚙ → **Access tokens** and add a
+  GitLab host (PAT scope `api`) and/or a GitHub token (classic `repo`, or
+  fine-grained with Pull requests read & write). Tokens live in
+  `storage.local` and are never synced.
+- **Local files** — to render `.diff` / `.patch` opened via `file://`, enable
+  **Allow access to file URLs** in the extension's details page.
+
+Nothing shows up? Check that the extension's **Site access** is “On all sites”
+(or grant your hosts explicitly). On Firefox, enable “Access your data for all
+websites” in the add-on's Permissions tab.
+
+Prefer to build it yourself? See [CONTRIBUTING.md](CONTRIBUTING.md#build-from-source).
+
+## Everything it does
+
+<details>
+<summary>Full feature list</summary>
 
 ### Syntax highlighting that actually parses the code
 
@@ -134,98 +190,13 @@ background worker.
   name; separate UI/code font sizes, tab width, italic comments and
   ligatures toggles.
 
-## Install
-
-[![Available in the Chrome Web Store](docs/store/badge-cws.png)](https://chromewebstore.google.com/detail/patchtree/dgpflholobnbgomakjbkdmcnfccdjone)&nbsp;&nbsp;[![Get the Add-on for Firefox](docs/store/badge-amo.png)](https://addons.mozilla.org/en-US/firefox/addon/patchtree/)
-
-Or build from source: binary assets (wasm grammars, fonts, highlight
-queries, theme data) are not stored in git — the default make target
-fetches them from pinned upstream releases, then bundles the sources
-into `dist/`:
-
-```sh
-git clone https://github.com/danilrwx/patchtree
-cd patchtree
-make          # fetch pinned assets + npm install + bundle into dist/
-```
-
-Then `chrome://extensions` → Developer mode → Load unpacked → the
-**`dist/`** directory. To enable review actions, open the ⚙ menu → **Access
-tokens** on any diff page and add a GitLab host (PAT scope `api`) and/or
-a GitHub token (classic `repo`, or fine-grained with Pull requests
-read & write); rendering works without tokens. Tokens are stored in
-`storage.local` and never synced.
-
-Make sure the extension's **Site access** is “On all sites” (or grant
-your hosts explicitly) — without it the content script is not injected.
-To render local `.diff` / `.patch` files (`file://`), also enable
-**Allow access to file URLs** in the extension's details page.
-
-## Firefox
-
-`make zip-firefox` builds `patchtree-firefox.zip` with an event-page
-background and the gecko id. For development load it via
-`about:debugging` → Load Temporary Add-on. Permanent installs come from
-the AMO listing: on `v*` tags CI submits the version to the public AMO
-channel for review when `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets are
-configured. Firefox MV3 treats host permissions as opt-in — enable
-“Access your data for all websites” in the add-on's Permissions tab.
-
-## Build / release
-
-- `make` — fetch pinned assets (`vendor`, `queries`, `fonts`, `themes`),
-  `npm install`, and bundle the sources into `dist/` with esbuild; asset
-  fetches skip when files are already present.
-- `make check` — syntax-check the sources.
-- `make typecheck` — `tsc --noEmit` over the TypeScript sources.
-- `make test` — run the pure-logic checks in `test/run.mjs`.
-- `make e2e` — Playwright end-to-end: loads the built extension against a PR
-  `.diff` fixture with the adapter mocked (needs `npx playwright install
-  chromium`). Runs in Chromium's new headless mode, which loads MV3
-  extensions, so no window appears and no display is required;
-  `PT_HEADED=1 make e2e` shows the browser when you need to watch it.
-- `make zip` / `make zip-firefox` — bundle and archive `dist/`.
-- `node scripts/scenes.mjs` — reshoot every gallery frame: 2x into
-  `docs/screenshots/` for this README, and the first five at 1x into
-  `docs/store/` for the Chrome Web Store and AMO listings.
-- `node scripts/promo.mjs` — render the store promo images (440x280 tile and
-  1400x560 marquee). Listing copy lives in
-  [docs/store/LISTING.txt](docs/store/LISTING.txt) — plain text, since the
-  Chrome Web Store renders neither markdown nor html.
-- `make clean` — remove fetched assets, `dist/`, and archives.
-
-CI (`.github/workflows/release.yml`) rebuilds every asset from the pinned
-upstream versions on each push and attaches the archives plus sha256
-checksums to the GitHub Release on `v*` tags — nothing binary is taken
-from the repository, so artifact contents are fully traceable:
-
-- `web-tree-sitter` + grammar wasm builds — npm packages
-  (`scripts/fetch-vendor.sh`).
-- Highlight queries — grammar repos at matching tags
-  (`scripts/fetch-queries.sh`).
-- Fonts — upstream releases, Nerd Font ttf converted to woff2 with the
-  ttf2woff2 npm package (`scripts/fetch-fonts.sh`).
-- Themes — tinted-theming schemes at a pinned commit
-  (`scripts/fetch-themes.sh`).
-
-To release: `git tag v1.3.0 && git push --tags`. CI generates the
-release notes from conventional commits (`scripts/changelog.sh`).
-
-## Documentation
-
-- [PRIVACY.md](PRIVACY.md) — what is stored locally and where requests go.
-- [docs/user-guide.md](docs/user-guide.md) — using the review UI.
-- [docs/architecture.md](docs/architecture.md) — how the extension is built.
-- [CONTRIBUTING.md](CONTRIBUTING.md) — dev setup and conventions.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md). It is grouped from
-[conventional commits](https://www.conventionalcommits.org) — preview the
-unreleased section with `make changelog RANGE=v1.3.0..HEAD`, or the notes
-a tag will carry with `scripts/changelog.sh v1.3.0`.
+</details>
 
 ## Gallery
+
+<details>
+<summary>All screenshots</summary>
+
 
 The full window: file tree, compact toolbar, parsed and highlighted diff:
 
@@ -286,7 +257,19 @@ finished folder folds itself away:
 
 ![viewed files in the tree](docs/screenshots/14-tree-viewed.png)
 
+
+</details>
+
+## Documentation
+
+- [docs/user-guide.md](docs/user-guide.md) — using the review UI.
+- [PRIVACY.md](PRIVACY.md) — what is stored locally and where requests go.
+- [CHANGELOG.md](CHANGELOG.md) — what changed in each release.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — building from source, dev setup and conventions.
+- [docs/architecture.md](docs/architecture.md) — how the extension is built.
+
 ## License
+
 
 Apache License 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)) — copies must
 retain the copyright and license notices. Bundled third-party assets keep their own licenses: web-tree-sitter and
