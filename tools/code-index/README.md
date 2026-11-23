@@ -1,9 +1,10 @@
-# Code navigation for Vim and Patchtree
+# Patchtree code navigation
 
-`code-index` builds a navigation map both clients can read. The map uses
-repository-relative paths, 1-based lines and 0-based UTF-8 byte offsets. Both
-clients match the indexed source line before looking up the token and preserve
-multiple possible targets.
+Patchtree uses a revision-pinned JSON map. It includes repository-relative
+paths, 1-based lines and 0-based UTF-8 byte offsets. Patchtree matches each
+indexed source line before looking up its token and preserves multiple
+possible targets. The standalone `code-index` CLI exports ctags by default
+and can export this JSON with `-format patchtree`.
 
 ## Native binary
 

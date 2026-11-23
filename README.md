@@ -87,7 +87,7 @@ list and every screenshot.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — building from source, dev setup and conventions.
 - [docs/architecture.md](docs/architecture.md) — how the extension is built.
-- [tools/code-index](tools/code-index/) — use a shared semantic index for go-to-definition in Patchtree and Vim.
+- [Code navigation](tools/code-index/) — bundled Go indexing and SCIP-derived navigation maps for Patchtree.
 
 ## License
 
