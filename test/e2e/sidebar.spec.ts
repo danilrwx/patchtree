@@ -41,6 +41,7 @@ test("the tree toggle is pinned far-left, ahead of the other bar controls", asyn
   await mockGithub(context);
   await seedToken(context, page, DIFF_URL, "github.com");
 
+  await expect(page.locator("#pt-unresolved")).toBeVisible();
   const bar = (await page.locator("#pt-bar").boundingBox())!;
   const toggle = (await page.locator("#pt-collapse").boundingBox())!;
   const commits = (await page.locator("#pt-commits").boundingBox())!;
