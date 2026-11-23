@@ -1,0 +1,28 @@
+/*
+Copyright 2026 Daniil Antoshin
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ */
+:root {
+  color-scheme: light dark;
+  font: 16px/1.55 system-ui, sans-serif;
+}
+body { margin: 0; }
+main { max-width: 580px; margin: 10vh auto; padding: 0 24px 32px; }
+h1 { margin-bottom: 8px; font-size: 1.65rem; }
+label { display: block; font-weight: 600; }
+input { box-sizing: border-box; width: 100%; padding: 7px; margin-top: 4px; font: inherit; }
+.actions { display: flex; gap: 10px; margin-top: 20px; }
+button { font: inherit; padding: 5px 10px; }
+code { overflow-wrap: anywhere; }
+#device-code { font: bold 1.12em monospace; letter-spacing: 0.04em; }

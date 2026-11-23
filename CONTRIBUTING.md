@@ -7,6 +7,7 @@ covers the dev setup and the conventions the project follows.
 ## Prerequisites
 
 - Node.js 22+ and npm.
+- Go 1.26+ (builds the bundled Go indexer for WebAssembly).
 - A Chromium-based browser (for loading the unpacked extension) and/or
   Firefox.
 - `make` (the build is driven from the `Makefile`).
@@ -34,6 +35,20 @@ Binary assets (wasm grammars, fonts, highlight queries, theme data) are not
 stored in git — `make` fetches them from pinned upstream releases, then bundles
 the sources into `dist/`. Load `dist/` via `chrome://extensions` → Developer
 mode → Load unpacked.
+
+### Code index
+
+To embed the WASM indexer from a separate `code-index` checkout, set
+`PATCHTREE_CODE_INDEX_DIR=/path/to/code-index` when running `npm run build`.
+The default build uses the sources under `tools/code-index`.
+
+### OAuth client IDs
+
+The build accepts the public `PATCHTREE_GITHUB_CLIENT_ID` and
+`PATCHTREE_GITLAB_CLIENT_ID` environment variables. Release CI gets them from
+GitHub repository variables with the same names. The GitLab default is for
+GitLab.com. Self-managed instances use an ID configured in the sign-in page.
+See [OAuth sign-in](docs/user-guide.md#oauth-sign-in) for app registration.
 
 ### Firefox
 

@@ -1,0 +1,50 @@
+<!doctype html>
+<!--
+Copyright 2026 Daniil Antoshin
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in to Patchtree</title>
+  <link rel="stylesheet" href="assets/oauth.css">
+</head>
+<body>
+  <main>
+    <h1 id="heading">Sign in to Patchtree</h1>
+    <p id="purpose"></p>
+    <div id="setup" hidden>
+      <label for="client">OAuth application client ID</label>
+      <input id="client" type="text" spellcheck="false" autocomplete="off">
+      <p id="configuration"></p>
+      <p id="github-setup" hidden>
+        <a href="https://github.com/settings/applications/new" target="_blank" rel="noopener">Register a GitHub OAuth App</a>
+      </p>
+      <p id="callback" hidden>GitLab redirect URL <code id="redirect"></code></p>
+    </div>
+    <p id="status" role="status"></p>
+    <section id="device" hidden>
+      <p>Enter <strong id="device-code"></strong> on GitHub to approve access.</p>
+      <a id="verify" href="https://github.com/login/device" target="_blank" rel="noopener">Open GitHub to authorize</a>
+    </section>
+    <div class="actions">
+      <button id="connect" type="button" disabled>Sign in</button>
+      <button id="cancel" type="button" hidden>Cancel</button>
+      <button id="disconnect" type="button" hidden>Disconnect</button>
+    </div>
+  </main>
+  <script src="oauth-page.js"></script>
+</body>
+</html>

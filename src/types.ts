@@ -29,6 +29,7 @@ export interface Refs {
   baseSha: string;
   startSha: string;
   headSha: string;
+  sourceProject?: string;
 }
 
 export interface Me {
@@ -63,6 +64,7 @@ export interface Info {
   createdAt?: string;
   description?: string;
   headSha?: string;
+  sourceProject?: string;
   baseSha?: string;
   startSha?: string;
   // source branch (the changes) and the branch it merges into
@@ -161,6 +163,8 @@ export interface SuggestionApply {
 
 export interface Provider {
   kind: "gitlab" | "github";
+  standaloneCommit?: string;
+  repository: string;
   can: Capabilities;
   token: string | null;
   tokenHint: string;
@@ -180,6 +184,7 @@ export interface Provider {
   // the jobs behind info().ci, listed when the CI badge is opened
   ciJobs(ci: CiStatus): Promise<CiJob[]>;
   commitDiff(sha: string): Promise<string>;
+  rawDiff?(format: "diff" | "patch"): Promise<string>;
   fetchFile(path: string): Promise<string[]>;
   markdown(text: string): Promise<string>;
   permalink(path: string, side: Side, line: number): string | null;

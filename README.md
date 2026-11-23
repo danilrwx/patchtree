@@ -23,8 +23,8 @@ threads, suggestions and approvals. For **GitLab** (self-hosted too) and
    `https://github.com/owner/repo/pull/123.diff`
 3. Review.
 
-Reading works right away, no setup. Want to comment and approve? Add a token
-once in ⚙ → **Access tokens**.
+Reading works right away, no setup. To comment and approve, use **⚙ → Sign in with OAuth…**
+or [add an access token](docs/user-guide.md#personal-access-tokens).
 
 ## Why patchtree
 
@@ -87,6 +87,7 @@ list and every screenshot.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — building from source, dev setup and conventions.
 - [docs/architecture.md](docs/architecture.md) — how the extension is built.
+- [tools/code-index](tools/code-index/) — use a shared semantic index for go-to-definition in Patchtree and Vim.
 
 ## License
 

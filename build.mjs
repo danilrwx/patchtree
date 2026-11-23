@@ -20,6 +20,8 @@ import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
 import { cp, rm, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 
 const OUT = "dist";
 const HEADER = [
@@ -45,14 +47,15 @@ const HEADER = [
 // dist/ survives.
 const ENTRIES = [
   { name: "content", bundle: true },
-  { name: "background", bundle: true, format: "esm", external: ["./assets/vendor/web-tree-sitter.js"] },
+  { name: "oauth-page", bundle: true },
+  { name: "background", bundle: true, format: "esm", external: ["./assets/vendor/web-tree-sitter.js", "./assets/code-index/wasm_exec.js"] },
 ];
 
 // copied into dist/ unchanged; paths in manifest.json stay valid because the
 // layout is preserved.
 // only the manifest sits at the dist root; everything else (fetched deps,
 // icons, viewer.css, options.html) lives under assets/, mirrored to dist/assets/
-const ASSETS = ["manifest.json", "assets"];
+const ASSETS = ["manifest.json", "oauth.html", "assets"];
 
 function resolveEntry(name) {
   for (const p of [`src/${name}.tsx`, `src/${name}.ts`, `${name}.tsx`, `${name}.ts`, `${name}.js`]) {
@@ -74,6 +77,10 @@ await Promise.all(
       external,
       target: "chrome110",
       charset: "utf8",
+      define: {
+        PATCHTREE_GITHUB_CLIENT_ID: JSON.stringify(process.env.PATCHTREE_GITHUB_CLIENT_ID ?? ""),
+        PATCHTREE_GITLAB_CLIENT_ID: JSON.stringify(process.env.PATCHTREE_GITLAB_CLIENT_ID ?? ""),
+      },
       banner: { js: HEADER },
       plugins: [solidPlugin()],
     })
@@ -83,5 +90,15 @@ await Promise.all(
 for (const a of ASSETS) {
   if (existsSync(a)) await cp(a, `${OUT}/${a}`, { recursive: true });
 }
+
+const wasmDir = resolve(OUT, "assets/code-index");
+await mkdir(wasmDir, { recursive: true });
+const codeIndexDir = process.env.PATCHTREE_CODE_INDEX_DIR || "tools/code-index";
+execFileSync("go", ["build", "-C", codeIndexDir, "-trimpath", "-ldflags=-s -w", "-o", resolve(wasmDir, "code-index.wasm"), "."], {
+  env: { ...process.env, GOOS: "js", GOARCH: "wasm", CGO_ENABLED: "0", GOWORK: "off" },
+  stdio: "inherit",
+});
+const goRoot = execFileSync("go", ["env", "GOROOT"], { encoding: "utf8" }).trim();
+await cp(resolve(goRoot, "lib/wasm/wasm_exec.js"), resolve(wasmDir, "wasm_exec.js"));
 
 console.log(`built ${ENTRIES.length} entries + ${ASSETS.length} assets → ${OUT}/`);

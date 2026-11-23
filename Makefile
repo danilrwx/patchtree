@@ -61,6 +61,7 @@ check:
 test: check lint typecheck
 	node test/run.mjs
 	node test/providers.mjs
+	go test -C tools/code-index ./...
 
 # unit-test coverage of the logic core (diff/hljs/providers), remapped to
 # src/*.ts through the source maps the test runners emit; the floor here is

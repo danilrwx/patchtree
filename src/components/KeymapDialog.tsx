@@ -24,12 +24,16 @@ const KEYS: [keys: string[], what: string][] = [
   [["s"], "switch inline / side-by-side"],
   [["e"], "toggle the file tree"],
   [["/"], "focus the file filter"],
+  [["Ctrl/Cmd+Enter"], "inspect the indexed symbol at the caret"],
   [["?"], "this help"],
 ];
 
 const MOUSE: [what: string, how: string][] = [
   ["comment on a line", "click its line number"],
   ["comment on a range", "shift-click or drag over line numbers"],
+  ["inspect a definition", "click an indexed symbol"],
+  ["find references", "right-click an indexed symbol or press Shift+F12 at the caret"],
+  ["open a definition directly", "Ctrl/Cmd-click an indexed symbol"],
   ["copy a permalink to a line", "alt-click its line number"],
 ];
 

@@ -15,24 +15,26 @@
 import type { Provider, Note, Refs, SuggestionApply } from "../types";
 import { tokenFor, throwIfBad, cachedFetch, imageDataUrl, blobLinks } from "./shared";
 
-export function github(owner: string, repo: string, num: string): Provider {
+export function github(owner: string, repo: string, num: string, commit = false): Provider {
   const API = "https://api.github.com";
   const base = `/repos/${owner}/${repo}`;
   let markRefs: () => void = () => {};
   const refsReady = new Promise<void>((r) => (markRefs = r));
-  let refs: Refs | null = null;
+  let refs: Refs | null = commit ? { headSha: num, baseSha: "", startSha: "" } : null;
+  let parent: Promise<string> | undefined;
 
-  const headers = (extra: Record<string, string> = {}): Record<string, string> => {
+  async function headers(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+    P.token = await tokenFor("github.com");
     const h: Record<string, string> = { Accept: "application/vnd.github+json", ...extra };
     if (P.token) h.Authorization = `Bearer ${P.token}`;
     return h;
-  };
+  }
 
   async function graphql(query: string, variables: any): Promise<any> {
     const resp = await fetch(`${API}/graphql`, {
       method: "POST",
       cache: "no-store",
-      headers: headers({ "Content-Type": "application/json" }),
+      headers: await headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ query, variables }),
     });
     const data = await resp.json();
@@ -50,7 +52,7 @@ export function github(owner: string, repo: string, num: string): Provider {
     const resp = await fetch(`${API}${path}`, {
       cache: "no-store",
       ...opts,
-      headers: headers(accept ? { Accept: accept } : {}),
+      headers: await headers(accept ? { Accept: accept } : {}),
     });
     await throwIfBad(resp);
     if (resp.status === 204) return null;
@@ -135,9 +137,11 @@ export function github(owner: string, repo: string, num: string): Provider {
 
   const P: Provider = {
     kind: "github",
+    standaloneCommit: commit ? num : undefined,
+    repository: `https://github.com/${owner}/${repo}`,
     can: { resolve: true, drafts: false, applySuggestion: true, whitespace: false },
     token: null,
-    tokenHint: "no GitHub token — add one in ⚙ → Access tokens (classic or fine-grained PAT)",
+    tokenHint: "no GitHub token — use ⚙ → Sign in with OAuth or Access tokens",
     setRefs: (i) => {
       refs = i;
       markRefs();
@@ -184,6 +188,7 @@ export function github(owner: string, repo: string, num: string): Provider {
         createdAt: pr.created_at,
         description: pr.body,
         headSha: pr.head.sha,
+        sourceProject: pr.head.repo?.full_name,
         baseSha: pr.base.sha,
         startSha: pr.base.sha,
         sourceBranch: pr.head.ref,
@@ -362,22 +367,23 @@ export function github(owner: string, repo: string, num: string): Provider {
         });
       return jobs;
     },
-    commitDiff: async (sha) => {
-      const r = await chrome.runtime.sendMessage({
-        type: "fetchText",
-        url: `https://github.com/${owner}/${repo}/commit/${sha}.diff`,
-      });
-      if (!r?.ok) throw new Error(r?.text || "fetch failed");
-      return r.text;
-    },
-    fetchFile: (path) =>
-      cachedFetch(fileCache, path, () =>
-        api(
-          `${base}/contents/${encodeURI(path)}?ref=${refs?.headSha || "HEAD"}`,
-          {},
-          "application/vnd.github.raw+json"
-        ).then((t) => t.split("\n"))
-      ),
+    commitDiff: (sha) => api(`${base}/commits/${sha}`, {}, "application/vnd.github.diff"),
+    rawDiff: (format) => api(`${base}/${commit ? "commits" : "pulls"}/${num}`, {}, `application/vnd.github.${format}`),
+    fetchFile: (path) => cachedFetch(fileCache, path, async () => {
+      const project = refs?.sourceProject || `${owner}/${repo}`;
+      const file = path.split("/").map(encodeURIComponent).join("/");
+      const sha = refs?.headSha || "HEAD";
+      try {
+        const text = await api(`/repos/${project}/contents/${file}?ref=${sha}`, {}, "application/vnd.github.raw+json");
+        return text.split("\n");
+      } catch (error) {
+        // A public file remains accessible when anonymous REST requests are rate limited.
+        if (P.token || !(error instanceof Error) || !error.message.startsWith("403 ")) throw error;
+        const raw = await fetch(`https://raw.githubusercontent.com/${project}/${sha}/${file}`, { credentials: "omit" });
+        await throwIfBad(raw);
+        return (await raw.text()).split("\n");
+      }
+    }),
     markdown: (text) =>
       api(
         "/markdown",
@@ -389,11 +395,18 @@ export function github(owner: string, repo: string, num: string): Provider {
       ),
     permalink: links.permalink,
     blobUrl: links.blobUrl,
-    imageDataUrl: (path, side) =>
-      imageDataUrl(path, side, refsReady, () => refs, async (ref) => {
+    imageDataUrl: async (path, side) => {
+      if (commit && side === "old") {
+        parent ??= api(`${base}/commits/${num}`).then((data) => data.parents?.[0]?.sha || "").catch(() => "");
+        const baseSha = await parent;
+        if (!baseSha) return null;
+        refs = { headSha: num, baseSha, startSha: baseSha };
+      }
+      return imageDataUrl(path, side, commit ? Promise.resolve() : refsReady, () => refs, async (ref) => {
         const f = await api(`${base}/contents/${encodeURI(path)}?ref=${ref}`);
         return f?.content ? String(f.content).replace(/\n/g, "") : null;
-      }),
+      });
+    },
     // GitHub has no single-suggestion apply endpoint — commit the replacement
     // to the PR head branch (like GitLab's apply does to the MR source branch).
     applySuggestion: async (desc: SuggestionApply) => {

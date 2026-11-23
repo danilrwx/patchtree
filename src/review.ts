@@ -15,6 +15,7 @@
 import { setReviewThreads, setComposing, composing, setReviewApi, treeFiles } from "./store";
 import { icons } from "./icons";
 import { esc } from "./diff";
+import { installCodeNavigation } from "./code-index";
 import { flashCenter, makeDropdown, menuFilter, menuItem, surround, prefixLines } from "./ui";
 import type { Provider } from "./types";
 
@@ -26,6 +27,7 @@ export interface PtView {
   root: HTMLElement;
   renderDiff: (text: string) => void;
   initialRaw: string;
+  revealDefinition: (cell: HTMLElement, line: number) => Promise<HTMLTableRowElement | undefined> | undefined;
   addSettingRow: (label: string, control: HTMLElement) => void;
   markCommented: (counts: Map<string, number>) => void;
 }
@@ -583,6 +585,7 @@ export function initReview(P: Provider, view: PtView) {
       try {
         let text = view.initialRaw;
         if (sha) text = await P.commitDiff(sha);
+        if (currentCommit !== sha) return;
         view.renderDiff(text);
         if (!sha) refreshThreads();
       } catch (e: any) {
@@ -955,6 +958,7 @@ export function initReview(P: Provider, view: PtView) {
       const info = await P.info();
       refs = info;
       P.setRefs(info as any);
+      if (info.headSha) installCodeNavigation(P, view, info.headSha, info.sourceProject, () => !currentCommit);
       document.title = info.title;
       if (info.ci) {
         ciState = ciClass(info.ci.state);
