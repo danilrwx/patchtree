@@ -55,7 +55,10 @@ export function archiveLocation(sender: string, source: unknown, revision: strin
 }
 
 export async function loadArchive(response: Response) {
-  if (!response.ok || !response.body) throw new Error(`Source archive request failed (HTTP ${response.status})`);
+  if (!response.ok || !response.body) {
+    const requestId = response.headers.get("X-Request-Id");
+    throw new Error(`Source archive request failed (HTTP ${response.status})${requestId ? `, request ${requestId}` : ""}`);
+  }
   const parts: Uint8Array[] = [];
   const reader = response.body.getReader();
   let size = 0;
@@ -80,4 +83,19 @@ export async function loadArchive(response: Response) {
     offset += part.length;
   }
   return archive;
+}
+
+export async function loadGitLabArchive(archive: string, headers: Record<string, string>) {
+  const options = {
+    headers: { ...headers, Accept: "application/octet-stream" },
+    credentials: "same-origin",
+    redirect: "error",
+  } as const;
+  const response = await fetch(archive, options);
+  if (response.status !== 406) return loadArchive(response);
+  // GitLab's unsuffixed endpoint defaults to tar.gz.
+  await response.body?.cancel().catch(() => {});
+  const fallback = new URL(archive);
+  fallback.pathname = fallback.pathname.replace(/\.tar\.gz$/, "");
+  return loadArchive(await fetch(fallback, options));
 }

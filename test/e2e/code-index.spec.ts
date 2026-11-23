@@ -468,29 +468,45 @@ test("indexes the workspace at a standalone GitHub commit", async ({ context, pa
     .toHaveAttribute("href", `${repository}/blob/${sha}/lib/def.go#L2`);
 });
 
-test("indexes a GitLab source archive through the MR origin", async ({ context, page }) => {
-  await mockGitlab(context);
-  await context.route(GITLAB_DIFF, (route) => route.fulfill({
-    contentType: "text/plain; charset=utf-8",
-    body: [
-      "diff --git a/use.go b/use.go", "--- a/use.go", "+++ b/use.go", "@@ -1,1 +1,2 @@",
-      " package demo", "+var x = y", "",
-    ].join("\n"),
-  }));
-  const archive = tarGzip({ "go.mod": "module example.com/demo\n", "use.go": "package demo\nvar x = y\n", "value.go": "package demo\nconst y = 1\n" });
-  const endpoint = `${HOST}/api/v4/projects/${encodeURIComponent(PROJECT)}/repository/archive.tar.gz?sha=${"1".repeat(40)}&include_lfs_blobs=false`;
-  let token: string | undefined;
-  await context.route(endpoint, (route) => {
-    token = route.request().headers()["private-token"];
-    return route.fulfill({ body: archive, contentType: "application/gzip" });
+for (const auth of ["token", "session"] as const) {
+  test(`indexes a private GitLab source archive using its ${auth} after HTTP 406`, async ({ context, page }) => {
+    await mockGitlab(context);
+    await context.route(GITLAB_DIFF, (route) => route.fulfill({
+      contentType: "text/plain; charset=utf-8",
+      body: [
+        "diff --git a/use.go b/use.go", "--- a/use.go", "+++ b/use.go", "@@ -1,1 +1,2 @@",
+        " package demo", "+var x = y", "",
+      ].join("\n"),
+    }));
+    const archive = tarGzip({ "go.mod": "module example.com/demo\n", "use.go": "package demo\nvar x = y\n", "value.go": "package demo\nconst y = 1\n" });
+    const endpoint = `${HOST}/api/v4/projects/${encodeURIComponent(PROJECT)}/repository/archive.tar.gz?sha=${"1".repeat(40)}&include_lfs_blobs=false`;
+    const requests: [string | undefined, string | undefined][] = [];
+    const credentials = (headers: Record<string, string>) =>
+      auth === "token" ? headers["private-token"] : headers.cookie;
+    await context.route(endpoint, (route) => {
+      const headers = route.request().headers();
+      requests.push([credentials(headers), headers.accept]);
+      return route.fulfill({ status: 406, json: { error: "Requested archive format is not supported" } });
+    });
+    await context.route(endpoint.replace("/archive.tar.gz?", "/archive?"), (route) => {
+      const headers = route.request().headers();
+      requests.push([credentials(headers), headers.accept]);
+      return route.fulfill({ body: archive, contentType: "application/gzip" });
+    });
+    if (auth === "token") {
+      await seedToken(context, page, GITLAB_DIFF, TOKEN_HOST);
+    } else {
+      await context.addCookies([{ name: "_gitlab_session", value: "e2e-session", url: HOST }]);
+      await page.goto(GITLAB_DIFF);
+    }
+    const settings = page.locator("#pt-settings");
+    await settings.locator("summary").first().click();
+    await settings.getByRole("button", { name: "Index Go sources" }).click();
+    await expect(settings.getByRole("status")).toHaveText(/Indexed 11111111/);
+    const credential = auth === "token" ? "e2e-token" : "_gitlab_session=e2e-session";
+    expect(requests).toEqual([[credential, "application/octet-stream"], [credential, "application/octet-stream"]]);
   });
-  await seedToken(context, page, GITLAB_DIFF, TOKEN_HOST);
-  const settings = page.locator("#pt-settings");
-  await settings.locator("summary").first().click();
-  await settings.getByRole("button", { name: "Index Go sources" }).click();
-  await expect(settings.getByRole("status")).toHaveText(/Indexed 11111111/);
-  expect(token).toBe("e2e-token");
-});
+}
 
 async function caretOn(cell: Locator, token: string) {
   await cell.evaluate((element, token) => {
@@ -517,7 +533,7 @@ const tsSources = {
   "src/entry.ts": 'export { pick as chosen } from "./math";\n',
   "src/widget.tsx": "export function Widget() { return <div />; }\n",
   "src/client.jsx": 'import { chosen } from "@pkg/entry";\nimport { Widget } from "./widget";\nexport const view = <Widget n={chosen()} />;\n',
-  "src/main.js": 'import { chosen } from "@pkg/entry";\nimport { pick } from "./other";\nexport const values = [chosen(), pick()];\n',
+  "src/main.js": 'import { chosen } from "@pkg/entry";\nimport { pick } from "./other";\nexport const values = [chosen(), pick()];\nexport const result = values;\n',
 };
 const clangSources = {
   "compile_commands.json": JSON.stringify([
@@ -532,7 +548,7 @@ const clangSources = {
   "src/defs.c": '#include "config.h"\nint get(void) { return 3; }\n',
   "src/main.c": '#include "config.h"\nint consume(struct First v) { return PASS(v.value) + get(); }\n',
   "inc/overload.hpp": "inline int choose(int x) { return x; }\ninline int choose(double x) { return 0; }\n",
-  "src/main.cpp": '#include "overload.hpp"\nint fromInt() { return choose(1); }\nint fromDouble() { return choose(1.0); }\n',
+  "src/main.cpp": '#include "overload.hpp"\nint fromInt() { return choose(1); }\nint fromDouble() { return choose(1.0); }\nint local() { return fromInt(); }\n',
 };
 
 for (const [analyzer, changed, from, token, target, row] of [
@@ -622,6 +638,8 @@ for (const [analyzer, changed, from, token, target, row] of [
         await expect(definitions.getByRole("button", { name: path })).toBeFocused();
         await page.keyboard.press("Escape");
       }
+      await goto(diffCell("src/main.cpp", 4), "fromInt");
+      await expect(diffCell("src/main.cpp", 2).locator("..")).toHaveClass(/pt-flash/);
     } else {
       await goto(diffCell("src/client.jsx", 3), "Widget");
       await expect(definitions.getByRole("button", { name: "src/widget.tsx:1" })).toBeFocused();
@@ -629,6 +647,8 @@ for (const [analyzer, changed, from, token, target, row] of [
       await goto(diffCell(from, 3), "pick");
       await expect(definitions.getByRole("button", { name: "src/other.ts:1" })).toBeFocused();
       await page.keyboard.press("Escape");
+      await goto(diffCell(from, 4), "values");
+      await expect(diffCell(from, 3).locator("..")).toHaveClass(/pt-flash/);
     }
     const warmStart = Date.now();
     await page.reload();

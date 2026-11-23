@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { archiveLocation, loadArchive } from "./source-archive";
+import { archiveLocation, loadGitLabArchive } from "./source-archive";
 import { renderLineHTML, resolveLang, type Range as HighlightRange } from "./diff";
 import { icons } from "./icons";
 import { indexLabels, indexLanguage, type IndexLanguage } from "./index-language";
@@ -161,7 +161,7 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
       // Self-hosted GitLab archives can be fetched from the MR origin.
       const { archive } = archiveLocation(location.href, sourceProject, revision);
       const headers = gitlabHeaders(await credentialFor(location.host));
-      const bytes = await loadArchive(await fetch(archive, { headers, credentials: "omit", redirect: "error" }));
+      const bytes = await loadGitLabArchive(archive, headers);
       let binary = "";
       for (let i = 0; i < bytes.length; i += 8192)
         binary += String.fromCharCode(...bytes.subarray(i, i + 8192));

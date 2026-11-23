@@ -247,8 +247,11 @@ export async function indexClang(
   let failed = 0;
   for (const job of jobs) if (run(job)) failed++;
   const visited = new Set(rows.map(([path]) => path));
+  const sysroots = new Set(jobs.flatMap(({ flags }) => flags.flatMap((flag, i) =>
+    flag === "--sysroot" || flag === "-isysroot" ? [flags[i + 1].replace(/\/$/, "") + "/"] : [])));
   const standalone = [...snapshot.keys()].filter((path) =>
-    indexLanguage(path) === "clang" && !cSource.test(path) && !path.endsWith("compile_commands.json") && !visited.has(path));
+    indexLanguage(path) === "clang" && !cSource.test(path) && !path.endsWith("compile_commands.json") && !visited.has(path) &&
+    ![...sysroots].some((sysroot) => (repo + path).startsWith(sysroot)));
   if (standalone.length) {
     diagnostics.push(`${standalone.length} C/C++ headers were indexed separately with inferred flags.`);
     for (const path of standalone) {
