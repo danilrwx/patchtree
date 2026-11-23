@@ -38,9 +38,9 @@ mode → Load unpacked.
 
 ### Code index
 
-To embed the WASM indexer from a separate `code-index` checkout, set
-`PATCHTREE_CODE_INDEX_DIR=/path/to/code-index` when running `npm run build`.
-The default build uses the sources under `tools/code-index`.
+The build compiles Patchtree’s Go WASM indexer from `tools/code-index`. To test
+changes from a separate Patchtree checkout, point `PATCHTREE_CODE_INDEX_DIR` at
+its `tools/code-index` directory when running `npm run build`.
 
 ### OAuth client IDs
 

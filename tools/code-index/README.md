@@ -3,8 +3,8 @@
 Patchtree uses a revision-pinned JSON map. It includes repository-relative
 paths, 1-based lines and 0-based UTF-8 byte offsets. Patchtree matches each
 indexed source line before looking up its token and preserves multiple
-possible targets. The standalone `code-index` CLI exports ctags by default
-and can export this JSON with `-format patchtree`.
+possible targets. The command in this directory exports the same map that the
+extension reads.
 
 ## Native binary
 
