@@ -469,7 +469,7 @@ test("indexes the workspace at a standalone GitHub commit", async ({ context, pa
 });
 
 for (const auth of ["token", "session"] as const) {
-  test(`indexes a private GitLab source archive using its ${auth} after HTTP 406`, async ({ context, page }) => {
+  test(`indexes a private GitLab source archive using its ${auth} in same-origin mode`, async ({ context, page }) => {
     await mockGitlab(context);
     await context.route(GITLAB_DIFF, (route) => route.fulfill({
       contentType: "text/plain; charset=utf-8",
@@ -480,17 +480,12 @@ for (const auth of ["token", "session"] as const) {
     }));
     const archive = tarGzip({ "go.mod": "module example.com/demo\n", "use.go": "package demo\nvar x = y\n", "value.go": "package demo\nconst y = 1\n" });
     const endpoint = `${HOST}/api/v4/projects/${encodeURIComponent(PROJECT)}/repository/archive.tar.gz?sha=${"1".repeat(40)}&include_lfs_blobs=false`;
-    const requests: [string | undefined, string | undefined][] = [];
+    const requests: (string | undefined)[] = [];
     const credentials = (headers: Record<string, string>) =>
       auth === "token" ? headers["private-token"] : headers.cookie;
     await context.route(endpoint, (route) => {
       const headers = route.request().headers();
-      requests.push([credentials(headers), headers.accept]);
-      return route.fulfill({ status: 406, json: { error: "Requested archive format is not supported" } });
-    });
-    await context.route(endpoint.replace("/archive.tar.gz?", "/archive?"), (route) => {
-      const headers = route.request().headers();
-      requests.push([credentials(headers), headers.accept]);
+      requests.push(credentials(headers));
       return route.fulfill({ body: archive, contentType: "application/gzip" });
     });
     if (auth === "token") {
@@ -504,7 +499,7 @@ for (const auth of ["token", "session"] as const) {
     await settings.getByRole("button", { name: "Index Go sources" }).click();
     await expect(settings.getByRole("status")).toHaveText(/Indexed 11111111/);
     const credential = auth === "token" ? "e2e-token" : "_gitlab_session=e2e-session";
-    expect(requests).toEqual([[credential, "application/octet-stream"], [credential, "application/octet-stream"]]);
+    expect(requests).toEqual([credential]);
   });
 }
 
@@ -546,6 +541,7 @@ const clangSources = {
   ]),
   "inc/config.h": "#if FEATURE\nstruct First { int value; };\nstruct Other { int value; };\nint get(void);\n#define PASS(x) (x)\n#endif\n",
   "src/defs.c": '#include "config.h"\nint get(void) { return 3; }\n',
+  "src/missing.c": '#include "generated.h"\n',
   "src/main.c": '#include "config.h"\nint consume(struct First v) { return PASS(v.value) + get(); }\n',
   "inc/overload.hpp": "inline int choose(int x) { return x; }\ninline int choose(double x) { return 0; }\n",
   "src/main.cpp": '#include "overload.hpp"\nint fromInt() { return choose(1); }\nint fromDouble() { return choose(1.0); }\nint local() { return fromInt(); }\n',
@@ -628,6 +624,12 @@ for (const [analyzer, changed, from, token, target, row] of [
     await expect(refs.locator(".pt-reference-row")).not.toHaveCount(0);
     await page.keyboard.press("Escape");
     if (analyzer === "C/C++") {
+      const settings = page.locator("#pt-settings");
+      await settings.locator("summary").first().click();
+      await expect(status).toHaveText(/Partially indexed/);
+      await settings.getByText("Indexing limitations", { exact: true }).click();
+      await expect(settings.getByText(/generated\.h.*file not found/)).toBeVisible();
+      await settings.locator("summary").first().click();
       for (const [line, destination] of [[2, 1], [3, 2]]) {
         await goto(diffCell("src/main.cpp", line), "choose");
         await expect(definitions.getByRole("button", { name: `inc/overload.hpp:${destination}` })).toBeFocused();

@@ -86,16 +86,11 @@ export async function loadArchive(response: Response) {
 }
 
 export async function loadGitLabArchive(archive: string, headers: Record<string, string>) {
-  const options = {
+  // GitLab rejects archive requests with Sec-Fetch-Mode: cors.
+  return loadArchive(await fetch(archive, {
     headers: { ...headers, Accept: "application/octet-stream" },
+    mode: "same-origin",
     credentials: "same-origin",
     redirect: "error",
-  } as const;
-  const response = await fetch(archive, options);
-  if (response.status !== 406) return loadArchive(response);
-  // GitLab's unsuffixed endpoint defaults to tar.gz.
-  await response.body?.cancel().catch(() => {});
-  const fallback = new URL(archive);
-  fallback.pathname = fallback.pathname.replace(/\.tar\.gz$/, "");
-  return loadArchive(await fetch(fallback, options));
+  }));
 }
