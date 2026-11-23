@@ -78,17 +78,32 @@ backend checks the root module or the local modules listed in the root
 Unresolved imports, including standard library and external modules, appear in
 `diagnostics`. References the checker resolves still appear in `files`.
 Patchtree packages the WASM backend. It passes a GitHub or GitLab tar.gz
-snapshot to `codeIndexGoArchive` and caches the resulting map by repository and
-commit. The browser uses Linux/amd64 with default build tags and cgo disabled.
+snapshot to `codeIndexGoArchive`. The browser uses Linux/amd64 with default
+build tags and cgo disabled.
 Dependency downloads and a versioned dependency cache are pending.
+
+## C/C++ and JavaScript/TypeScript
+
+All three language groups share the same revision-pinned source snapshot.
+The TypeScript compiler reads JavaScript, TypeScript, JSX and TSX with the
+project's `tsconfig.json` or `jsconfig.json`, including aliases and re-exports.
+Dependencies can resolve from the snapshot.
+
+Clang uses `compile_commands.json` entries found in the snapshot. It maps
+recorded checkout paths to the snapshot and uses the available project
+headers, include paths, preprocessor definitions, language and target flags.
+It uses default flags for translation units without a matching command.
+Generated files, missing system headers and unsupported flags can limit
+coverage. Open **Settings → Code index → Indexing limitations** for details.
 
 ## Use the map
 
 - **Patchtree** — open the PR, MR or GitHub commit diff and choose **Settings → Code index →
-  Index Go**. Patchtree downloads a snapshot of the head commit and keeps its
-  index in the browser for 30 days. Views of the same repository and commit
-  reuse the index across reloads and compatible extension updates. A partial index can still resolve
-  project-local references. **Import…** also accepts a map built by the CLI.
+  Index Go**, **Index C/C++** or **Index JavaScript/TypeScript**. Clicking a
+  supported symbol also starts indexing. Patchtree saves a source snapshot for
+  one day and the index for 30 days. The index key covers the repository, source
+  commit and its project configuration, and the bundled analyzer version.
+  **Import…** also accepts a map built by the CLI.
   In **All commits**, click an indexed symbol on the new side. A definition
   in the same file jumps directly to its line, expanding context as needed.
   For another file, choose a path and line in the card to read the file at that
@@ -105,5 +120,7 @@ Dependency downloads and a versioned dependency cache are pending.
   `nmap gd <Plug>(CodeIndexDefinition)` to your vimrc.
 
 Patchtree imports maps up to 64 MiB, builds maps up to 128 MiB and downloads
-archives up to 32 MiB compressed or 128 MiB expanded. Links use the review repository, so a
-fork's head must be accessible there for links to open.
+archives up to 32 MiB compressed. Go accepts up to 128 MiB expanded. The
+C/C++ and JavaScript/TypeScript analyzers accept up to 512 MiB expanded. Links
+use the review repository, so a fork's head must be accessible there for
+links to open.

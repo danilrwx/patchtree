@@ -18,10 +18,11 @@
 // without touching this script.
 import { build } from "esbuild";
 import { solidPlugin } from "esbuild-plugin-solid";
-import { cp, rm, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { cp, rm, mkdir, readdir } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 
 const OUT = "dist";
 const HEADER = [
@@ -48,14 +49,16 @@ const HEADER = [
 const ENTRIES = [
   { name: "content", bundle: true },
   { name: "oauth-page", bundle: true },
-  { name: "background", bundle: true, format: "esm", external: ["./assets/vendor/web-tree-sitter.js", "./assets/code-index/wasm_exec.js"] },
+  { name: "background", bundle: true, format: "esm", external: ["./assets/vendor/web-tree-sitter.js"] },
+  { name: "index-worker", bundle: true, format: "esm", external: ["./assets/code-index/wasm_exec.js"] },
+  { name: "index-offscreen", bundle: true, format: "esm" },
 ];
 
 // copied into dist/ unchanged; paths in manifest.json stay valid because the
 // layout is preserved.
 // only the manifest sits at the dist root; everything else (fetched deps,
 // icons, viewer.css, options.html) lives under assets/, mirrored to dist/assets/
-const ASSETS = ["manifest.json", "oauth.html", "assets"];
+const ASSETS = ["manifest.json", "oauth.html", "index-offscreen.html", "assets"];
 
 function resolveEntry(name) {
   for (const p of [`src/${name}.tsx`, `src/${name}.ts`, `${name}.tsx`, `${name}.ts`, `${name}.js`]) {
@@ -66,6 +69,29 @@ function resolveEntry(name) {
 
 await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
+
+for (const a of ASSETS) {
+  if (existsSync(a)) await cp(a, `${OUT}/${a}`, { recursive: true });
+}
+
+const wasmDir = resolve(OUT, "assets/code-index");
+await mkdir(wasmDir, { recursive: true });
+for (const name of await readdir("build/indexers")) {
+  if (name !== "clang-version") await cp(`build/indexers/${name}`, resolve(wasmDir, name));
+}
+const codeIndexDir = process.env.PATCHTREE_CODE_INDEX_DIR || "tools/code-index";
+execFileSync("go", ["build", "-C", codeIndexDir, "-trimpath", "-ldflags=-s -w", "-o", resolve(wasmDir, "code-index.wasm"), "."], {
+  env: { ...process.env, GOOS: "js", GOARCH: "wasm", CGO_ENABLED: "0", GOWORK: "off" },
+  stdio: "inherit",
+});
+const goRoot = execFileSync("go", ["env", "GOROOT"], { encoding: "utf8" }).trim();
+await cp(resolve(goRoot, "lib/wasm/wasm_exec.js"), resolve(wasmDir, "wasm_exec.js"));
+
+const version = createHash("sha256");
+for (const name of (await readdir(wasmDir)).sort()) version.update(readFileSync(resolve(wasmDir, name)));
+for (const name of ["index-worker", "index-language", "clang-index", "typescript-index", "snapshot", "navigation-map"])
+  version.update(readFileSync(`src/${name}.ts`));
+const indexVersion = version.digest("hex");
 
 await Promise.all(
   ENTRIES.map(({ name, bundle = true, format = "iife", external = [] }) =>
@@ -78,6 +104,7 @@ await Promise.all(
       target: "chrome110",
       charset: "utf8",
       define: {
+        PATCHTREE_INDEX_VERSION: JSON.stringify(indexVersion),
         PATCHTREE_GITHUB_CLIENT_ID: JSON.stringify(process.env.PATCHTREE_GITHUB_CLIENT_ID ?? ""),
         PATCHTREE_GITLAB_CLIENT_ID: JSON.stringify(process.env.PATCHTREE_GITLAB_CLIENT_ID ?? ""),
       },
@@ -86,19 +113,5 @@ await Promise.all(
     })
   )
 );
-
-for (const a of ASSETS) {
-  if (existsSync(a)) await cp(a, `${OUT}/${a}`, { recursive: true });
-}
-
-const wasmDir = resolve(OUT, "assets/code-index");
-await mkdir(wasmDir, { recursive: true });
-const codeIndexDir = process.env.PATCHTREE_CODE_INDEX_DIR || "tools/code-index";
-execFileSync("go", ["build", "-C", codeIndexDir, "-trimpath", "-ldflags=-s -w", "-o", resolve(wasmDir, "code-index.wasm"), "."], {
-  env: { ...process.env, GOOS: "js", GOARCH: "wasm", CGO_ENABLED: "0", GOWORK: "off" },
-  stdio: "inherit",
-});
-const goRoot = execFileSync("go", ["env", "GOROOT"], { encoding: "utf8" }).trim();
-await cp(resolve(goRoot, "lib/wasm/wasm_exec.js"), resolve(wasmDir, "wasm_exec.js"));
 
 console.log(`built ${ENTRIES.length} entries + ${ASSETS.length} assets → ${OUT}/`);

@@ -87,7 +87,7 @@ list and every screenshot.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — building from source, dev setup and conventions.
 - [docs/architecture.md](docs/architecture.md) — how the extension is built.
-- [Code navigation](tools/code-index/) — bundled Go indexing and SCIP-derived navigation maps for Patchtree.
+- [Code navigation](tools/code-index/) — built-in Go, C/C++, and JavaScript/TypeScript indexing and import of SCIP-derived maps.
 
 ## License
 

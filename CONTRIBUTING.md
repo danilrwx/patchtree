@@ -8,6 +8,7 @@ covers the dev setup and the conventions the project follows.
 
 - Node.js 22+ and npm.
 - Go 1.26+ (builds the bundled Go indexer for WebAssembly).
+- CMake, Ninja, Python 3 and a host C/C++ toolchain (for the first Clang build).
 - A Chromium-based browser (for loading the unpacked extension) and/or
   Firefox.
 - `make` (the build is driven from the `Makefile`).
@@ -38,9 +39,17 @@ mode → Load unpacked.
 
 ### Code index
 
-The build compiles Patchtree’s Go WASM indexer from `tools/code-index`. To test
-changes from a separate Patchtree checkout, point `PATCHTREE_CODE_INDEX_DIR` at
-its `tools/code-index` directory when running `npm run build`.
+`make` builds the Go Wasm indexer from `tools/code-index`, the Clang Wasm
+frontend from LLVM and `tools/clang-index`, and the JavaScript/TypeScript
+analyzer from TypeScript sources. The first build downloads the pinned
+sources and Emscripten SDK. It keeps the source trees and incremental LLVM
+build under `${XDG_CACHE_HOME:-$HOME/.cache}/patchtree-build` by default.
+`PATCHTREE_INDEX_BUILD_DIR` overrides that location. Set
+`PATCHTREE_BUILD_JOBS` to adjust the number of parallel LLVM compile jobs
+(default 4). The finished indexers ship in both browser packages.
+
+To test Go indexer changes from a separate checkout, set
+`PATCHTREE_CODE_INDEX_DIR` to its `tools/code-index` directory.
 
 ### OAuth client IDs
 

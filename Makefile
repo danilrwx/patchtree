@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: all deps vendor queries fonts themes build node_modules typecheck lint hooks zip zip-firefox check test coverage e2e changelog clean
+.PHONY: all deps vendor queries fonts themes build indexers node_modules typecheck lint hooks zip zip-firefox check test coverage e2e changelog clean
 
 all: build
 
@@ -37,8 +37,11 @@ node_modules:
 	npm install
 
 # bundle sources + copy pinned assets into dist/ (the loadable/zippable root)
-build: deps node_modules
+build: deps node_modules indexers
 	node build.mjs
+
+indexers: node_modules
+	./scripts/build-indexers.sh
 
 typecheck: node_modules
 	npm run --silent typecheck
@@ -81,10 +84,14 @@ e2e: build
 	npx playwright test
 
 # archives go under build/ so the repo root stays clean
+index_assets := code-index.wasm wasm_exec.js patchtree-clang.wasm patchtree-clang.js clang-headers.tar.gz typescript.js typescript-libs.tar.gz
+verify_indexers = unzip -tq $(1) index-worker.js $(addprefix assets/code-index/,$(index_assets))
+
 zip: build
 	mkdir -p build
 	rm -f build/patchtree.zip
 	cd dist && zip -qr ../build/patchtree.zip .
+	$(call verify_indexers,build/patchtree.zip)
 	@ls -la build/patchtree.zip
 
 zip-firefox: build
@@ -93,6 +100,7 @@ zip-firefox: build
 	cp -R dist build/firefox
 	node scripts/firefox-manifest.mjs build/firefox/manifest.json
 	cd build/firefox && zip -qr ../../build/patchtree-firefox.zip .
+	$(call verify_indexers,build/patchtree-firefox.zip)
 	@ls -la build/patchtree-firefox.zip
 
 # grouped conventional-commit changelog; RANGE overrides (e.g. RANGE=v1.0.0..HEAD)

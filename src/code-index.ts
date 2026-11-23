@@ -15,6 +15,7 @@
 import { archiveLocation, loadArchive } from "./source-archive";
 import { renderLineHTML, resolveLang, type Range as HighlightRange } from "./diff";
 import { icons } from "./icons";
+import { indexLabels, indexLanguage, type IndexLanguage } from "./index-language";
 import { flashCenter } from "./ui";
 import { credentialFor, gitlabHeaders } from "./providers/shared";
 import type { PtView } from "./review";
@@ -84,6 +85,9 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
   let files: Record<string, unknown> | null = null;
   const recentReferences = new Map<string, ReferenceGroups>();
   let importRequest = 0;
+  let imported = false;
+  const indexed = new Map<IndexLanguage | "import", string[]>();
+  const indexers = new Map<IndexLanguage, () => Promise<void>>();
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = "Import…";
@@ -98,17 +102,39 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
   const controls = document.createElement("span");
   const status = document.createElement("small");
   status.setAttribute("role", "status");
-  controls.append(button, picker, status);
+  const limitations = document.createElement("details");
+  limitations.hidden = true;
+  controls.append(button, picker, status, limitations);
   view.addSettingRow("Code index", controls);
 
-  function apply(data: unknown) {
+  function apply(data: unknown, language?: IndexLanguage) {
     if (!record(data) || data.version !== 1 || !record(data.files)) throw new Error("Invalid code index");
     if (data.repository !== P.repository || data.revision !== revision)
       throw new Error("Code index belongs to a different repository or revision");
-    files = data.files;
+    if (!language) {
+      indexed.clear();
+      imported = true;
+    }
+    files = language ? Object.assign(Object.create(null), files, data.files) : data.files;
     recentReferences.clear();
-    const partial = Array.isArray(data.diagnostics) && data.diagnostics.length > 0;
-    status.textContent = ` ${partial ? "Partially indexed" : "Indexed"} ${revision.slice(0, 8)}`;
+    indexed.set(language ?? "import", Array.isArray(data.diagnostics)
+      ? data.diagnostics.filter((message): message is string => typeof message === "string") : []);
+    const diagnostics = [...indexed.values()].flat();
+    status.textContent = ` ${diagnostics.length ? "Partially indexed" : "Indexed"} ${revision.slice(0, 8)}`;
+    status.title = diagnostics.join("\n");
+    limitations.replaceChildren();
+    limitations.hidden = !diagnostics.length;
+    if (diagnostics.length) {
+      const summary = document.createElement("summary");
+      summary.textContent = "Indexing limitations";
+      const list = document.createElement("ul");
+      for (const message of diagnostics) {
+        const item = document.createElement("li");
+        item.textContent = message;
+        list.append(item);
+      }
+      limitations.append(summary, list);
+    }
   }
 
   button.addEventListener("click", () => input.click());
@@ -127,44 +153,50 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
     }
   });
 
-  let indexGo: (() => Promise<void>) | undefined;
-  if (view.root.querySelector('.pt-file[data-path$=".go"], .pt-file[data-path$="go.mod"]')) {
+  const languages = new Set(Array.from(view.root.querySelectorAll<HTMLElement>(".pt-file[data-path]"),
+    (file) => indexLanguage(file.dataset.path!)).filter((language) => language !== undefined));
+  let gitlabArchive: Promise<string> | undefined;
+  function uploadGitlabArchive() {
+    return gitlabArchive ??= (async () => {
+      // Self-hosted GitLab archives can be fetched from the MR origin.
+      const { archive } = archiveLocation(location.href, sourceProject, revision);
+      const headers = gitlabHeaders(await credentialFor(location.host));
+      const bytes = await loadArchive(await fetch(archive, { headers, credentials: "omit", redirect: "error" }));
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += 8192)
+        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      return btoa(binary);
+    })().finally(() => { gitlabArchive = undefined; });
+  }
+  for (const language of languages) {
+    const label = indexLabels[language];
     const build = document.createElement("button");
     build.type = "button";
-    build.textContent = "Index Go";
-    build.setAttribute("aria-label", "Index Go sources");
-    controls.prepend(build);
-    const message = { type: "repositoryIndex", revision, sourceProject };
+    build.textContent = `Index ${label}`;
+    build.setAttribute("aria-label", `Index ${label} sources`);
+    controls.insertBefore(build, button);
+    const message = { type: "repositoryIndex", revision, sourceProject, language };
     const cached = chrome.runtime.sendMessage({ ...message, cachedOnly: true })
       .then((reply) => reply?.index ? unpackIndex(reply) : undefined)
       .catch(() => undefined);
     void cached.then((data) => {
-      if (data && importRequest === 0) apply(data);
+      if (data && importRequest === 0) apply(data, language);
     }).catch(() => {});
     let pending: Promise<void> | undefined;
     const download = async () => {
-      const request = ++importRequest;
+      const request = importRequest;
       build.disabled = true;
-      status.textContent = " Indexing Go…";
+      status.textContent = ` Indexing ${label}…`;
       try {
         let data = await cached;
         if (!data) {
-          let reply = await chrome.runtime.sendMessage(P.kind === "gitlab" ? { ...message, cachedOnly: true } : message);
-          if (!reply?.index && P.kind === "gitlab") {
-            // Self-hosted GitLab archives can be fetched from the MR origin.
-            const { archive } = archiveLocation(location.href, sourceProject, revision);
-            const headers = gitlabHeaders(await credentialFor(location.host));
-            const response = await fetch(archive, { headers, credentials: "omit", redirect: "error" });
-            const bytes = await loadArchive(response);
-            let binary = "";
-            for (let i = 0; i < bytes.length; i += 8192)
-              binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-            reply = await chrome.runtime.sendMessage({ ...message, archiveBase64: btoa(binary) });
-          }
+          let reply = await chrome.runtime.sendMessage(message);
+          if (!reply && P.kind === "gitlab")
+            reply = await chrome.runtime.sendMessage({ ...message, archiveBase64: await uploadGitlabArchive() });
           if (!reply?.index) throw new Error(reply?.error || "Could not index repository");
           data = await unpackIndex(reply);
         }
-        if (request === importRequest) apply(data);
+        if (request === importRequest) apply(data, language);
       } catch (error) {
         if (request === importRequest)
           status.textContent = error instanceof Error ? ` ${error.message}` : " Could not index repository";
@@ -173,8 +205,9 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
         build.disabled = false;
       }
     };
-    indexGo = () => pending ??= download().finally(() => { pending = undefined; });
-    build.addEventListener("click", () => { void indexGo?.().catch(() => {}); });
+    const index = () => pending ??= download().finally(() => { pending = undefined; });
+    indexers.set(language, index);
+    build.addEventListener("click", () => { void index().catch(() => {}); });
   }
 
   let hovered: HTMLElement | null = null;
@@ -472,8 +505,10 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
       open(symbol, { x: box?.left ?? point.x, y: box?.bottom ?? point.y }, action === "direct");
       return true;
     }
-    if (!indexGo || !hit.path.endsWith(".go") ||
-        (files && action === "references") ||
+    const language = indexLanguage(hit.path);
+    const index = language && indexers.get(language);
+    const alreadyIndexed = language && (imported || indexed.has(language));
+    if (!language || !index || (alreadyIndexed && action === "references") ||
         element?.closest(".pt-comment, .pt-string, .pt-keyword, .pt-number")) return false;
 
     const text = hit.cell.textContent ?? "";
@@ -486,15 +521,18 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
       return { x: box?.left ?? point.x, y: box?.bottom ?? point.y };
     };
     const request = startNavigation();
-    feedback.textContent = files ? "No indexed definition for this symbol" : "Indexing Go…";
-    if (files) return true;
-    void indexGo()
+    const missing = () => indexed.get(language)?.length
+      ? "No indexed definition for this symbol. See Code index limitations in Settings."
+      : "No indexed definition for this symbol";
+    feedback.textContent = alreadyIndexed ? missing() : `Indexing ${indexLabels[language]}…`;
+    if (alreadyIndexed) return true;
+    void index()
       .then(() => {
         if (request !== navigationRequest || !hit.cell.isConnected) return;
         const indexed = lineAt(hit.cell);
         const target = indexed && symbolAt(indexed, column);
         if (target) open(target, anchorAtWord());
-        else feedback.textContent = "No indexed definition for this symbol";
+        else feedback.textContent = missing();
       })
       .catch((error) => {
         if (request === navigationRequest)
@@ -895,9 +933,12 @@ async function highlightSource(path: string, lines: HTMLElement[]) {
   if (!lang) return;
   const result = await chrome.runtime.sendMessage({ type: "highlight", lang, text })
     .catch(() => null) as { rows?: Record<string, HighlightRange[]> } | null;
+  const selection = window.getSelection();
   for (const [row, ranges] of Object.entries(result?.rows ?? {})) {
     const line = lines[Number(row)];
-    if (line?.isConnected) line.innerHTML = renderLineHTML(line.textContent!, ranges, null);
+    // Highlighting arrives asynchronously and must preserve the user's caret.
+    if (line?.isConnected && !line.contains(selection?.anchorNode ?? null) && !line.contains(selection?.focusNode ?? null))
+      line.innerHTML = renderLineHTML(line.textContent!, ranges, null);
   }
 }
 

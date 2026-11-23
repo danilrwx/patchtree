@@ -23,7 +23,8 @@
   "permissions": [
     "storage",
     "activeTab",
-    "identity"
+    "identity",
+    "offscreen"
   ],
   "host_permissions": [
     "https://api.github.com/*",

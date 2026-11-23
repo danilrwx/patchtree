@@ -333,22 +333,22 @@ test("indexes a test-file symbol on first click and reuses the result after relo
   await expect(file).toHaveCount(0);
   expect(await page.evaluate(() => window.scrollY)).toBe(before);
 
-  const cacheKey = `${repository}/.patchtree-index/${head}`;
-  await worker.evaluate(async (key) => {
-    const cache = await caches.open("patchtree-go-index-v3");
+  await worker.evaluate(async (repository) => {
+    const cache = await caches.open("patchtree-index-v4");
+    const key = (await cache.keys()).find((request) => request.url.startsWith(repository) && request.url.endsWith("&language=go"));
+    if (!key) throw new Error("Missing cached index key");
     const saved = await cache.match(key);
     if (!saved) throw new Error("Missing cached index");
     const expires = Number(saved.headers.get("X-Patchtree-Expires"));
     if (expires - Date.now() < 29 * 24 * 60 * 60 * 1000) throw new Error("Index TTL is too short");
     await cache.put(key, new Response(saved.body, { headers: { "X-Patchtree-Expires": "1" } }));
-  }, cacheKey);
+  }, repository);
   await page.reload();
   await expect(status).not.toHaveText(/Indexed/);
   expect(await downloads()).toBe(1);
   await clickSymbol("Label");
-  await expect.poll(downloads).toBe(2);
-  await worker.evaluate(() => (globalThis as typeof globalThis & { releaseArchive: () => void }).releaseArchive());
   await expect(dialog.locator("pre .pt-keyword").first()).toHaveText("func");
+  expect(await downloads()).toBe(1);
 });
 
 test("jumps within the same diff file and reveals hidden definitions", async ({ context, page }) => {
@@ -442,10 +442,11 @@ test("indexes the workspace at a standalone GitHub commit", async ({ context, pa
   await page.getByRole("button", { name: "Index Go sources" }).click();
   const status = page.locator(".pt-set-row").filter({ hasText: "Code index" }).getByRole("status");
   await expect(status).toHaveText(/Indexed 22222222/);
-  const encoding = await worker.evaluate(async (key) => {
-    const cache = await caches.open("patchtree-go-index-v3");
-    return (await cache.match(key))?.headers.get("X-Patchtree-Index-Encoding");
-  }, `${repository}/.patchtree-index/${sha}`);
+  const encoding = await worker.evaluate(async (repository) => {
+    const cache = await caches.open("patchtree-index-v4");
+    const key = (await cache.keys()).find((request) => request.url.startsWith(repository) && request.url.endsWith("&language=go"));
+    return key && (await cache.match(key))?.headers.get("X-Patchtree-Index-Encoding");
+  }, repository);
   expect(encoding).toBe("gzip");
   await page.locator("#pt-settings > summary").click();
   await page.locator('tr.pt-add[data-new="3"] .pt-code').evaluate((cell) => {
@@ -490,3 +491,151 @@ test("indexes a GitLab source archive through the MR origin", async ({ context, 
   await expect(settings.getByRole("status")).toHaveText(/Indexed 11111111/);
   expect(token).toBe("e2e-token");
 });
+
+async function caretOn(cell: Locator, token: string) {
+  await cell.evaluate((element, token) => {
+    let offset = element.textContent!.indexOf(token);
+    if (offset < 0) throw new Error(`Missing token ${token}`);
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const length = node.textContent!.length;
+      if (offset < length) {
+        getSelection()!.collapse(node, offset);
+        return;
+      }
+      offset -= length;
+    }
+    throw new Error(`Missing text for ${token}`);
+  }, token);
+}
+
+const tsSources = {
+  "tsconfig.base.json": '{ "compilerOptions": { "baseUrl": ".", "paths": { "@pkg/*": ["src/*"] } } }',
+  "tsconfig.json": '{ "extends": "./tsconfig.base.json", "include": ["src/**/*"], "compilerOptions": { "jsx": "preserve" } }',
+  "src/math.ts": "export const pick = () => 1;\nexport const again = () => pick();\n",
+  "src/other.ts": "export const pick = () => 2;\n",
+  "src/entry.ts": 'export { pick as chosen } from "./math";\n',
+  "src/widget.tsx": "export function Widget() { return <div />; }\n",
+  "src/client.jsx": 'import { chosen } from "@pkg/entry";\nimport { Widget } from "./widget";\nexport const view = <Widget n={chosen()} />;\n',
+  "src/main.js": 'import { chosen } from "@pkg/entry";\nimport { pick } from "./other";\nexport const values = [chosen(), pick()];\n',
+};
+const clangSources = {
+  "compile_commands.json": JSON.stringify([
+    { directory: "/checkout/project/build", file: "../src/main.c",
+      arguments: ["clang", "-I../inc", "-DFEATURE=1", "-std=c17", "-c", "../src/main.c", "-o", "main.o"] },
+    { directory: "/checkout/project/build", file: "../src/defs.c",
+      command: "clang -I../inc -DFEATURE=1 -c ../src/defs.c -o defs.o" },
+    { directory: "/checkout/project/build", file: "../src/main.cpp",
+      command: "clang++ -std=c++20 -I../inc -c ../src/main.cpp -o cpp.o" },
+  ]),
+  "inc/config.h": "#if FEATURE\nstruct First { int value; };\nstruct Other { int value; };\nint get(void);\n#define PASS(x) (x)\n#endif\n",
+  "src/defs.c": '#include "config.h"\nint get(void) { return 3; }\n',
+  "src/main.c": '#include "config.h"\nint consume(struct First v) { return PASS(v.value) + get(); }\n',
+  "inc/overload.hpp": "inline int choose(int x) { return x; }\ninline int choose(double x) { return 0; }\n",
+  "src/main.cpp": '#include "overload.hpp"\nint fromInt() { return choose(1); }\nint fromDouble() { return choose(1.0); }\n',
+};
+
+for (const [analyzer, changed, from, token, target, row] of [
+  ["JavaScript/TypeScript", ["src/main.js", "src/client.jsx"], "src/main.js", "chosen", "src/math.ts", 1],
+  ["C/C++", ["src/main.c", "src/main.cpp"], "src/main.c", "value", "inc/config.h", 2],
+] as const) {
+  test(`indexes ${analyzer} in the extension and reopens its saved index`, async ({ context, page }) => {
+    await mockGithub(context);
+    const head = "1".repeat(40);
+    const sources: Record<string, string> = analyzer === "C/C++" ? clangSources : tsSources;
+    const diff = changed.map((path) => {
+      const lines = sources[path].trimEnd().split("\n");
+      return [`diff --git a/${path} b/${path}`, "--- /dev/null", `+++ b/${path}`,
+        `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`), ""].join("\n");
+    }).join("");
+    await context.route(DIFF_URL, (route) => route.fulfill({ body: diff, contentType: "text/plain; charset=utf-8" }));
+    for (const [path, body] of Object.entries(sources))
+      await context.route(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${head}`,
+        (route) => route.fulfill({ body, contentType: "text/plain; charset=utf-8" }));
+    await page.goto(DIFF_URL);
+    const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+    await worker.evaluate(({ endpoint, archive }) => {
+      const scope = globalThis as typeof globalThis & { archiveDownloads: number };
+      scope.archiveDownloads = 0;
+      const realFetch = fetch.bind(globalThis);
+      globalThis.fetch = (input, init) => {
+        if (input !== endpoint) return realFetch(input, init);
+        scope.archiveDownloads++;
+        return Promise.resolve(new Response(new Uint8Array(archive)));
+      };
+    }, { endpoint: `https://api.github.com/repos/${OWNER}/${REPO}/tarball/${head}`, archive: [...tarGzip(sources)] });
+
+    const status = page.locator(".pt-set-row").filter({ hasText: "Code index" }).getByRole("status", { includeHidden: true });
+    await expect(status).toBeAttached();
+    const diffCell = (path: string, line: number) => page.locator(`section[data-path="${path}"] .pt-unified tr[data-new="${line}"] .pt-code`);
+    const definitions = page.getByRole("dialog", { name: "Go to definition" });
+    const goto = async (cell: Locator, name: string) => {
+      await caretOn(cell, name);
+      await page.keyboard.press("Control+Enter");
+    };
+    const coldStart = Date.now();
+    await goto(diffCell(from, analyzer === "C/C++" ? 2 : 3), token);
+    await expect(definitions.getByRole("button", { name: `${target}:${row}`, exact: true })).toBeFocused({ timeout: 30_000 });
+    console.log(`${analyzer} cold goto: ${Date.now() - coldStart} ms`);
+    await definitions.getByRole("button", { name: `${target}:${row}`, exact: true }).press("Enter");
+    const viewer = page.getByRole("dialog", { name: target });
+    const current = (file: Locator) => file.locator('[aria-current="location"] code');
+    await expect(current(viewer)).toHaveAttribute("data-line", String(row));
+    const definitionName = analyzer === "C/C++" ? "value" : "pick";
+    await caretOn(current(viewer), definitionName);
+    await page.keyboard.press("Shift+F12");
+    await viewer.getByRole("region", { name: `References for ${definitionName}` })
+      .getByRole("button", { name: new RegExp(`^${from}:`) }).last().click();
+    const other = page.getByRole("dialog", { name: from });
+    await expect(current(other)).toBeVisible();
+    await goto(current(other), token);
+    await expect(current(viewer)).toHaveAttribute("data-line", String(row));
+    await page.keyboard.press("Alt+ArrowLeft");
+    await expect(current(other)).toBeVisible();
+    await page.keyboard.press("Alt+ArrowLeft");
+    await expect(current(viewer)).toHaveAttribute("data-line", String(row));
+    await viewer.getByRole("button", { name: "Close file" }).click();
+    await expect(viewer).toHaveCount(0);
+
+    const usage = diffCell(from, analyzer === "C/C++" ? 2 : 3);
+    await usage.scrollIntoViewIfNeeded();
+    await caretOn(usage, token);
+    const point = await usage.evaluate(() => {
+      const range = getSelection()!.getRangeAt(0);
+      range.setEnd(range.startContainer, range.startOffset + 1);
+      const { x, y, width, height } = range.getBoundingClientRect();
+      getSelection()!.collapseToStart();
+      return { x: x + width / 2, y: y + height / 2 };
+    });
+    await page.mouse.click(point.x, point.y, { button: "right" });
+    const refs = page.getByRole("dialog", { name: "Find references" });
+    await expect(refs.locator(".pt-reference-row")).not.toHaveCount(0);
+    await page.keyboard.press("Escape");
+    if (analyzer === "C/C++") {
+      for (const [line, destination] of [[2, 1], [3, 2]]) {
+        await goto(diffCell("src/main.cpp", line), "choose");
+        await expect(definitions.getByRole("button", { name: `inc/overload.hpp:${destination}` })).toBeFocused();
+        await page.keyboard.press("Escape");
+      }
+      for (const [name, path] of [["PASS", "inc/config.h:5"], ["get", "src/defs.c:2"]]) {
+        await goto(diffCell(from, 2), name);
+        await expect(definitions.getByRole("button", { name: path })).toBeFocused();
+        await page.keyboard.press("Escape");
+      }
+    } else {
+      await goto(diffCell("src/client.jsx", 3), "Widget");
+      await expect(definitions.getByRole("button", { name: "src/widget.tsx:1" })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await goto(diffCell(from, 3), "pick");
+      await expect(definitions.getByRole("button", { name: "src/other.ts:1" })).toBeFocused();
+      await page.keyboard.press("Escape");
+    }
+    const warmStart = Date.now();
+    await page.reload();
+    await expect(status).toHaveText(/Indexed 11111111/i);
+    await goto(diffCell(from, analyzer === "C/C++" ? 2 : 3), token);
+    await expect(definitions.getByRole("button", { name: `${target}:${row}`, exact: true })).toBeFocused();
+    console.log(`${analyzer} reload + cached goto: ${Date.now() - warmStart} ms`);
+    expect(await worker.evaluate(() => (globalThis as typeof globalThis & { archiveDownloads: number }).archiveDownloads)).toBe(1);
+  });
+}

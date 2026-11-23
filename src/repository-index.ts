@@ -12,73 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// @ts-expect-error — the Go runtime is copied from the toolchain at build time
-import "./assets/code-index/wasm_exec.js";
 import { credentialFor } from "./providers/shared";
 import { refreshOAuthToken } from "./oauth";
 import { archiveLocation, loadArchive, maxArchiveBytes } from "./source-archive";
+import { runIndex, type IndexPayload } from "./index-runner";
 
-// Tree-sitter checks process.versions.node when the Go browser shim exposes process.
-const goProcess: { versions?: unknown } | undefined = Reflect.get(globalThis, "process");
-if (goProcess && !goProcess.versions) Object.defineProperty(goProcess, "versions", { value: {} });
-
-interface GoRuntime {
-  importObject: WebAssembly.Imports;
-  run(instance: WebAssembly.Instance): Promise<void>;
-}
-
-const runtime = globalThis as typeof globalThis & {
-  Go: new () => GoRuntime;
-  codeIndexGoArchive(repository: string, revision: string, archive: Uint8Array): string;
-};
-
-type IndexPayload = { index: string; gzip?: boolean };
-const pending = new Map<string, Promise<IndexPayload>>();
-const cacheName = "patchtree-go-index-v3";
+declare const PATCHTREE_INDEX_VERSION: string;
+const pending = new Map<string, Promise<IndexPayload | null>>();
+const downloads = new Map<string, Promise<Uint8Array<ArrayBuffer>>>();
+const cacheName = "patchtree-index-v4";
+const archiveCacheName = "patchtree-source-v1";
 const expiresHeader = "X-Patchtree-Expires";
 const encodingHeader = "X-Patchtree-Index-Encoding";
 const day = 24 * 60 * 60 * 1000;
-const indexTTL = 30 * day;
-const maxResultBytes = 128 * 1024 * 1024;
-let cacheReady: Promise<Cache | null> | undefined;
+let cacheReady: Promise<[Cache, Cache] | null> | undefined;
 let nextSweep = 0;
-let ready: Promise<void> | undefined;
+let archiveWrites = Promise.resolve();
 
 function expires(response: Response) {
   return Number(response.headers.get(expiresHeader));
 }
 
-function cacheResponse(payload: IndexPayload) {
-  return new Response(payload.index, { headers: {
-    [expiresHeader]: String(Date.now() + indexTTL),
-    [encodingHeader]: payload.gzip ? "gzip" : "identity",
-  } });
+async function getEntry(cache: Cache | undefined, key: string) {
+  const entry = await cache?.match(key).catch(() => undefined);
+  return entry && expires(entry) > Date.now() ? entry : undefined;
 }
 
-async function packIndex(text: string): Promise<IndexPayload> {
-  const raw = new Blob([text]);
-  if (raw.size > maxResultBytes) throw new Error("Code index exceeds 128 MiB");
-  if (raw.size <= 4 * 1024 * 1024) return { index: text };
-  const compressed = new Uint8Array(await new Response(raw.stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
-  let binary = "";
-  for (let i = 0; i < compressed.length; i += 8192)
-    binary += String.fromCharCode(...compressed.subarray(i, i + 8192));
-  return { index: btoa(binary), gzip: true };
-}
-
-function indexCache() {
+function indexCaches() {
   if (cacheReady && Date.now() < nextSweep) return cacheReady;
   nextSweep = Date.now() + day;
   cacheReady = (async () => {
-    const cache = await caches.open(cacheName);
-    for (const key of await cache.keys()) {
-      const entry = await cache.match(key);
-      if (entry && expires(entry) <= Date.now()) await cache.delete(key);
+    const indexes = await caches.open(cacheName);
+    const archives = await caches.open(archiveCacheName);
+    for (const cache of [indexes, archives]) {
+      for (const key of await cache.keys()) {
+        const entry = await cache.match(key);
+        if (entry && expires(entry) <= Date.now()) await cache.delete(key);
+      }
     }
-    // Older indexes could omit packages from the same Go workspace.
-    for (const name of (await caches.keys()).filter((name) => /^patchtree-go-index-v[12](?:-|$)/.test(name)))
+    for (const name of (await caches.keys()).filter((name) => /^patchtree-go-index-v[123](?:-|$)/.test(name)))
       await caches.delete(name);
-    return cache;
+    return [indexes, archives] as [Cache, Cache];
   })().catch(() => {
     cacheReady = undefined;
     return null;
@@ -86,49 +60,69 @@ function indexCache() {
   return cacheReady;
 }
 
-async function initGo() {
-  const go = new runtime.Go();
-  const response = await fetch(chrome.runtime.getURL("assets/code-index/code-index.wasm"));
-  if (!response.ok) throw new Error("Bundled Go indexer is unavailable");
-  const { instance } = await WebAssembly.instantiate(await response.arrayBuffer(), go.importObject);
-  // The Go main loop remains alive to serve synchronous indexing calls.
-  void go.run(instance).catch(() => { ready = undefined; });
-  if (!runtime.codeIndexGoArchive) throw new Error("Go indexer failed to initialize");
+function saveArchive(cache: Cache, key: string, bytes: Uint8Array<ArrayBuffer>) {
+  archiveWrites = archiveWrites.then(async () => {
+    await cache.put(key, new Response(bytes, { headers: { [expiresHeader]: String(Date.now() + day) } }));
+    const keys = await cache.keys();
+    for (const old of keys.slice(0, Math.max(0, keys.length - 4))) await cache.delete(old);
+  }).catch(() => {});
+  return archiveWrites;
 }
 
-export async function repositoryIndex(sender: string | undefined, revision: unknown, source: unknown, cachedOnly: boolean, archiveBase64: unknown) {
-  if (!sender || typeof revision !== "string" || !/^[a-f0-9]{40}$/i.test(revision)) throw new Error("Missing repository or full commit SHA");
-  const location = archiveLocation(sender, source, revision);
-  const key = `${location.repository}/.patchtree-index/${revision}`;
-  const storage = await indexCache();
-  const saved = await storage?.match(key).catch(() => undefined);
-  if (saved && expires(saved) > Date.now()) {
-    return { index: await saved.text(), gzip: saved.headers.get(encodingHeader) === "gzip" };
-  }
-  if (cachedOnly) return null;
-  let job = pending.get(key);
+async function sourceArchive(
+  location: ReturnType<typeof archiveLocation>, storage: Cache | undefined, key: string, archiveBase64: unknown,
+) {
+  const saved = await getEntry(storage, key);
+  if (saved) return new Uint8Array(await saved.arrayBuffer());
+  let job = downloads.get(key);
   if (!job) {
+    if (location.tokenHeader === "PRIVATE-TOKEN" && archiveBase64 === undefined) return null;
     job = (async () => {
-      let archive: Uint8Array;
+      let archive: Uint8Array<ArrayBuffer>;
       if (location.tokenHeader === "PRIVATE-TOKEN") {
         if (typeof archiveBase64 !== "string" || archiveBase64.length > Math.ceil(maxArchiveBytes / 3) * 4)
           throw new Error("Missing or oversized GitLab source archive");
         archive = Uint8Array.from(atob(archiveBase64), (char) => char.charCodeAt(0));
+        if (archive.length > maxArchiveBytes) throw new Error("Source archive exceeds 32 MiB");
       } else {
         const token = (await credentialFor(location.tokenHost, true, () => refreshOAuthToken(location.tokenHost)))?.token;
         const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-        const response = await fetch(location.archive, { headers, credentials: "omit" });
-        archive = await loadArchive(response);
+        archive = await loadArchive(await fetch(location.archive, { headers, credentials: "omit" }));
       }
-      ready ??= initGo().catch((error) => {
-        ready = undefined;
-        throw error;
-      });
-      await ready;
-      const text = runtime.codeIndexGoArchive(location.repository, revision, archive);
-      if (text.startsWith('{"error":')) throw new Error(JSON.parse(text).error);
-      const payload = await packIndex(text);
-      await storage?.put(key, cacheResponse(payload)).catch(() => {});
+      if (storage) await saveArchive(storage, key, archive);
+      return archive;
+    })().finally(() => downloads.delete(key));
+    downloads.set(key, job);
+  }
+  // Each dedicated worker takes ownership of its own buffer.
+  return (await job).slice();
+}
+
+export async function repositoryIndex(
+  sender: string | undefined, revision: unknown, source: unknown, language: unknown,
+  cachedOnly: boolean, archiveBase64: unknown,
+) {
+  if (!sender || typeof revision !== "string" || !/^[a-f0-9]{40}$/i.test(revision)) throw new Error("Missing repository or full commit SHA");
+  if (language !== "go" && language !== "typescript" && language !== "clang") throw new Error("Unsupported code index language");
+  const location = archiveLocation(sender, source, revision);
+  const archiveKey = `${location.repository}/.patchtree-source/${revision}?source=${encodeURIComponent(location.archive)}`;
+  // The immutable source revision covers every in-tree compiler configuration.
+  const key = `${archiveKey}&index=${PATCHTREE_INDEX_VERSION}&language=${language}`;
+  const [indexes, archives] = await indexCaches() ?? [];
+  const saved = await getEntry(indexes, key);
+  if (saved) return { index: await saved.text(), gzip: saved.headers.get(encodingHeader) === "gzip" };
+  if (cachedOnly) return null;
+  let job = pending.get(key);
+  if (!job) {
+    job = (async () => {
+      const archive = await sourceArchive(location, archives, archiveKey, archiveBase64);
+      if (!archive) return null;
+      const payload = await runIndex({ language, repository: location.repository, revision, archive });
+      const response = new Response(payload.index, { headers: {
+        [expiresHeader]: String(Date.now() + 30 * day),
+        [encodingHeader]: payload.gzip ? "gzip" : "identity",
+      } });
+      await indexes?.put(key, response).catch(() => {});
       return payload;
     })().finally(() => pending.delete(key));
     pending.set(key, job);

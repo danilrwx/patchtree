@@ -398,7 +398,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg?.type === "repositoryIndex") {
-    repositoryIndex(sender.url, msg.revision, msg.sourceProject, msg.cachedOnly === true, msg.archiveBase64)
+    repositoryIndex(sender.url, msg.revision, msg.sourceProject, msg.language, msg.cachedOnly === true, msg.archiveBase64)
       .then(sendResponse)
       .catch((error) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
     return true;
