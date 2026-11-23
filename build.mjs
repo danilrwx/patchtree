@@ -86,6 +86,7 @@ execFileSync("go", ["build", "-C", codeIndexDir, "-trimpath", "-ldflags=-s -w", 
 });
 const goRoot = execFileSync("go", ["env", "GOROOT"], { encoding: "utf8" }).trim();
 await cp(resolve(goRoot, "lib/wasm/wasm_exec.js"), resolve(wasmDir, "wasm_exec.js"));
+await cp(resolve(goRoot, "LICENSE"), resolve(wasmDir, "LICENSE-Go.txt"));
 
 const version = createHash("sha256");
 for (const name of (await readdir(wasmDir)).sort()) version.update(readFileSync(resolve(wasmDir, name)));

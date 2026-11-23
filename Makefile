@@ -84,7 +84,8 @@ e2e: build
 	npx playwright test
 
 # archives go under build/ so the repo root stays clean
-index_assets := code-index.wasm wasm_exec.js patchtree-clang.wasm patchtree-clang.js clang-headers.tar.gz typescript.js typescript-libs.tar.gz
+index_assets := code-index.wasm wasm_exec.js patchtree-clang.wasm patchtree-clang.js clang-headers.tar.gz typescript.js typescript-libs.tar.gz \
+	LICENSE-Go.txt LICENSE-LLVM.txt LICENSE-Emscripten.txt LICENSE-TypeScript.txt NOTICE-TypeScript.txt
 verify_indexers = unzip -tq $(1) index-worker.js $(addprefix assets/code-index/,$(index_assets))
 
 zip: build

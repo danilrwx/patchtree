@@ -59,7 +59,8 @@ build_clang() {
   fingerprint=$(sha256sum "$0" "$root/tools/clang-index/"* | cut -d' ' -f1 | sha256sum | cut -d' ' -f1)
   if [[ -s "$package/clang-version" && $(cat "$package/clang-version") == "$fingerprint" &&
     -s "$package/patchtree-clang.wasm" && -s "$package/patchtree-clang.js" &&
-    -s "$package/clang-headers.tar.gz" && -s "$package/LICENSE-LLVM.txt" ]]; then
+    -s "$package/clang-headers.tar.gz" && -s "$package/LICENSE-LLVM.txt" &&
+    -s "$package/LICENSE-Emscripten.txt" ]]; then
     return
   fi
   local sdk="$work/emsdk-$emsdk_revision" source="$work/llvm-${llvm_revision:0:8}"
@@ -91,6 +92,7 @@ build_clang() {
   cp "$out/bin/patchtree-clang.js" "$out/bin/patchtree-clang.wasm" "$package/"
   tar --sort=name --mtime=@0 -czf "$package/clang-headers.tar.gz" -C "$out/lib/clang/21/include" .
   cp "$source/llvm/LICENSE.TXT" "$package/LICENSE-LLVM.txt"
+  cp "$sdk/upstream/emscripten/LICENSE" "$package/LICENSE-Emscripten.txt"
   printf '%s\n' "$fingerprint" > "$package/clang-version"
 }
 
