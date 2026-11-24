@@ -92,6 +92,32 @@ Open the ⚙ gear menu to change the theme, fonts and layout.
 
 ## Tokens
 
+### OAuth sign-in
+
+On a GitHub or GitLab review diff, choose **⚙ → Sign in with OAuth…**. For
+GitHub, open the verification page, enter the displayed device code and
+approve the application. For GitLab, approve access in the browser sign-in
+window. The gear menu shows the connected service. Reload the diff to enable
+review controls. Patchtree uses the GitHub OAuth session for API requests
+including diffs, repository files and review actions. Sessions with refresh
+tokens renew automatically when a request needs a new access token.
+
+A release can include the public client ID for GitHub and GitLab.com. When a
+client ID has not been configured, register an application once and enter
+its **client ID** in the sign-in page:
+
+- **GitHub** — [register an OAuth App](https://github.com/settings/applications/new)
+  named **Patchtree**. Use `https://github.com/danilrwx/patchtree` for the
+  homepage and callback fields. Enable **Device Flow**. Patchtree requests the
+  `repo` scope for repository and review access. The public client ID is enough
+  to authorize a device and refresh an expiring token.
+- **GitLab** — register a public application on your instance under
+  **Applications**. Clear **Confidential**, enable the `api` scope, and
+  register the redirect URL shown on the Patchtree sign-in page for each
+  browser you use.
+
+### Personal access tokens
+
 ⚙ → **Access tokens** stores per-host credentials locally (never synced), used
 only against their own host:
 

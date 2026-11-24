@@ -22,14 +22,18 @@
   },
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "identity",
+    "offscreen"
   ],
   "host_permissions": [
     "https://api.github.com/*",
     "https://github.com/*",
     "https://raw.githubusercontent.com/*",
+    "https://codeload.github.com/*",
     "https://patch-diff.githubusercontent.com/*"
   ],
+  "optional_host_permissions": ["https://*/*"],
   "web_accessible_resources": [
     {
       "resources": [

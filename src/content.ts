@@ -14,7 +14,7 @@
 
 "use strict";
 
-import { resolveLang, parseDiff, buildFileModel, renderPreambleHTML, treeOrder } from "./diff";
+import { resolveLang, parseDiff, buildFileModel, renderPreambleHTML, treeOrder, type Gap } from "./diff";
 import { flashCenter, mountDialog, makeDropdown, menuItem } from "./ui";
 import { injectFonts } from "./fonts";
 import { BASE16, applySettings, parseBase16Yaml } from "./theme";
@@ -48,6 +48,7 @@ import {
   setHighlights,
   hlKey,
   setCtxLines,
+  ctxLines,
   setCtxHl,
   setGapFull,
   setGapErr,
@@ -58,7 +59,10 @@ import {
   type FileStatus,
 } from "./store";
 import { makeProvider } from "./providers";
+import { credentialFor } from "./providers/shared";
+import { credentialKey, oauthHostForDiff, readOAuth, type OAuthCredential } from "./oauth";
 import { initReview, type PtView } from "./review";
+import { installCodeNavigation } from "./code-index";
 import { octicon, SVG_GEAR, icons } from "./icons";
 import type { Provider } from "./types";
 
@@ -92,12 +96,14 @@ const highlightObserver = new IntersectionObserver(
 // Fetch the hidden lines a gap hides and publish them (plus their highlight)
 // to the store; <DiffFile> renders the context rows and hides the now-redundant
 // following hunk header when the gap is fully filled.
-async function expandGap(view: any, gap: any) {
-  if (gap.busy || gap.newTo == null) return;
-  gap.busy = true;
+const expandingGaps = new WeakMap<Gap, Promise<void>>();
+type ContextFile = { path: string; lang: string | null; section: HTMLElement };
+
+async function loadGap(view: ContextFile, gap: Gap) {
   try {
     if (!provider?.fetchFile) throw new Error("file contents unavailable here");
     const lines = await provider.fetchFile(view.path);
+    if (!view.section.isConnected) return;
     const to = Math.min(gap.newTo, lines.length);
     const arr: { o: number; n: number; text: string }[] = [];
     for (let n = gap.newFrom; n <= to; n++) {
@@ -111,13 +117,22 @@ async function expandGap(view: any, gap: any) {
       const resp: any = await chrome.runtime
         .sendMessage({ type: "highlight", lang: view.lang, text: arr.map((c) => c.text).join("\n") })
         .catch(() => null);
-      if (resp?.rows)
+      if (view.section.isConnected && resp?.rows)
         for (const [row, ranges] of Object.entries(resp.rows)) setCtxHl(ctxKey(gap.id, +row), ranges as any);
     }
   } catch (e: any) {
-    gap.busy = false;
-    setGapErr(gap.id, e.message);
+    if (view.section.isConnected) setGapErr(gap.id, e.message);
   }
+}
+
+function expandGap(view: ContextFile, gap: Gap) {
+  if (ctxLines[gap.id]) return Promise.resolve();
+  let expanding = expandingGaps.get(gap);
+  if (!expanding) {
+    expanding = loadGap(view, gap).finally(() => expandingGaps.delete(gap));
+    expandingGaps.set(gap, expanding);
+  }
+  return expanding;
 }
 
 const GENERATED_RE =
@@ -158,6 +173,16 @@ function buildFileView(file: any) {
     texts: { old: model.oldText, new: model.newText },
     lang: resolveLang(path, `${model.newText}\n${model.oldText}`),
     markViewed: (checked: boolean) => markViewed(checked),
+    revealLine: async (line: number) => {
+      const findRow = () => [...section.querySelectorAll<HTMLTableRowElement>(`tr[data-new="${line}"]`)]
+        .find((row) => row.getClientRects().length > 0);
+      const visible = findRow();
+      if (visible) return visible;
+      section.classList.remove("pt-exp-hide");
+      const gap = gaps.find((item) => item.newFrom <= line && line <= item.newTo);
+      if (gap) await expandGap(view, gap);
+      return findRow();
+    },
   };
 
   const setFolded = (f: boolean) => section.classList.toggle("pt-folded", f);
@@ -169,7 +194,7 @@ function buildFileView(file: any) {
     setViewed(path, checked);
     updateProgress();
   };
-  const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter(Boolean);
+  const gaps = [...model.segments.map((s) => s.gap), model.trailingGap].filter((gap): gap is Gap => gap !== null);
 
   // rows render immediately; highlighting runs when the section nears the
   // viewport (colours existing rows, so no layout/scroll effect)
@@ -236,12 +261,17 @@ function looksLikeDiff(text: string) {
 
 
 async function main() {
-  if (document.contentType !== "text/plain") return;
-  const raw = document.body.innerText;
+  provider = makeProvider();
+  const oauthHost = oauthHostForDiff(location.href);
+  let raw = document.contentType === "text/plain" ? document.body.innerText : "";
+  if (provider?.rawDiff && oauthHost === "github.com" &&
+      (await credentialFor(oauthHost).catch(() => null))?.oauth) {
+    const format = location.pathname.endsWith(".patch") ? "patch" : "diff";
+    const authenticated = await provider.rawDiff(format).catch(() => "");
+    if (looksLikeDiff(authenticated) && parseDiff(authenticated).files.length > 0) raw = authenticated;
+  }
   if (!looksLikeDiff(raw)) return;
   if (parseDiff(raw).files.length === 0) return;
-
-  provider = makeProvider();
 
   injectFonts();
 
@@ -657,6 +687,30 @@ async function main() {
     gear.dd.open = false;
     openKeymapDialog();
   });
+  if (oauthHost) {
+    const signIn = "Sign in with OAuth…";
+    const item = menuItem(gear.menu, signIn, () => {
+      gear.dd.open = false;
+      void chrome.runtime.sendMessage({ type: "openOAuth" }).catch(() => {});
+    });
+    const account = provider?.kind === "github" ? "GitHub" : oauthHost;
+    const showSession = (credential: OAuthCredential | undefined) => {
+      const connected = credential?.token &&
+        (credential.expiresAt === undefined || credential.expiresAt > Date.now() || credential.refreshToken);
+      item.textContent = connected ? `Signed in to ${account}` : signIn;
+    };
+    const key = credentialKey(oauthHost);
+    let changed = false;
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes[key]) {
+        changed = true;
+        showSession(changes[key].newValue as OAuthCredential | undefined);
+      }
+    });
+    void readOAuth(oauthHost).then((credential) => {
+      if (!changed) showSession(credential);
+    }).catch(() => {});
+  }
   menuItem(gear.menu, "Access tokens…", () => {
     gear.dd.open = false;
     openTokensDialog();
@@ -719,7 +773,7 @@ async function main() {
 
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) return;
+    if ((e.target as HTMLElement).closest("input, textarea, select, [contenteditable], dialog")) return;
     const sections = views.map((v) => v.section).filter((s) => s.offsetParent);
     const threads = [...document.querySelectorAll(".pt-comments-row")].filter((r) => (r as HTMLElement).offsetParent);
     const top = (el: any) => el.getBoundingClientRect().top;
@@ -782,6 +836,8 @@ async function main() {
     root,
     renderDiff,
     initialRaw: raw,
+    revealDefinition: (cell, line) =>
+      views.find((file) => file.section === cell.closest("section.pt-file"))?.revealLine(line),
     addSettingRow: (labelText: string, control: HTMLElement) => {
       const row = buildRow(labelText, control);
       const sep = gear.menu.querySelector(".pt-dd-sep");
@@ -795,7 +851,12 @@ async function main() {
 
   // start the review layer after the diff has painted (a macrotask), so no
   // network request blocks the first paint; skipped without a provider
-  if (provider) setTimeout(() => initReview(provider!, view), 0);
+  if (provider?.standaloneCommit) {
+    const sha = provider.standaloneCommit;
+    void installCodeNavigation(provider, view, sha, undefined, () => true);
+  } else if (provider) {
+    setTimeout(() => initReview(provider!, view), 0);
+  }
 }
 
 main();

@@ -356,7 +356,30 @@ t("treeOrder: folders before files, names in code unit order", () => {
   assert.deepEqual(["pkg/dra_test.go", "pkg/dra.go"].sort(treeOrder), ["pkg/dra.go", "pkg/dra_test.go"]);
 });
 
-// Provider URL routing lives in test/providers.mjs (it needs the CJS transform
-// and a fetch harness); this runner covers the pure diff logic + changelog.
+{
+  const { loadGitLabArchive } = loadTs("src/source-archive.ts");
+  const realFetch = globalThis.fetch;
+  const archive = "https://gitlab.example/api/v4/projects/42/repository/archive.tar.gz?sha=revision";
+  try {
+    let options;
+    globalThis.fetch = async (url, init) => {
+      assert.equal(url, archive);
+      options = init;
+      return new Response("snapshot");
+    };
+    const bytes = await loadGitLabArchive(archive, { "PRIVATE-TOKEN": "token" });
+    t("GitLab archives use same-origin fetch mode and preserve credentials", () => {
+      assert.deepEqual(options, {
+        headers: { "PRIVATE-TOKEN": "token", Accept: "application/octet-stream" },
+        mode: "same-origin",
+        credentials: "same-origin",
+        redirect: "error",
+      });
+      assert.equal(new TextDecoder().decode(bytes), "snapshot");
+    });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
 
 console.log(`\n${passed} checks passed`);

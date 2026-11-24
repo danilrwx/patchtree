@@ -15,21 +15,14 @@
 import type { Provider } from "../types";
 import { gitlab } from "./gitlab";
 import { github } from "./github";
+import { githubDiffLocation } from "../source-archive";
 
 // Review providers: one normalized interface, two implementations. Returns the
 // provider matching the current page, or null (e.g. a local file:// patch).
 export function makeProvider(): Provider | null {
-  const host = location.host;
   const path = location.pathname;
-  let m = /^\/(.+)\/-\/merge_requests\/(\d+)\.(?:diff|patch)$/.exec(path);
+  const m = /^\/(.+)\/-\/merge_requests\/(\d+)\.(?:diff|patch)$/.exec(path);
   if (m) return gitlab(m[1], m[2]);
-  if (host === "patch-diff.githubusercontent.com") {
-    m = /^\/raw\/([^/]+)\/([^/]+)\/pull\/(\d+)\.(?:diff|patch)$/.exec(path);
-    if (m) return github(m[1], m[2], m[3]);
-  }
-  if (host === "github.com") {
-    m = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\.(?:diff|patch)$/.exec(path);
-    if (m) return github(m[1], m[2], m[3]);
-  }
-  return null;
+  const route = githubDiffLocation(location);
+  return route ? github(route.owner, route.repo, route.ref, route.commit) : null;
 }

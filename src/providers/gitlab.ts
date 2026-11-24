@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import type { Provider, Note, Refs, LineAnchor, Side } from "../types";
-import { tokenFor, throwIfBad, cachedFetch, imageDataUrl, blobLinks } from "./shared";
+import { credentialFor, gitlabHeaders, throwIfBad, cachedFetch, imageDataUrl, blobLinks } from "./shared";
 
 export function gitlab(projectPath: string, iid: string): Provider {
   const project = encodeURIComponent(projectPath);
@@ -23,17 +23,18 @@ export function gitlab(projectPath: string, iid: string): Provider {
   let markRefs: () => void = () => {};
   const refsReady = new Promise<void>((r) => (markRefs = r));
 
-  const headers = (extra: Record<string, string> = {}): Record<string, string> => {
-    const h = { ...extra };
-    if (P.token) h["PRIVATE-TOKEN"] = P.token;
-    return h;
-  };
+  const auth = () => credentialFor(location.host, location.origin.startsWith("https://"));
+  async function headers(extra: Record<string, string> = {}) {
+    const credential = await auth();
+    P.token = credential?.token ?? null;
+    return gitlabHeaders(credential, extra);
+  }
 
   async function api(path: string, opts: RequestInit = {}): Promise<any> {
     const resp = await fetch(`${location.origin}/api/v4${path}`, {
       cache: "no-store",
       ...opts,
-      headers: headers(opts.body ? { "Content-Type": "application/json" } : {}),
+      headers: await headers(opts.body ? { "Content-Type": "application/json" } : {}),
     });
     await throwIfBad(resp);
     return resp.status === 204 ? null : resp.json();
@@ -44,7 +45,7 @@ export function gitlab(projectPath: string, iid: string): Provider {
     let page = 1;
     while (page) {
       const resp = await fetch(`${location.origin}/api/v4${path}&per_page=100&page=${page}`, {
-        headers: headers(),
+        headers: await headers(),
         cache: "no-store",
       });
       if (!resp.ok) throw new Error(`${resp.status}`);
@@ -57,7 +58,7 @@ export function gitlab(projectPath: string, iid: string): Provider {
   async function graphql(query: string, variables: any): Promise<any> {
     const resp = await fetch(`${location.origin}/api/graphql`, {
       method: "POST",
-      headers: headers({ "Content-Type": "application/json" }),
+      headers: await headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ query, variables }),
     });
     const data = await resp.json();
@@ -116,15 +117,16 @@ export function gitlab(projectPath: string, iid: string): Provider {
 
   const P: Provider = {
     kind: "gitlab",
+    repository: `${location.origin}/${projectPath}`,
     can: { resolve: true, drafts: true, applySuggestion: true, whitespace: true },
     token: null,
-    tokenHint: `no token for ${location.host} — add one in ⚙ → Access tokens to review`,
+    tokenHint: `no token for ${location.host} — use ⚙ → Sign in with OAuth or Access tokens to review`,
     setRefs: (i) => {
       refs = i;
       markRefs();
     },
     init: async () => {
-      P.token = await tokenFor(location.host);
+      P.token = (await auth())?.token ?? null;
     },
     me: () => api("/user").then((u) => ({ id: u.id, name: u.name })),
     info: async () => {
@@ -143,6 +145,7 @@ export function gitlab(projectPath: string, iid: string): Provider {
         createdAt: mr.created_at,
         description: mr.description,
         headSha: mr.diff_refs?.head_sha,
+        sourceProject: mr.source_project_id ? String(mr.source_project_id) : undefined,
         baseSha: mr.diff_refs?.base_sha,
         startSha: mr.diff_refs?.start_sha,
         sourceBranch: mr.source_branch,
@@ -265,8 +268,8 @@ export function gitlab(projectPath: string, iid: string): Provider {
     fetchFile: (path) =>
       cachedFetch(fileCache, path, async () => {
         const r = await fetch(
-          `${location.origin}/api/v4/projects/${project}/repository/files/${encodeURIComponent(path)}/raw?ref=${refs?.headSha || "HEAD"}`,
-          { headers: headers() }
+          `${location.origin}/api/v4/projects/${refs?.sourceProject ? encodeURIComponent(refs.sourceProject) : project}/repository/files/${encodeURIComponent(path)}/raw?ref=${refs?.headSha || "HEAD"}`,
+          { headers: await headers() }
         );
         if (!r.ok) throw new Error(`file fetch: ${r.status}`);
         return (await r.text()).split("\n");
