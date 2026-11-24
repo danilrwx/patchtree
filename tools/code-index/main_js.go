@@ -19,9 +19,37 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"syscall/js"
 )
+
+const maxChunkedArchiveDownload = 45 << 20
+
+func awaitIndexValue(callback js.Value, args ...any) (string, error) {
+	type reply struct {
+		value string
+		err   error
+	}
+	done := make(chan reply, 1)
+	ok := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		var result reply
+		if len(args) > 0 && args[0].Type() == js.TypeString {
+			result.value = args[0].String()
+		}
+		done <- result
+		return nil
+	})
+	defer ok.Release()
+	fail := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		done <- reply{err: fmt.Errorf("Go index storage: %s", js.Global().Get("String").Invoke(args[0]).String())}
+		return nil
+	})
+	defer fail.Release()
+	callback.Invoke(args...).Call("then", ok, fail)
+	result := <-done
+	return result.value, result.err
+}
 
 func encodeIndex(result navigation, err error) string {
 	if err == nil {
@@ -44,18 +72,70 @@ func main() {
 	})
 	defer index.Release()
 	archive := js.FuncOf(func(_ js.Value, args []js.Value) any {
-		if len(args) != 3 || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString ||
+		if (len(args) < 3 || len(args) > 5) || args[0].Type() != js.TypeString || args[1].Type() != js.TypeString ||
 			!args[2].InstanceOf(js.Global().Get("Uint8Array")) {
 			return `{"error":"expected repository, revision and gzipped archive bytes"}`
 		}
-		if args[2].Length() > maxSourceSize {
+		if len(args) == 3 && args[2].Length() > maxSourceSize {
 			return `{"error":"source archive exceeds 32 MiB"}`
+		}
+		if len(args) >= 4 && (args[3].Type() != js.TypeFunction || args[2].Length() > maxChunkedArchiveDownload) {
+			return `{"error":"invalid callback or source archive exceeds 45 MiB"}`
 		}
 		data := make([]byte, args[2].Length())
 		js.CopyBytesToGo(data, args[2])
 		input := goSnapshot{Version: 1, Repository: args[0].String(), Revision: args[1].String(),
 			GOOS: "linux", GOARCH: "amd64"}
-		return encodeIndex(indexGoArchive(bytes.NewReader(data), input))
+		if len(args) == 3 {
+			return encodeIndex(indexGoArchive(bytes.NewReader(data), input))
+		}
+		emit := args[3]
+		stream := &goIndexStream{emit: func(id, key string, files map[string]map[int]*sourceLine, diagnostics []string) error {
+			encoded, err := json.Marshal(files)
+			if err != nil {
+				return err
+			}
+			if diagnostics == nil {
+				diagnostics = []string{}
+			}
+			meta, err := json.Marshal(diagnostics)
+			if err != nil {
+				return err
+			}
+			_, err = awaitIndexValue(emit, string(encoded), id, key, string(meta))
+			return err
+		}}
+		if len(args) == 5 {
+			reuse := args[4]
+			stream.prepare = func(ids []string) error {
+				encoded, err := json.Marshal(ids)
+				if err != nil {
+					return err
+				}
+				_, err = awaitIndexValue(reuse.Get("prepare"), string(encoded))
+				return err
+			}
+			stream.load = func(id, key string) ([]string, bool, error) {
+				text, err := awaitIndexValue(reuse.Get("load"), id, key)
+				if text == "" || err != nil {
+					return nil, false, err
+				}
+				var diagnostics []string
+				err = json.Unmarshal([]byte(text), &diagnostics)
+				return diagnostics, err == nil, err
+			}
+		}
+		executor := js.FuncOf(func(_ js.Value, args []js.Value) any {
+			resolve := args[0]
+			go func() {
+				result, err := buildGoArchiveIndex(bytes.NewReader(data), input, stream)
+				resolve.Invoke(encodeIndex(result, err))
+			}()
+			return nil
+		})
+		promise := js.Global().Get("Promise").New(executor)
+		executor.Release()
+		return promise
 	})
 	defer archive.Release()
 	js.Global().Set("codeIndexGo", index)

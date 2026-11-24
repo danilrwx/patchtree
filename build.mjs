@@ -90,7 +90,7 @@ await cp(resolve(goRoot, "LICENSE"), resolve(wasmDir, "LICENSE-Go.txt"));
 
 const version = createHash("sha256");
 for (const name of (await readdir(wasmDir)).sort()) version.update(readFileSync(resolve(wasmDir, name)));
-for (const name of ["index-worker", "index-language", "clang-index", "typescript-index", "snapshot", "navigation-map"])
+for (const name of ["index-worker", "index-language", "clang-index", "index-unit-cache", "typescript-index", "snapshot", "navigation-map"])
   version.update(readFileSync(`src/${name}.ts`));
 const indexVersion = version.digest("hex");
 

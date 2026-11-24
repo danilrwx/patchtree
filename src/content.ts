@@ -594,7 +594,7 @@ async function main() {
   });
 
   const buildRow = (labelText: string, control: HTMLElement) => {
-    const row = document.createElement("label");
+    const row = document.createElement(control instanceof HTMLInputElement ? "label" : "div");
     row.className = "pt-set-row";
     const span = document.createElement("span");
     span.textContent = labelText;
@@ -843,6 +843,7 @@ async function main() {
       const sep = gear.menu.querySelector(".pt-dd-sep");
       if (sep) gear.menu.insertBefore(row, sep);
       else gear.menu.appendChild(row);
+      return row;
     },
     markCommented: (counts: Map<string, number>) => {
       for (const v of views) setCounts(v.path, counts.get(v.path) || 0);

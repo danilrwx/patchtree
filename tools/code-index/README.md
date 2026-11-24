@@ -80,7 +80,11 @@ Unresolved imports, including standard library and external modules, appear in
 Patchtree packages the WASM backend. It passes a GitHub or GitLab tar.gz
 snapshot to `codeIndexGoArchive`. The browser uses Linux/amd64 with default
 build tags and cgo disabled.
-Dependency downloads and a versioned dependency cache are pending.
+Go reuses package analysis across revisions, including separate internal and
+external test variants. An implementation-only edit can leave importers'
+indexes reusable when the declarations and their source coordinates still
+match. Declaration changes propagate through the import graph. Dependency
+downloads are pending.
 
 ## C/C++ and JavaScript/TypeScript
 
@@ -96,15 +100,44 @@ It uses default flags for translation units without a matching command.
 Generated files, missing system headers and unsupported flags can limit
 coverage. Open **Settings → Code index → Indexing limitations** for details.
 
+For projects that need generated files, choose **Settings → Code index →
+Index with build context…** and select a local `tar.gz` archive. Put these
+files under a single top-level directory:
+
+- The source tree at the reviewed commit. Preserve repository-relative paths.
+- `patchtree-build-context.json` with `{"revision":"<full commit SHA>"}`.
+- The `compile_commands.json` compilation database, generated sources and
+  headers, and any required sysroot. Keep the paths from the database under
+  the recorded checkout root. For example, copy system headers under
+  `_sysroot/` and point the sysroot and include flags at that directory.
+
+Patchtree indexes the translation units listed in the supplied compilation
+database and the headers Clang reads from them. The supplied archive replaces
+the input for that C/C++ index. Clearing indexes lets you reuse the build
+context while it remains in the source snapshot cache.
+
+For a new commit, Clang reuses the results of successful translation units
+whose compiler flags and observed inputs still match. That includes generated
+headers, sysroot files, and the include paths Clang checked for missing headers.
+Patchtree rebuilds the navigation map for the new revision and shows how many
+units it reused. The reusable cache is shared by C/C++ and Go. It holds up to
+128 MiB and 8,192 entries, replacing older results for the same unit.
+**Clear indexes** also removes the reusable results.
+
 ## Use the map
 
 - **Patchtree** — open the PR, MR or GitHub commit diff and choose **Settings → Code index →
   Index Go**, **Index C/C++** or **Index JavaScript/TypeScript**. Clicking a
   supported symbol also starts indexing. Building an index requires a GitHub
   or GitLab access token, an OAuth sign-in, or a signed-in GitLab browser
-  session. Patchtree saves a source snapshot for
-  one day and the index for 30 days. The index key covers the repository, source
+  session. Patchtree saves a source snapshot for up to one day and the index
+  for up to 30 days. It keeps at most eight completed indexes and 192 MiB of
+  completed index data across repositories. The index key covers the repository, source
   commit and its project configuration, and the bundled analyzer version.
+  **Settings → Code index → Cache storage** shows the entry counts and stored
+  sizes for indexes and source snapshots. Clear indexes to rebuild from cached
+  snapshots, clear source snapshots to free archive space, or clear both to
+  download and index the source again.
   **Import…** also accepts a map built by the CLI.
   In **All commits**, click an indexed symbol on the new side. A definition
   in the same file jumps directly to its line, expanding context as needed.
@@ -121,8 +154,14 @@ coverage. Open **Settings → Code index → Indexing limitations** for details.
   cursor and Ctrl+T to return. To bind the command to `gd`, add
   `nmap gd <Plug>(CodeIndexDefinition)` to your vimrc.
 
-Patchtree imports maps up to 64 MiB, builds maps up to 128 MiB and downloads
-archives up to 32 MiB compressed. Go accepts up to 128 MiB expanded. The
-C/C++ and JavaScript/TypeScript analyzers accept up to 512 MiB expanded. Links
+Patchtree imports JSON maps up to 64 MiB. Individual maps built in the browser
+are limited to 128 MiB before compression. Go and C/C++
+use compressed chunks when cache storage is available. Patchtree loads the
+chunks on demand. Settings shows Clang's progress through compilation and saving.
+Clang resolves definitions across all scanned translation units. Reviews of
+the same source revision can share the same saved index.
+The Go archive limit is 45 MiB compressed, 512 MiB expanded and 256 MiB of Go
+sources in this mode. C/C++ and JavaScript/TypeScript archives are limited to
+32 MiB compressed and 512 MiB expanded. Links
 use the review repository, so a fork's head must be accessible there for
 links to open.

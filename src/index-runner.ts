@@ -16,21 +16,49 @@ import type { IndexLanguage } from "./index-language";
 
 export type IndexRequest = {
   language: IndexLanguage; repository: string; revision: string; archive: Uint8Array<ArrayBuffer>;
+  chunkCache?: string;
+  buildContext?: boolean;
+  unitCache?: { scope: string; epoch: string };
 };
 export type IndexPayload = { index: string; gzip?: boolean };
-export type IndexReply = IndexPayload | { error: string };
+export type IndexManifest = {
+  repository: string;
+  revision: string;
+  files: Record<string, number>;
+  packages: Record<string, number[]>;
+  references: Record<string, number[]>;
+  diagnostics: string[];
+  analysis?: { reused: number; units: number };
+  bytes: number;
+};
+export type IndexResult = IndexPayload | { manifest: IndexManifest };
+export type IndexReply = IndexResult | { error: string };
+export type IndexProgress =
+  | { phase: "sources" | "headers"; completed: number; total: number; reused?: number }
+  | { phase: "saving" };
+
+export const chunkCachePrefix = "patchtree-index-chunks-v1-";
+export const workerProgressURL = "https://patchtree.invalid/work/progress";
+export const workerResultURL = "https://patchtree.invalid/work/result";
+export const shardURL = (index: number) => `https://patchtree.invalid/index/${index}`;
+export const sourceDirectory = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
+export const symbolKey = (path: string, line: number, column: number) => `${path}:${line}:${column}`;
 
 let opening: Promise<void> | undefined;
 const offscreenName = "index-offscreen.html";
 
+async function hasOffscreen() {
+  const documentUrl = chrome.runtime.getURL(offscreenName);
+  const contexts = chrome.runtime.getContexts
+    ? await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT], documentUrls: [documentUrl] })
+    : await (globalThis as unknown as ServiceWorkerGlobalScope).clients.matchAll({ includeUncontrolled: true });
+  return contexts.some((context) => ("url" in context ? context.url : context.documentUrl) === documentUrl);
+}
+
 function openOffscreen() {
   if (opening) return opening;
   opening = (async () => {
-    const documentUrl = chrome.runtime.getURL(offscreenName);
-    const contexts = chrome.runtime.getContexts
-      ? await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT], documentUrls: [documentUrl] })
-      : await (globalThis as unknown as ServiceWorkerGlobalScope).clients.matchAll({ includeUncontrolled: true });
-    if (contexts.some((context) => ("url" in context ? context.url : context.documentUrl) === documentUrl)) return;
+    if (await hasOffscreen()) return;
     await chrome.offscreen.createDocument({
       url: offscreenName,
       reasons: [chrome.offscreen.Reason.WORKERS],
@@ -65,13 +93,37 @@ export function toBase64(bytes: Uint8Array) {
   return btoa(binary);
 }
 
+export function fromBase64(text: string) {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 export async function runIndex(request: IndexRequest) {
   let reply: IndexReply;
   if (typeof chrome.offscreen?.createDocument === "function") {
     await openOffscreen();
-    reply = await chrome.runtime.sendMessage({
+    const resultCache = request.language === "clang" && request.chunkCache
+      ? await caches.open(request.chunkCache) : undefined;
+    const response = await chrome.runtime.sendMessage({
       type: "runBundledIndex", ...request, archive: toBase64(request.archive),
     });
+    if (resultCache && request.chunkCache && response?.started) {
+      for (;;) {
+        const result = await resultCache.match(workerResultURL);
+        if (result) {
+          reply = await result.json() as IndexReply;
+          await resultCache.delete(workerResultURL);
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (!(await hasOffscreen())) throw new Error("The repository index worker stopped");
+        if (!(await caches.has(request.chunkCache))) throw new Error("Indexes were cleared. Try indexing again.");
+      }
+    } else {
+      reply = response;
+    }
   } else {
     reply = await runDedicatedWorker(request);
   }

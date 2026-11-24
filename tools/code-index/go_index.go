@@ -44,17 +44,22 @@ type goSnapshot struct {
 }
 
 type goIndexer struct {
-	context  build.Context
-	snapshot map[string]string
-	lines    map[string][]string
-	versions map[string]string
-	fset     *token.FileSet
-	packages map[string][]*ast.File
-	tests    map[string][]*ast.File
-	checked  map[string]*types.Package
-	checking map[string]bool
-	result   navigation
-	sizes    types.Sizes
+	context      build.Context
+	snapshot     map[string]string
+	lines        map[string][]string
+	versions     map[string]string
+	fset         *token.FileSet
+	packages     map[string][]*ast.File
+	tests        map[string][]*ast.File
+	checked      map[string]*types.Package
+	checking     map[string]bool
+	result       navigation
+	sizes        types.Sizes
+	stream       *goIndexStream
+	sourceHashes map[string]goSourceHashes
+	cacheKeys    map[string]string
+	cacheHits    map[string]goCacheHit
+	emitError    error
 }
 
 func snapshotModules(sources map[string]string) (map[string]*modfile.File, error) {
@@ -101,6 +106,10 @@ func indexGoJSON(reader io.Reader) (navigation, error) {
 }
 
 func indexGo(snapshot goSnapshot) (navigation, error) {
+	return buildGoIndex(snapshot, nil)
+}
+
+func buildGoIndex(snapshot goSnapshot, stream *goIndexStream) (navigation, error) {
 	if snapshot.Version != 1 {
 		return navigation{}, fmt.Errorf("unsupported source snapshot version %d", snapshot.Version)
 	}
@@ -123,6 +132,10 @@ func indexGo(snapshot goSnapshot) (navigation, error) {
 		checked: map[string]*types.Package{}, checking: map[string]bool{},
 		result: navigation{Version: 1, Repository: snapshot.Repository, Revision: snapshot.Revision,
 			Files: make(map[string]map[int]*sourceLine)},
+		stream: stream,
+	}
+	if stream != nil && stream.load != nil {
+		idx.sourceHashes = make(map[string]goSourceHashes)
 	}
 	idx.context.GOOS, idx.context.GOARCH = snapshot.GOOS, snapshot.GOARCH
 	idx.context.BuildTags = snapshot.Tags
@@ -148,6 +161,9 @@ func indexGo(snapshot goSnapshot) (navigation, error) {
 	for _, name := range paths {
 		idx.addFile(name, modules)
 	}
+	if stream != nil {
+		idx.snapshot = nil
+	}
 	if len(idx.packages) == 0 && len(idx.tests) == 0 {
 		return navigation{}, fmt.Errorf("no Go packages for %s/%s", snapshot.GOOS, snapshot.GOARCH)
 	}
@@ -157,42 +173,74 @@ func indexGo(snapshot goSnapshot) (navigation, error) {
 		packages = append(packages, name)
 	}
 	slices.Sort(packages)
-	for _, name := range packages {
-		_, _ = idx.Import(name)
+	tests := make([]string, 0, len(idx.tests))
+	for name := range idx.tests {
+		tests = append(tests, name)
 	}
-	for name, files := range idx.tests {
-		production := idx.packages[name]
-		var internal, external []*ast.File
-		for _, file := range files {
-			pkg := file.Name.Name
-			if strings.HasSuffix(pkg, "_test") && (len(production) == 0 || pkg != production[0].Name.Name) {
-				external = append(external, file)
-			} else {
-				internal = append(internal, file)
-			}
+	slices.Sort(tests)
+	if stream != nil {
+		if err := idx.prepareReuse(snapshot, packages, tests); err != nil {
+			return navigation{}, err
+		}
+	}
+	for _, name := range packages {
+		if !idx.reuse("p:" + name).found {
+			_, _ = idx.Import(name)
+		}
+		if idx.emitError != nil {
+			return navigation{}, idx.emitError
+		}
+		if stream != nil && idx.checked[name] != nil && len(idx.tests[name]) == 0 {
+			delete(idx.packages, name)
+		}
+	}
+	for _, name := range tests {
+		plan := idx.testPlan(name)
+		internalID, externalID := "i:"+name, "e:"+name
+		var externalHit goCacheHit
+		if len(plan.external) > 0 {
+			externalHit = idx.reuse(externalID)
 		}
 		var testPackage *types.Package
-		if len(internal) > 0 {
-			testPackage, _ = idx.check(name, idx.versions[name], append(slices.Clone(production), internal...), idx, true)
+		if len(plan.internal) > 0 {
+			hit := idx.reuse(internalID)
+			if !hit.found || (len(plan.external) > 0 && !externalHit.found) {
+				files := append(slices.Clone(idx.packages[name]), plan.internal...)
+				testPackage, _ = idx.check(internalID, name, idx.versions[name], files, idx, true, hit)
+			}
 		}
-		if len(external) > 0 {
+		if len(plan.external) > 0 && !externalHit.found {
 			importer := packageImporter(func(path string) (*types.Package, error) {
 				if path == name && testPackage != nil {
 					return testPackage, nil
 				}
 				return idx.Import(path)
 			})
-			_, _ = idx.check(name+"_test", idx.versions[name], external, importer, true)
+			_, _ = idx.check(externalID, name+"_test", idx.versions[name], plan.external, importer, true, externalHit)
+		}
+		if idx.emitError != nil {
+			return navigation{}, idx.emitError
+		}
+		if stream != nil {
+			// Reused production packages can still be imported by a later test.
+			if idx.checked[name] != nil {
+				delete(idx.packages, name)
+			}
+			delete(idx.tests, name)
 		}
 	}
-	for _, rows := range idx.result.Files {
+	sortGoRows(idx.result.Files)
+	slices.Sort(idx.result.Diagnostics)
+	idx.result.Diagnostics = slices.Compact(idx.result.Diagnostics)
+	return idx.result, nil
+}
+
+func sortGoRows(files map[string]map[int]*sourceLine) {
+	for _, rows := range files {
 		for _, row := range rows {
 			slices.SortFunc(row.Spans, func(a, b span) int { return cmp.Compare(a.Start, b.Start) })
 		}
 	}
-	slices.Sort(idx.result.Diagnostics)
-	idx.result.Diagnostics = slices.Compact(idx.result.Diagnostics)
-	return idx.result, nil
 }
 
 func (idx *goIndexer) addFile(name string, modules map[string]*modfile.File) {
@@ -242,6 +290,9 @@ func (idx *goIndexer) addFile(name string, modules map[string]*modfile.File) {
 		}
 	}
 	idx.lines[name] = strings.Split(text, "\n")
+	if idx.sourceHashes != nil {
+		idx.sourceHashes[name] = fingerprintGoSource(idx.fset, file, text)
+	}
 	relative := dir
 	if root != "." {
 		relative = strings.TrimPrefix(dir, root+"/")
@@ -279,7 +330,7 @@ func (idx *goIndexer) Import(name string) (*types.Package, error) {
 	}
 	idx.checking[name] = true
 	defer delete(idx.checking, name)
-	pkg, err := idx.check(name, idx.versions[name], files, idx, false)
+	pkg, err := idx.check("p:"+name, name, idx.versions[name], files, idx, false, idx.reuse("p:"+name))
 	if pkg != nil {
 		// A partial package still contains definitions for references already resolved.
 		idx.checked[name] = pkg
@@ -288,13 +339,29 @@ func (idx *goIndexer) Import(name string) (*types.Package, error) {
 	return nil, err
 }
 
-func (idx *goIndexer) check(name, goVersion string, files []*ast.File, importer types.Importer, testsOnly bool) (*types.Package, error) {
-	info := types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
+func (idx *goIndexer) check(id, name, goVersion string, files []*ast.File, importer types.Importer, testsOnly bool, hit goCacheHit) (*types.Package, error) {
+	var info *types.Info
+	if !hit.found {
+		info = &types.Info{Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}}
+	}
+	var diagnostics []string
 	cfg := types.Config{
 		Importer: importer, GoVersion: goVersion, Sizes: idx.sizes,
-		Error: func(err error) { idx.result.Diagnostics = append(idx.result.Diagnostics, err.Error()) },
+		IgnoreFuncBodies: hit.found && hit.clean,
+		Error: func(err error) {
+			if !hit.found {
+				diagnostics = append(diagnostics, err.Error())
+			}
+		},
 	}
-	pkg, err := cfg.Check(name, idx.fset, files, &info)
+	pkg, err := cfg.Check(name, idx.fset, files, info)
+	if idx.emitError != nil {
+		return pkg, idx.emitError
+	}
+	if hit.found {
+		return pkg, err
+	}
+	idx.result.Diagnostics = append(idx.result.Diagnostics, diagnostics...)
 	for ident, obj := range info.Defs {
 		// An embedded type token also defines the field. Its jump should
 		// follow the type use when it resolves.
@@ -305,6 +372,14 @@ func (idx *goIndexer) check(name, goVersion string, files []*ast.File, importer 
 	}
 	for ident, obj := range info.Uses {
 		idx.addOccurrence(ident, obj, testsOnly)
+	}
+	if idx.stream != nil && (len(idx.result.Files) > 0 || idx.cacheKeys[id] != "") {
+		sortGoRows(idx.result.Files)
+		idx.emitError = idx.stream.emit(id, idx.cacheKeys[id], idx.result.Files, diagnostics)
+		for path := range idx.result.Files {
+			delete(idx.lines, path)
+		}
+		idx.result.Files = make(map[string]map[int]*sourceLine)
 	}
 	return pkg, err
 }
@@ -325,7 +400,9 @@ func (idx *goIndexer) addOccurrence(ident *ast.Ident, obj types.Object, testsOnl
 	if !start.IsValid() || !target.IsValid() {
 		return
 	}
-	idx.row(target)
+	if idx.stream == nil {
+		idx.row(target)
+	}
 	row := idx.row(start)
 	row.Spans = append(row.Spans, span{
 		Start:   start.Column - 1,
