@@ -143,7 +143,11 @@ export function clangJobs(snapshot: ReadonlyMap<string, Uint8Array>, diagnostics
         if (include && !arg.startsWith("-include-")) {
           const value = include[2] || args[++i];
           const mapped = value && flagPath(value);
-          if (mapped) flags.push(include[1], mapped);
+          if (mapped) {
+            const forced = include[1] === "-include" || include[1] === "-imacros";
+            const relative = !value.startsWith("/") && !/^[a-z]:[\\/]/i.test(value);
+            flags.push(include[1], forced && relative && !snapshot.has(mapped.slice(repo.length)) ? value : mapped);
+          }
         } else if (/^-[DU](?:.+)?$/.test(arg)) {
           if (arg.length > 2) flags.push(arg);
           else if (args[i + 1]) flags.push(arg + args[++i]);

@@ -147,21 +147,34 @@ export function indexTypeScript(ts: Compiler, snapshot: ReadonlyMap<string, Uint
   }
 
   const names = [...text.keys()].filter((path) => path.startsWith(repo));
-  const configs = names.filter((path) => configPattern.test(path))
-    .sort((a, b) => b.split("/").length - a.split("/").length || Number(primaryConfig(b)) - Number(primaryConfig(a)) || a.localeCompare(b));
   function primaryConfig(path: string) {
     return /\/(?:tsconfig|jsconfig)\.json$/i.test(path);
   }
-  for (const path of configs) {
+  const configs = new Map<string, { parsed: TS.ParsedCommandLine; hasRoots: boolean }>();
+  const candidates = new Set(names.filter((path) => configPattern.test(path)));
+  const referenced = new Set<string>();
+  for (const path of candidates) {
     const config = ts.readConfigFile(path, readFile);
     if (config.error) {
       map.diagnostics.push(`Cannot read ${path.slice(repo.length)}.`);
       continue;
     }
-    if (!primaryConfig(path) && !["files", "include", "references"].some((key) => Object.hasOwn(config.config, key))) continue;
     const parsed = ts.parseJsonConfigFileContent(config.config, host, path.slice(0, path.lastIndexOf("/")), {
       allowJs: true, checkJs: true, jsx: ts.JsxEmit.Preserve,
     }, path);
+    configs.set(path, { parsed, hasRoots: ["files", "include", "references"].some((key) => Object.hasOwn(config.config, key)) });
+    for (const ref of parsed.projectReferences ?? []) {
+      const target = ts.resolveProjectReferencePath(ref);
+      if (!target.startsWith(repo) || !fileExists(target)) continue;
+      referenced.add(target);
+      candidates.add(target);
+    }
+  }
+  const ordered = [...configs.keys()]
+    .sort((a, b) => b.split("/").length - a.split("/").length || Number(primaryConfig(b)) - Number(primaryConfig(a)) || a.localeCompare(b));
+  for (const path of ordered) {
+    const { parsed, hasRoots } = configs.get(path)!;
+    if (!primaryConfig(path) && !hasRoots && !referenced.has(path)) continue;
     for (const error of parsed.errors)
       if (error.code !== 18003) map.diagnostics.push(`${path.slice(repo.length)} — ${ts.flattenDiagnosticMessageText(error.messageText, " ")}`);
     const roots = parsed.fileNames.filter((path) => path.startsWith(repo));

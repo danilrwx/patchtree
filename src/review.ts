@@ -201,7 +201,7 @@ export function initReview(P: Provider, view: PtView) {
     el.textContent = text;
     el.title = text;
     el.classList.toggle("pt-error", !!isError);
-    if (!isError) setTimeout(() => (el.textContent = ""), 5000);
+    if (text && !isError) setTimeout(() => (el.textContent = ""), 5000);
   }
 
   function updateReviewSummary() {
@@ -574,22 +574,24 @@ export function initReview(P: Provider, view: PtView) {
     bar.prepend(dd);
     const items: any[] = [];
 
+    let selection = 0;
     const choose = async (sha: string, label: string, item: any) => {
       dd.open = false;
+      const request = ++selection;
       if (sha === currentCommit) return;
-      currentCommit = sha;
-      sum.querySelector(".pt-dd-label")!.textContent = sha ? label : "";
-      sum.classList.toggle("pt-chip-active", !!sha);
-      reset.hidden = !sha;
-      for (const i of items) i.classList.toggle("pt-active", i === item);
       try {
-        let text = view.initialRaw;
-        if (sha) text = await P.commitDiff(sha);
-        if (currentCommit !== sha) return;
+        const text = sha ? await P.commitDiff(sha) : view.initialRaw;
+        if (request !== selection) return;
+        currentCommit = sha;
         view.renderDiff(text);
+        sum.querySelector(".pt-dd-label")!.textContent = sha ? label : "";
+        sum.classList.toggle("pt-chip-active", !!sha);
+        reset.hidden = !sha;
+        for (const i of items) i.classList.toggle("pt-active", i === item);
+        status("");
         if (!sha) refreshThreads();
       } catch (e: any) {
-        status(`commit diff failed: ${e.message}`, true);
+        if (request === selection) status(`commit diff failed: ${e.message}`, true);
       }
     };
 
@@ -958,7 +960,7 @@ export function initReview(P: Provider, view: PtView) {
       const info = await P.info();
       refs = info;
       P.setRefs(info as any);
-      if (info.headSha) installCodeNavigation(P, view, info.headSha, info.sourceProject, () => !currentCommit);
+      if (info.headSha) void installCodeNavigation(P, view, info.headSha, info.sourceProject, () => !currentCommit);
       document.title = info.title;
       if (info.ci) {
         ciState = ciClass(info.ci.state);

@@ -39,6 +39,12 @@ test("code navigation matches the revision, side and UTF-8 token range", async (
 
   await page.goto(DIFF_URL);
   const status = page.locator(".pt-set-row").filter({ hasText: "Code index" }).getByRole("status", { includeHidden: true });
+  await expect(status).toHaveText("Sign in to build a code index.");
+  await expect(page.getByRole("button", { name: "Index Go sources", includeHidden: true })).toHaveCount(0);
+  await caretOn(page.locator('tr.pt-add[data-new="2"] .pt-code'), "Label");
+  await page.keyboard.press("Control+Enter");
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+  expect(await worker.evaluate(() => caches.has("patchtree-index-v4"))).toBe(false);
   const index = {
     version: 1,
     repository,
@@ -202,7 +208,7 @@ test("indexes a test-file symbol on first click and reuses the result after relo
   const settings = page.locator("#pt-settings");
   const status = settings.locator(".pt-set-row").filter({ hasText: "Code index" })
     .getByRole("status", { includeHidden: true });
-  await page.goto(DIFF_URL);
+  await seedToken(context, page, DIFF_URL, "github.com");
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
   await worker.evaluate(({ endpoint, bytes }) => {
     const scope = globalThis as typeof globalThis & { archiveDownloads: number; releaseArchive?: () => void };
@@ -369,7 +375,7 @@ test("jumps within the same diff file and reveals hidden definitions", async ({ 
   const sourceURL = `https://api.github.com/repos/${OWNER}/${REPO}/contents/use.go?ref=${sha}`;
   await context.route(sourceURL, (route) => route.fulfill({ contentType: "text/plain", body: source }));
   const snapshot = tarGzip({ "go.mod": "module example.com/demo\n", "use.go": source });
-  await page.goto(url);
+  await seedToken(context, page, url, "github.com");
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
   await worker.evaluate(({ endpoint, bytes }) => {
     const get = fetch.bind(globalThis);
@@ -430,7 +436,7 @@ test("indexes the workspace at a standalone GitHub commit", async ({ context, pa
     "lib/go.mod": "module example.com/lib\n",
     "lib/def.go": "package lib\nconst Value = 42\n",
   });
-  await page.goto(diffURL);
+  await seedToken(context, page, diffURL, "github.com");
   const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
   await worker.evaluate(({ endpoint, bytes }) => {
     const realFetch = fetch.bind(globalThis);
@@ -468,8 +474,10 @@ test("indexes the workspace at a standalone GitHub commit", async ({ context, pa
     .toHaveAttribute("href", `${repository}/blob/${sha}/lib/def.go#L2`);
 });
 
-for (const auth of ["token", "session"] as const) {
-  test(`indexes a private GitLab source archive using its ${auth} in same-origin mode`, async ({ context, page }) => {
+for (const auth of ["token", "session", "anonymous"] as const) {
+  const name = auth === "anonymous" ? "skips GitLab indexing without authorization"
+    : `indexes a private GitLab source archive using its ${auth} in same-origin mode`;
+  test(name, async ({ context, page }) => {
     await mockGitlab(context);
     await context.route(GITLAB_DIFF, (route) => route.fulfill({
       contentType: "text/plain; charset=utf-8",
@@ -488,14 +496,22 @@ for (const auth of ["token", "session"] as const) {
       requests.push(credentials(headers));
       return route.fulfill({ body: archive, contentType: "application/gzip" });
     });
+    await context.route(`${HOST}/api/v4/user`, (route) => auth === "anonymous"
+      ? route.fulfill({ status: 401, json: { message: "Unauthorized" } }) : route.fallback());
     if (auth === "token") {
       await seedToken(context, page, GITLAB_DIFF, TOKEN_HOST);
     } else {
-      await context.addCookies([{ name: "_gitlab_session", value: "e2e-session", url: HOST }]);
+      if (auth === "session") await context.addCookies([{ name: "_gitlab_session", value: "e2e-session", url: HOST }]);
       await page.goto(GITLAB_DIFF);
     }
     const settings = page.locator("#pt-settings");
     await settings.locator("summary").first().click();
+    if (auth === "anonymous") {
+      await expect(settings.getByRole("status")).toHaveText("Sign in to build a code index.");
+      await expect(settings.getByRole("button", { name: "Index Go sources" })).toHaveCount(0);
+      expect(requests).toEqual([]);
+      return;
+    }
     await settings.getByRole("button", { name: "Index Go sources" }).click();
     await expect(settings.getByRole("status")).toHaveText(/Indexed 11111111/);
     const credential = auth === "token" ? "e2e-token" : "_gitlab_session=e2e-session";
@@ -522,7 +538,8 @@ async function caretOn(cell: Locator, token: string) {
 
 const tsSources = {
   "tsconfig.base.json": '{ "compilerOptions": { "baseUrl": ".", "paths": { "@pkg/*": ["src/*"] } } }',
-  "tsconfig.json": '{ "extends": "./tsconfig.base.json", "include": ["src/**/*"], "compilerOptions": { "jsx": "preserve" } }',
+  "tsconfig.json": '{ "files": [], "references": [{ "path": "./tsconfig.app.json" }] }',
+  "tsconfig.app.json": '{ "extends": "./tsconfig.base.json", "compilerOptions": { "jsx": "preserve" } }',
   "src/math.ts": "export const pick = () => 1;\nexport const again = () => pick();\n",
   "src/other.ts": "export const pick = () => 2;\n",
   "src/entry.ts": 'export { pick as chosen } from "./math";\n',
@@ -533,7 +550,7 @@ const tsSources = {
 const clangSources = {
   "compile_commands.json": JSON.stringify([
     { directory: "/checkout/project/build", file: "../src/main.c",
-      arguments: ["clang", "-I../inc", "-DFEATURE=1", "-std=c17", "-c", "../src/main.c", "-o", "main.o"] },
+      arguments: ["clang", "-I../inc", "-include", "config.h", "-DFEATURE=1", "-std=c17", "-c", "../src/main.c", "-o", "main.o"] },
     { directory: "/checkout/project/build", file: "../src/defs.c",
       command: "clang -I../inc -DFEATURE=1 -c ../src/defs.c -o defs.o" },
     { directory: "/checkout/project/build", file: "../src/main.cpp",
@@ -542,7 +559,7 @@ const clangSources = {
   "inc/config.h": "#if FEATURE\nstruct First { int value; };\nstruct Other { int value; };\nint get(void);\n#define PASS(x) (x)\n#endif\n",
   "src/defs.c": '#include "config.h"\nint get(void) { return 3; }\n',
   "src/missing.c": '#include "generated.h"\n',
-  "src/main.c": '#include "config.h"\nint consume(struct First v) { return PASS(v.value) + get(); }\n',
+  "src/main.c": '\nint consume(struct First v) { return PASS(v.value) + get(); }\n',
   "inc/overload.hpp": "inline int choose(int x) { return x; }\ninline int choose(double x) { return 0; }\n",
   "src/main.cpp": '#include "overload.hpp"\nint fromInt() { return choose(1); }\nint fromDouble() { return choose(1.0); }\nint local() { return fromInt(); }\n',
 };
@@ -564,7 +581,7 @@ for (const [analyzer, changed, from, token, target, row] of [
     for (const [path, body] of Object.entries(sources))
       await context.route(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}?ref=${head}`,
         (route) => route.fulfill({ body, contentType: "text/plain; charset=utf-8" }));
-    await page.goto(DIFF_URL);
+    await seedToken(context, page, DIFF_URL, "github.com");
     const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
     await worker.evaluate(({ endpoint, archive }) => {
       const scope = globalThis as typeof globalThis & { archiveDownloads: number };

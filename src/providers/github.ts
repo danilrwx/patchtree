@@ -367,7 +367,12 @@ export function github(owner: string, repo: string, num: string, commit = false)
         });
       return jobs;
     },
-    commitDiff: (sha) => api(`${base}/commits/${sha}`, {}, "application/vnd.github.diff"),
+    commitDiff: async (sha) => {
+      if (await tokenFor("github.com")) return api(`${base}/commits/${sha}`, {}, "application/vnd.github.diff");
+      const reply = await chrome.runtime.sendMessage({ type: "githubCommitDiff", sha });
+      if (typeof reply?.diff !== "string") throw new Error(reply?.error || "Could not load commit diff");
+      return reply.diff;
+    },
     rawDiff: (format) => api(`${base}/${commit ? "commits" : "pulls"}/${num}`, {}, `application/vnd.github.${format}`),
     fetchFile: (path) => cachedFetch(fileCache, path, async () => {
       const project = refs?.sourceProject || `${owner}/${repo}`;

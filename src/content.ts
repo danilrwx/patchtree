@@ -853,7 +853,7 @@ async function main() {
   // network request blocks the first paint; skipped without a provider
   if (provider?.standaloneCommit) {
     const sha = provider.standaloneCommit;
-    installCodeNavigation(provider, view, sha, undefined, () => true);
+    void installCodeNavigation(provider, view, sha, undefined, () => true);
   } else if (provider) {
     setTimeout(() => initReview(provider!, view), 0);
   }

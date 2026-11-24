@@ -30,8 +30,8 @@ to:
 
 - exchange OAuth codes and refresh OAuth credentials when you use OAuth;
 - fetch file contents when you expand hidden lines or open a full file;
-- download a repository snapshot on the first symbol click in a supported diff
-  or when you select a language under **Code index**. The bundled indexer
+- download a repository snapshot when signed in and you click a supported
+  symbol or select a language under **Code index**. The bundled indexer
   processes it in your browser;
 - render markdown through the platform's own markdown endpoint;
 - read discussions, and post the comments, suggestions, resolutions and reviews

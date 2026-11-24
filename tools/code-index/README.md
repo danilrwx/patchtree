@@ -100,7 +100,9 @@ coverage. Open **Settings → Code index → Indexing limitations** for details.
 
 - **Patchtree** — open the PR, MR or GitHub commit diff and choose **Settings → Code index →
   Index Go**, **Index C/C++** or **Index JavaScript/TypeScript**. Clicking a
-  supported symbol also starts indexing. Patchtree saves a source snapshot for
+  supported symbol also starts indexing. Building an index requires a GitHub
+  or GitLab access token, an OAuth sign-in, or a signed-in GitLab browser
+  session. Patchtree saves a source snapshot for
   one day and the index for 30 days. The index key covers the repository, source
   commit and its project configuration, and the bundled analyzer version.
   **Import…** also accepts a map built by the CLI.

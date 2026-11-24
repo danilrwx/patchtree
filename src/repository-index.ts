@@ -70,7 +70,7 @@ function saveArchive(cache: Cache, key: string, bytes: Uint8Array<ArrayBuffer>) 
 }
 
 async function sourceArchive(
-  location: ReturnType<typeof archiveLocation>, storage: Cache | undefined, key: string, archiveBase64: unknown,
+  location: ReturnType<typeof archiveLocation>, storage: Cache | undefined, key: string, archiveBase64: unknown, token: string | undefined,
 ) {
   const saved = await getEntry(storage, key);
   if (saved) return new Uint8Array(await saved.arrayBuffer());
@@ -85,9 +85,7 @@ async function sourceArchive(
         archive = Uint8Array.from(atob(archiveBase64), (char) => char.charCodeAt(0));
         if (archive.length > maxArchiveBytes) throw new Error("Source archive exceeds 32 MiB");
       } else {
-        const token = (await credentialFor(location.tokenHost, true, () => refreshOAuthToken(location.tokenHost)))?.token;
-        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-        archive = await loadArchive(await fetch(location.archive, { headers, credentials: "omit" }));
+        archive = await loadArchive(await fetch(location.archive, { headers: { Authorization: `Bearer ${token}` }, credentials: "omit" }));
       }
       if (storage) await saveArchive(storage, key, archive);
       return archive;
@@ -105,6 +103,9 @@ export async function repositoryIndex(
   if (!sender || typeof revision !== "string" || !/^[a-f0-9]{40}$/i.test(revision)) throw new Error("Missing repository or full commit SHA");
   if (language !== "go" && language !== "typescript" && language !== "clang") throw new Error("Unsupported code index language");
   const location = archiveLocation(sender, source, revision);
+  const token = location.tokenHeader === "Authorization"
+    ? (await credentialFor(location.tokenHost, true, () => refreshOAuthToken(location.tokenHost)))?.token : undefined;
+  if (location.tokenHeader === "Authorization" && !token) throw new Error("Sign in to build a code index.");
   const archiveKey = `${location.repository}/.patchtree-source/${revision}?source=${encodeURIComponent(location.archive)}`;
   // The immutable source revision covers every in-tree compiler configuration.
   const key = `${archiveKey}&index=${PATCHTREE_INDEX_VERSION}&language=${language}`;
@@ -115,7 +116,7 @@ export async function repositoryIndex(
   let job = pending.get(key);
   if (!job) {
     job = (async () => {
-      const archive = await sourceArchive(location, archives, archiveKey, archiveBase64);
+      const archive = await sourceArchive(location, archives, archiveKey, archiveBase64, token);
       if (!archive) return null;
       const payload = await runIndex({ language, repository: location.repository, revision, archive });
       const response = new Response(payload.index, { headers: {

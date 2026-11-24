@@ -383,6 +383,14 @@ chrome.action.onClicked.addListener(async (tab) => {
 chrome.tabs.onRemoved.addListener((id) => diffOrigin.delete(id));
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "githubCommitDiff") {
+    const pull = sender.url && githubDiffLocation(new URL(sender.url));
+    if (!pull || pull.commit || typeof msg.sha !== "string" || !/^[a-f0-9]{40}$/i.test(msg.sha)) return;
+    fetch(`https://github.com/${pull.owner}/${pull.repo}/commit/${msg.sha}.diff`, { credentials: "omit" })
+      .then(async (response) => sendResponse(response.ok ? { diff: await response.text() } : { error: `HTTP ${response.status}` }))
+      .catch((error) => sendResponse({ error: String(error) }));
+    return true;
+  }
   if (msg?.type === "openOAuth" || msg?.type === "oauthRefresh") {
     const host = oauthHostForDiff(sender.url);
     if (!host) {

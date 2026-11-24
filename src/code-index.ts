@@ -81,7 +81,7 @@ function byteColumn(cell: HTMLElement, event: MouseEvent) {
   return encoder.encode(prefix.toString()).length;
 }
 
-export function installCodeNavigation(P: Provider, view: PtView, revision: string, sourceProject: string | undefined, isFullDiff: () => boolean) {
+export async function installCodeNavigation(P: Provider, view: PtView, revision: string, sourceProject: string | undefined, isFullDiff: () => boolean) {
   let files: Record<string, unknown> | null = null;
   const recentReferences = new Map<string, ReferenceGroups>();
   let importRequest = 0;
@@ -155,12 +155,25 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
 
   const languages = new Set(Array.from(view.root.querySelectorAll<HTMLElement>(".pt-file[data-path]"),
     (file) => indexLanguage(file.dataset.path!)).filter((language) => language !== undefined));
+  const host = P.kind === "github" ? "github.com" : location.host;
+  async function indexAccess() {
+    if (location.protocol !== "https:") return null;
+    const credential = await credentialFor(host).catch(() => null);
+    if (P.kind === "github") return credential ? {} : null;
+    if (credential) return gitlabHeaders(credential);
+    const user = await P.me().catch(() => null);
+    return user?.id ? {} : null;
+  }
+  const signIn = "Sign in to build a code index.";
+  if (languages.size && !(await indexAccess())) {
+    languages.clear();
+    if (importRequest === 0) status.textContent = ` ${signIn}`;
+  }
   let gitlabArchive: Promise<string> | undefined;
-  function uploadGitlabArchive() {
+  function uploadGitlabArchive(headers: Record<string, string>) {
     return gitlabArchive ??= (async () => {
       // Self-hosted GitLab archives can be fetched from the MR origin.
       const { archive } = archiveLocation(location.href, sourceProject, revision);
-      const headers = gitlabHeaders(await credentialFor(location.host));
       const bytes = await loadGitLabArchive(archive, headers);
       let binary = "";
       for (let i = 0; i < bytes.length; i += 8192)
@@ -188,11 +201,13 @@ export function installCodeNavigation(P: Provider, view: PtView, revision: strin
       build.disabled = true;
       status.textContent = ` Indexing ${label}…`;
       try {
+        const access = await indexAccess();
+        if (!access) throw new Error(signIn);
         let data = await cached;
         if (!data) {
           let reply = await chrome.runtime.sendMessage(message);
           if (!reply && P.kind === "gitlab")
-            reply = await chrome.runtime.sendMessage({ ...message, archiveBase64: await uploadGitlabArchive() });
+            reply = await chrome.runtime.sendMessage({ ...message, archiveBase64: await uploadGitlabArchive(access) });
           if (!reply?.index) throw new Error(reply?.error || "Could not index repository");
           data = await unpackIndex(reply);
         }
