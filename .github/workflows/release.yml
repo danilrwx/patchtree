@@ -37,6 +37,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      PATCHTREE_GITHUB_CLIENT_ID: ${{ vars.PATCHTREE_GITHUB_CLIENT_ID }}
+      PATCHTREE_GITLAB_CLIENT_ID: ${{ vars.PATCHTREE_GITLAB_CLIENT_ID }}
       AMO_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
     steps:
       - uses: actions/checkout@v7
@@ -47,6 +49,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: tools/code-index/go.mod
+          cache-dependency-path: tools/code-index/go.sum
 
       - name: Cache pinned binary assets
         uses: actions/cache@v6

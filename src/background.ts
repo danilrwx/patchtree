@@ -18,6 +18,9 @@
 // @ts-expect-error — no types for the vendored web-tree-sitter loader
 import { Parser, Language, Query } from "./assets/vendor/web-tree-sitter.js";
 import { hljsRows } from "./hljs";
+import { repositoryIndex } from "./repository-index";
+import { githubDiffLocation } from "./source-archive";
+import { oauthHostForDiff, refreshOAuthToken } from "./oauth";
 
 // typescript files are parsed with the tsx grammar so one wasm covers ts/tsx,
 // and its query is the javascript query plus typescript additions
@@ -341,19 +344,15 @@ const diffOrigin = new Map<number, number>();
 const requestUrl = (url: string) =>
   /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)(?:[/?#].*)?$/.exec(url)?.[1] ||
   /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+)(?:[/?#].*)?$/.exec(url)?.[1] ||
+  /^(https:\/\/github\.com\/[^/]+\/[^/]+\/commit\/[a-f\d]{40})(?:[?#].*)?$/i.exec(url)?.[1] ||
   null;
 
 // the same request, reached from the raw diff we are looking at
 const requestUrlFromDiff = (url: string) => {
-  const m =
-    /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)\.(?:diff|patch)$/.exec(url) ||
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+)\.(?:diff|patch)$/.exec(url);
+  const m = /^(https?:\/\/[^?#]*\/-\/merge_requests\/\d+)\.(?:diff|patch)$/.exec(url);
   if (m) return m[1];
-  const gh =
-    /^https:\/\/patch-diff\.githubusercontent\.com\/raw\/([^/]+)\/([^/]+)\/pull\/(\d+)\.(?:diff|patch)$/.exec(
-      url
-    );
-  return gh ? `https://github.com/${gh[1]}/${gh[2]}/pull/${gh[3]}` : null;
+  const gh = githubDiffLocation(new URL(url));
+  return gh ? `https://github.com/${gh.owner}/${gh.repo}/${gh.commit ? "commit" : "pull"}/${gh.ref}` : null;
 };
 
 chrome.action.onClicked.addListener(async (tab) => {
@@ -383,18 +382,40 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 chrome.tabs.onRemoved.addListener((id) => diffOrigin.delete(id));
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "githubCommitDiff") {
+    const pull = sender.url && githubDiffLocation(new URL(sender.url));
+    if (!pull || pull.commit || typeof msg.sha !== "string" || !/^[a-f0-9]{40}$/i.test(msg.sha)) return;
+    fetch(`https://github.com/${pull.owner}/${pull.repo}/commit/${msg.sha}.diff`, { credentials: "omit" })
+      .then(async (response) => sendResponse(response.ok ? { diff: await response.text() } : { error: `HTTP ${response.status}` }))
+      .catch((error) => sendResponse({ error: String(error) }));
+    return true;
+  }
+  if (msg?.type === "openOAuth" || msg?.type === "oauthRefresh") {
+    const host = oauthHostForDiff(sender.url);
+    if (!host) {
+      sendResponse(null);
+      return;
+    }
+    if (msg.type === "openOAuth") {
+      const url = chrome.runtime.getURL(`oauth.html?host=${encodeURIComponent(host)}`);
+      chrome.tabs.create({ url }).then(() => sendResponse(true), () => sendResponse(false));
+    } else {
+      refreshOAuthToken(host).then(sendResponse, () => sendResponse(null));
+    }
+    return true;
+  }
+  if (msg?.type === "repositoryIndex") {
+    repositoryIndex(sender.url, msg.revision, msg.sourceProject, msg.language, msg.cachedOnly === true, msg.archiveBase64)
+      .then(sendResponse)
+      .catch((error) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
   if (msg?.type === "themes") {
     fetch(chrome.runtime.getURL("assets/themes.json"))
       .then((r) => r.json())
       .then((t) => sendResponse(t))
       .catch(() => sendResponse(null));
-    return true;
-  }
-  if (msg?.type === "fetchText") {
-    fetch(msg.url)
-      .then(async (r) => sendResponse({ ok: r.ok, text: await r.text() }))
-      .catch((e) => sendResponse({ ok: false, text: String(e) }));
     return true;
   }
   if (msg?.type !== "highlight") return;

@@ -209,7 +209,11 @@ export async function mockGithubStateful(context: BrowserContext): Promise<void>
       posted.push({ path: b.path, line: b.line, side: b.side, body: b.body });
       return json({ id: posted.length, user: { login: "me", id: 9 }, created_at: "t", body: b.body });
     }
-    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) return json(pull);
+    if (p === `/repos/${OWNER}/${REPO}/pulls/${NUM}`) {
+      if (req.headers().accept === "application/vnd.github.diff")
+        return route.fulfill({ contentType: "text/plain; charset=utf-8", body: diff });
+      return json(pull);
+    }
     if (p === "/user") return json({ id: 9, login: "me" });
     if (p.endsWith("/status"))
       return json({

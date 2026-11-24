@@ -17,6 +17,7 @@
 
 import { imageMime } from "../diff";
 import type { Refs, Side } from "../types";
+import { readOAuth, tokenIsExpiring } from "../oauth";
 
 // tokens live in storage.local (never synced to the browser vendor's cloud);
 // migrate any previously sync-stored tokens on first read
@@ -33,7 +34,30 @@ export async function readTokens(): Promise<Record<string, { token?: string }>> 
   return {};
 }
 
-export const tokenFor = (host: string) => readTokens().then((g) => g[host]?.token || null);
+export async function credentialFor(
+  host: string, allowOAuth = true,
+  renew: () => Promise<unknown> = () => chrome.runtime.sendMessage({ type: "oauthRefresh" }),
+) {
+  const oauth = allowOAuth ? await readOAuth(host) : undefined;
+  if (oauth?.token && !tokenIsExpiring(oauth)) return { token: oauth.token, oauth: true };
+  if (oauth?.refreshToken) {
+    const renewed = await renew().catch(() => null);
+    if (typeof renewed === "string" && renewed) return { token: renewed, oauth: true };
+    if (oauth.expiresAt && oauth.expiresAt > Date.now()) return { token: oauth.token, oauth: true };
+  }
+  const token = (await readTokens())[host]?.token;
+  return token ? { token, oauth: false } : null;
+}
+
+export async function tokenFor(host: string) {
+  return (await credentialFor(host))?.token ?? null;
+}
+
+export function gitlabHeaders(credential: Awaited<ReturnType<typeof credentialFor>>, extra: Record<string, string> = {}) {
+  if (!credential) return extra;
+  return credential.oauth ? { ...extra, Authorization: `Bearer ${credential.token}` } :
+    { ...extra, "PRIVATE-TOKEN": credential.token };
+}
 
 // Raise a trimmed `<status> <body>` error for a failed response.
 export async function throwIfBad(resp: Response): Promise<void> {
@@ -88,11 +112,11 @@ export function blobLinks(repoBlobBase: string, getRefs: () => Refs | null) {
       const r = getRefs();
       if (!r) return null;
       const sha = side === "old" ? r.baseSha : r.headSha;
-      return `${repoBlobBase}/${sha}/${encodeURI(path)}#L${line}`;
+      return `${repoBlobBase}/${sha}/${path.split("/").map(encodeURIComponent).join("/")}#L${line}`;
     },
     blobUrl: (path: string) => {
       const r = getRefs();
-      return r ? `${repoBlobBase}/${r.headSha}/${encodeURI(path)}` : null;
+      return r ? `${repoBlobBase}/${r.headSha}/${path.split("/").map(encodeURIComponent).join("/")}` : null;
     },
   };
 }

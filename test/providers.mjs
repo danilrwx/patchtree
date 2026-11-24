@@ -70,7 +70,7 @@ function resp(body, { status = 200, headers = {}, text } = {}) {
 
 // build a provider instance with mocked globals; `reply` routes each fetch by
 // url and records the calls for assertions.
-async function harness({ location, tokenHost, token = "SEKRET", sendMessage } = {}) {
+async function harness({ location, tokenHost, token = "SEKRET", oauth, sendMessage } = {}) {
   const calls = [];
   let reply = () => resp(null);
   const mod = { exports: {} };
@@ -85,7 +85,10 @@ async function harness({ location, tokenHost, token = "SEKRET", sendMessage } = 
     },
     chrome: {
       storage: {
-        local: { get: async () => (tokenHost ? { gitlabs: { [tokenHost]: { token } } } : {}) },
+        local: { get: async () => (tokenHost ? {
+          gitlabs: { [tokenHost]: { token } },
+          [`oauthCredential:${tokenHost}`]: oauth,
+        } : {}) },
         sync: { get: async () => ({}), remove() {} },
       },
       runtime: { sendMessage: sendMessage || (async () => ({ ok: true, text: "diff" })) },
@@ -419,7 +422,7 @@ await (async () => {
 
 // ---- GitHub ----------------------------------------------------------------
 
-const GH_LOC = { host: "github.com", pathname: "/owner/repo/pull/7.diff" };
+const GH_LOC = { protocol: "https:", host: "github.com", pathname: "/owner/repo/pull/7.diff" };
 
 await (async () => {
   const h = await harness({ location: GH_LOC, tokenHost: "github.com" });
@@ -683,14 +686,16 @@ await (async () => {
     const h2 = await harness({
       location: GH_LOC,
       tokenHost: "github.com",
-      sendMessage: async (m) => {
-        assert.match(m.url, /github\.com\/owner\/repo\/commit\/xyz\.diff$/);
-        return { ok: true, text: "COMMITDIFF" };
-      },
+      oauth: { token: "oauth-token" },
     });
+    h2.setReply(() => resp(null, { text: "COMMITDIFF" }));
     const d = await h2.P.commitDiff("xyz");
-    t("github: commitDiff goes through the background fetchText message", () =>
-      assert.equal(d, "COMMITDIFF"));
+    t("github: commitDiff fetches through the API and prefers OAuth over a saved PAT", () => {
+      assert.equal(d, "COMMITDIFF");
+      assert.equal(h2.last().url, "https://api.github.com/repos/owner/repo/commits/xyz");
+      assert.equal(h2.last().headers.Accept, "application/vnd.github.diff");
+      assert.equal(h2.last().headers.Authorization, "Bearer oauth-token");
+    });
   }
 
   {
@@ -699,6 +704,18 @@ await (async () => {
     t("github: fetchFile returns split lines via the raw contents accept", () => {
       same(lines, ["a", "b"]);
       assert.match(h.last().url, /\/contents\/f\.go\?ref=head$/);
+    });
+  }
+
+  {
+    const sha = "2".repeat(40);
+    const publicCommit = await harness({ location: { ...GH_LOC, pathname: `/owner/repo/commit/${sha}.diff` } });
+    publicCommit.setReply((url) => url.startsWith("https://api.github.com/")
+      ? resp("rate limited", { status: 403 }) : resp("a\nb"));
+    const lines = await publicCommit.P.fetchFile("folder/f.go");
+    t("github: public commit file falls back to the exact raw revision after REST rate limiting", () => {
+      same(lines, ["a", "b"]);
+      assert.equal(publicCommit.last().url, `https://raw.githubusercontent.com/owner/repo/${sha}/folder/f.go`);
     });
   }
 

@@ -22,6 +22,7 @@ const path = process.argv[2];
 const m = JSON.parse(readFileSync(path, "utf8"));
 
 m.background = { scripts: ["background.js"], type: "module" };
+m.permissions = m.permissions.filter((permission) => permission !== "offscreen");
 m.browser_specific_settings = {
   gecko: {
     id: "patchtree@danilrwx.github.io",
