@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import type { clangUnitCache, ClangInputs } from "./index-unit-cache";
+import type { IndexProgress } from "./index-runner";
 import { indexLanguage } from "./index-language";
 import { NavigationMap } from "./navigation-map";
 
 const decoder = new TextDecoder();
 const cSource = /\.(?:c|cc|cpp|cxx|c\+\+|ixx|cppm)$/i;
 const repo = "/repo/";
-type Occurrence = [path: string, offset: number, width: number, kind: 0 | 1 | 2, usr: string];
+export type Occurrence = [path: string, offset: number, width: number, kind: 0 | 1 | 2, usr: string];
 type Job = { path: string; flags: string[] };
 type ClangModule = {
   FS: {
@@ -73,7 +75,7 @@ function words(command: string) {
   return result;
 }
 
-export function clangJobs(snapshot: ReadonlyMap<string, Uint8Array>, diagnostics: string[]) {
+export function clangJobs(snapshot: ReadonlyMap<string, Uint8Array>, diagnostics: string[], configuredOnly = false) {
   const jobs = new Map<string, Job>();
   const configured = new Set<string>();
   const files = [...snapshot.keys()];
@@ -181,6 +183,10 @@ export function clangJobs(snapshot: ReadonlyMap<string, Uint8Array>, diagnostics
   if (unusable) diagnostics.push(`${unusable} compile database entries could not be read.`);
   if (outside) diagnostics.push("Some C/C++ build flags or paths require build files outside the snapshot or are unsupported.");
   const fallback = files.filter((path) => cSource.test(path) && !configured.has(path));
+  if (configuredOnly) {
+    if (!jobs.size) throw new Error("Build context has no usable compile commands");
+    return [...jobs.values()];
+  }
   if (fallback.length) diagnostics.push(`${fallback.length} C/C++ source files have no compile command. Clang used default flags for those files.`);
   for (const path of fallback) jobs.set(path, { path, flags: [] });
   return [...jobs.values()];
@@ -214,56 +220,128 @@ export function clangMap(
   return map;
 }
 
+export async function scanClang(
+  factory: ClangFactory, locateFile: (name: string) => string,
+  snapshot: ReadonlyMap<string, Uint8Array>, headers: ReadonlyMap<string, Uint8Array>,
+  collect: (row: Occurrence) => void,
+  flush?: (progress: IndexProgress) => Promise<void>, configuredOnly = false,
+  reuse?: Awaited<ReturnType<typeof clangUnitCache>>,
+) {
+  const diagnostics: string[] = [];
+  const jobs = clangJobs(snapshot, diagnostics, configuredOnly);
+  const sources = { phase: "sources", completed: 0, total: jobs.length } as const;
+  await flush?.(sources);
+  const visited = new Set<string>();
+  const sysroots = [...new Set(jobs.flatMap(({ flags }) => flags.flatMap((flag, i) =>
+    flag === "--sysroot" || flag === "-isysroot" ? [`${flags[i + 1].slice(repo.length).replace(/\/$/, "")}/`] : [])))];
+  sysroots.sort();
+  const isSystem = (path: string) => sysroots.some((prefix) => path.startsWith(prefix));
+  const pending = new Set<string>();
+  const keysFor = async (jobs: Job[]) => {
+    if (!reuse) return [];
+    const keys = await Promise.all(jobs.map(({ path, flags }) => reuse.key(path, flags, sysroots)));
+    for (const key of keys) pending.add(key);
+    return keys;
+  };
+  const sourceKeys = await keysFor(jobs);
+  const errors = new Set<string>();
+  let inputs: ClangInputs | undefined;
+  let captured: Occurrence[] | undefined;
+  const occurrence = (row: Occurrence) => {
+    if (isSystem(row[0])) return;
+    visited.add(row[0]);
+    collect(row);
+    return true;
+  };
+  const initialize = async () => {
+    const module = await factory({
+      locateFile,
+      print: (line) => {
+        if (line.startsWith("[")) {
+          const row = JSON.parse(line) as Occurrence;
+          if (occurrence(row)) captured?.push(row);
+        } else if (reuse && line.startsWith("{")) {
+          inputs = JSON.parse(line) as ClangInputs;
+        }
+      },
+      printErr: (line) => {
+        if (errors.size < 6 && /(?:fatal )?error:/.test(line)) errors.add(line.replaceAll(repo, ""));
+      },
+    });
+    const mount = (prefix: string, files: ReadonlyMap<string, Uint8Array>) => {
+      const dirs = new Set<string>();
+      for (const [name, bytes] of files) {
+        const path = prefix + name;
+        const directory = path.slice(0, path.lastIndexOf("/"));
+        if (!dirs.has(directory)) {
+          module.FS.mkdirTree(directory);
+          dirs.add(directory);
+        }
+        module.FS.writeFile(path, bytes);
+      }
+    };
+    mount(repo, snapshot);
+    mount("/clang/include/", headers);
+    return module;
+  };
+  let module: ClangModule | undefined;
+  let failed = 0;
+  let reused = 0;
+  const run = async ({ path, flags }: Job, key?: string) => {
+    if (key && reuse) {
+      pending.delete(key);
+      const rows = await reuse.load(key).catch(() => undefined);
+      if (rows) {
+        for (const row of rows) occurrence(row);
+        reused++;
+        return;
+      }
+      captured = [];
+      inputs = undefined;
+    }
+    module ??= await initialize();
+    const failedJob = module.ccall("patchtree_index", "number", ["string"], [JSON.stringify([
+      "-fsyntax-only", "-ferror-limit=8", "-fno-color-diagnostics",
+      "-resource-dir", "/clang", ...flags, repo + path,
+    ])]);
+    if (failedJob) failed++;
+    if (!failedJob && key && reuse && captured && inputs) {
+      // Always verify the translation unit itself along with Clang's filesystem probes.
+      inputs.probes.push(repo + path);
+      await reuse.save(key, inputs, captured, pending).catch(() => {});
+    }
+    captured = undefined;
+  };
+  for (const [i, job] of jobs.entries()) {
+    await run(job, sourceKeys[i]);
+    if (flush) await flush({ ...sources, completed: i + 1, reused });
+  }
+  const standalone = configuredOnly ? [] : [...snapshot.keys()].filter((path) =>
+    indexLanguage(path) === "clang" && !cSource.test(path) && !path.endsWith("compile_commands.json") && !visited.has(path) &&
+    !isSystem(path));
+  if (standalone.length) {
+    diagnostics.push(`${standalone.length} C/C++ headers were indexed separately with inferred flags.`);
+    const headers = { phase: "headers", completed: 0, total: standalone.length } as const;
+    await flush?.(headers);
+    const onlyC = jobs.some((job) => /\.c$/.test(job.path)) && !jobs.some((job) => !/\.c$/.test(job.path));
+    const headerJobs = standalone.map((path) => ({
+      path, flags: ["-x", onlyC && /\.h$/i.test(path) ? "c-header" : "c++-header"],
+    }));
+    const headerKeys = await keysFor(headerJobs);
+    for (const [i, job] of headerJobs.entries()) {
+      await run(job, headerKeys[i]);
+      if (flush) await flush({ ...headers, completed: i + 1, reused });
+    }
+  }
+  if (failed) diagnostics.push(`Clang could only partially parse ${failed} translation units.`, ...errors);
+  return { diagnostics, reused, units: jobs.length + standalone.length };
+}
+
 export async function indexClang(
   factory: ClangFactory, locateFile: (name: string) => string,
   snapshot: ReadonlyMap<string, Uint8Array>, headers: ReadonlyMap<string, Uint8Array>,
 ) {
-  const diagnostics: string[] = [];
-  const jobs = clangJobs(snapshot, diagnostics);
   const rows: Occurrence[] = [];
-  const errors = new Set<string>();
-  const module = await factory({
-    locateFile,
-    print: (line) => { if (line.startsWith("[")) rows.push(JSON.parse(line) as Occurrence); },
-    printErr: (line) => {
-      if (errors.size < 6 && /(?:fatal )?error:/.test(line)) errors.add(line.replaceAll(repo, ""));
-    },
-  });
-  const mount = (prefix: string, files: ReadonlyMap<string, Uint8Array>) => {
-    const dirs = new Set<string>();
-    for (const [name, bytes] of files) {
-      const path = prefix + name;
-      const directory = path.slice(0, path.lastIndexOf("/"));
-      if (!dirs.has(directory)) {
-        module.FS.mkdirTree(directory);
-        dirs.add(directory);
-      }
-      module.FS.writeFile(path, bytes);
-    }
-  };
-  mount(repo, snapshot);
-  mount("/clang/include/", headers);
-  const run = ({ path, flags }: Job) =>
-    module.ccall("patchtree_index", "number", ["string"], [JSON.stringify([
-      "-fsyntax-only", "-ferror-limit=8", "-fno-color-diagnostics",
-      "-resource-dir", "/clang", ...flags, repo + path,
-    ])]);
-  let failed = 0;
-  for (const job of jobs) if (run(job)) failed++;
-  const visited = new Set(rows.map(([path]) => path));
-  const sysroots = jobs.flatMap(({ flags }) => flags.flatMap((flag, i) =>
-    flag === "--sysroot" || flag === "-isysroot" ? [`${flags[i + 1].replace(/\/$/, "")}/`] : []));
-  const standalone = [...snapshot.keys()].filter((path) =>
-    indexLanguage(path) === "clang" && !cSource.test(path) && !path.endsWith("compile_commands.json") && !visited.has(path) &&
-    !sysroots.some((sysroot) => (repo + path).startsWith(sysroot)));
-  if (standalone.length) {
-    diagnostics.push(`${standalone.length} C/C++ headers were indexed separately with inferred flags.`);
-    for (const path of standalone) {
-      const c = /\.h$/i.test(path) && jobs.some((job) => /\.c$/.test(job.path)) &&
-        !jobs.some((job) => !/\.c$/.test(job.path));
-      if (run({ path, flags: ["-x", c ? "c-header" : "c++-header"] })) failed++;
-    }
-  }
-  if (failed) diagnostics.push(`Clang could only partially parse ${failed} translation units.`, ...errors);
+  const { diagnostics } = await scanClang(factory, locateFile, snapshot, headers, (row) => rows.push(row));
   return clangMap(snapshot, rows, diagnostics);
 }

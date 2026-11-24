@@ -37,4 +37,5 @@ type navigation struct {
 	Revision    string                         `json:"revision"`
 	Files       map[string]map[int]*sourceLine `json:"files"`
 	Diagnostics []string                       `json:"diagnostics,omitempty"`
+	Analysis    *goAnalysis                    `json:"analysis,omitempty"`
 }

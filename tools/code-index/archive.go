@@ -26,21 +26,31 @@ import (
 
 const maxArchiveSize = 128 << 20
 const maxSourceSize = 32 << 20
+const maxChunkedArchiveSize = 512 << 20
+const maxChunkedSourceSize = 256 << 20
 
 func indexGoArchive(r io.Reader, input goSnapshot) (navigation, error) {
+	return buildGoArchiveIndex(r, input, nil)
+}
+
+func buildGoArchiveIndex(r io.Reader, input goSnapshot, stream *goIndexStream) (navigation, error) {
+	archiveLimit, sourceLimit := int64(maxArchiveSize), int64(maxSourceSize)
+	if stream != nil {
+		archiveLimit, sourceLimit = maxChunkedArchiveSize, maxChunkedSourceSize
+	}
 	gzipFile, err := gzip.NewReader(r)
 	if err != nil {
 		return navigation{}, fmt.Errorf("open source archive: %w", err)
 	}
 	defer gzipFile.Close()
-	contents := &io.LimitedReader{R: gzipFile, N: maxArchiveSize + 1}
+	contents := &io.LimitedReader{R: gzipFile, N: archiveLimit + 1}
 	archive := tar.NewReader(contents)
 	input.Sources = make(map[string]string)
 	var total int64
 	for {
 		header, err := archive.Next()
 		if contents.N == 0 {
-			return navigation{}, fmt.Errorf("expanded source archive exceeds %d MiB", maxArchiveSize>>20)
+			return navigation{}, fmt.Errorf("expanded source archive exceeds %d MiB", archiveLimit>>20)
 		}
 		if err == io.EOF {
 			break
@@ -60,8 +70,8 @@ func indexGoArchive(r io.Reader, input goSnapshot) (navigation, error) {
 			continue
 		}
 		total += header.Size
-		if total > maxSourceSize {
-			return navigation{}, fmt.Errorf("Go sources exceed %d MiB", maxSourceSize>>20)
+		if total > sourceLimit {
+			return navigation{}, fmt.Errorf("Go sources exceed %d MiB", sourceLimit>>20)
 		}
 		text, err := io.ReadAll(archive)
 		if err != nil {
@@ -69,5 +79,5 @@ func indexGoArchive(r io.Reader, input goSnapshot) (navigation, error) {
 		}
 		input.Sources[name] = string(text)
 	}
-	return indexGo(input)
+	return buildGoIndex(input, stream)
 }

@@ -18,15 +18,79 @@
 #include "clang/Index/USRGeneration.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/JSON.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #ifdef __EMSCRIPTEN__
+#include <cstdlib>
 #include <emscripten.h>
 #endif
 
 using namespace clang;
 
 namespace {
+#ifdef __EMSCRIPTEN__
+class Dependencies : public llvm::vfs::ProxyFileSystem {
+  llvm::StringSet<> Probes;
+  llvm::StringSet<> Listings;
+
+  void record(const llvm::Twine &Name, llvm::StringSet<> &Paths) {
+    llvm::SmallString<256> Path;
+    Name.toVector(Path);
+    if (makeAbsolute(Path))
+      return;
+    llvm::sys::path::remove_dots(Path, true, llvm::sys::path::Style::posix);
+    if (llvm::StringRef(Path) == "/repo" || llvm::StringRef(Path).starts_with("/repo/"))
+      Paths.insert(Path);
+  }
+
+public:
+  Dependencies() : ProxyFileSystem(llvm::vfs::getRealFileSystem()) {}
+
+  llvm::ErrorOr<llvm::vfs::Status> status(const llvm::Twine &Path) override {
+    record(Path, Probes);
+    return ProxyFileSystem::status(Path);
+  }
+
+  bool exists(const llvm::Twine &Path) override {
+    record(Path, Probes);
+    return ProxyFileSystem::exists(Path);
+  }
+
+  llvm::ErrorOr<std::unique_ptr<llvm::vfs::File>>
+  openFileForRead(const llvm::Twine &Path) override {
+    record(Path, Probes);
+    return ProxyFileSystem::openFileForRead(Path);
+  }
+
+  std::error_code getRealPath(const llvm::Twine &Path,
+                              llvm::SmallVectorImpl<char> &Output) override {
+    record(Path, Probes);
+    return ProxyFileSystem::getRealPath(Path, Output);
+  }
+
+  llvm::vfs::directory_iterator dir_begin(const llvm::Twine &Path,
+                                          std::error_code &EC) override {
+    record(Path, Listings);
+    return ProxyFileSystem::dir_begin(Path, EC);
+  }
+
+  void emit() const {
+    const auto array = [](const llvm::StringSet<> &Paths) {
+      llvm::json::Array Values;
+      for (const auto &Entry : Paths)
+        Values.push_back(Entry.getKey().str());
+      return Values;
+    };
+    llvm::outs() << llvm::json::Value(llvm::json::Object{
+        {"probes", array(Probes)}, {"listings", array(Listings)}}) << '\n';
+    llvm::outs().flush();
+  }
+};
+#endif
+
 class Occurrences : public index::IndexDataConsumer {
   ASTContext *Context = nullptr;
   std::shared_ptr<Preprocessor> PP;
@@ -104,7 +168,8 @@ public:
     return true;
   }
 };
-int run(std::vector<std::string> Args) {
+int run(std::vector<std::string> Args,
+        IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS = nullptr) {
   index::IndexingOptions Options;
   Options.IndexFunctionLocals = true;
   Options.IndexParametersInDeclarations = true;
@@ -112,7 +177,7 @@ int run(std::vector<std::string> Args) {
   Options.SystemSymbolFilter = index::IndexingOptions::SystemSymbolFilterKind::All;
   auto Consumer = std::make_shared<Occurrences>();
   auto Action = index::createIndexingAction(Consumer, Options);
-  IntrusiveRefCntPtr<FileManager> Files(new FileManager(FileSystemOptions{}));
+  IntrusiveRefCntPtr<FileManager> Files(new FileManager(FileSystemOptions{}, std::move(FS)));
   tooling::ToolInvocation Tool(std::move(Args), std::move(Action), Files.get());
   const bool OK = Tool.run();
   llvm::outs().flush();
@@ -137,7 +202,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE int patchtree_index(const char *Command) {
       return 1;
     Args.push_back(Text->str());
   }
-  return run(std::move(Args));
+  // Make the time macros stable across snapshots in the extension.
+  setenv("SOURCE_DATE_EPOCH", "0", 1);
+  auto Inputs = llvm::makeIntrusiveRefCnt<Dependencies>();
+  const int Result = run(std::move(Args), Inputs);
+  Inputs->emit();
+  return Result;
 }
 #else
 int main(int Argc, const char **Argv) {

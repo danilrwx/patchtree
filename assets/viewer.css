@@ -519,6 +519,59 @@ html.pt-on {
   width: auto;
 }
 
+.pt-code-index-row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+}
+
+.pt-index-progress:not([hidden]) {
+  display: block;
+  width: min(100%, 240px);
+  margin: 4px 0;
+}
+
+.pt-index-cache {
+  grid-column: 1 / -1;
+}
+
+#pt-bar .pt-index-cache > summary {
+  display: list-item;
+  height: auto;
+  padding: 1px 4px;
+  border: 0;
+  font: inherit;
+}
+
+.pt-index-cache-rows {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  margin: 4px 0;
+}
+
+.pt-index-cache-rows dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-index-cache-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#pt-bar .pt-index-cache-actions button:disabled {
+  color: var(--pt-muted);
+  cursor: default;
+}
+
+/* Leave cache actions clickable near the bottom of the scrollable menu. */
+#pt-settings .pt-dd-menu:has(.pt-index-cache[open]) .pt-star-item {
+  position: static;
+}
+
 /* custom select: summary looks like an input box with a caret */
 .pt-select > summary {
   font: calc(var(--pt-ui-size, 14px) - 1px)/1.6 var(--pt-ui);

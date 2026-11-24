@@ -13,6 +13,8 @@
 // limitations under the License.
 
 export const maxArchiveBytes = 32 * 1024 * 1024;
+// Leave room for base64 and the message envelope within Chromium's IPC limit.
+export const maxGoArchiveBytes = 45 * 1024 * 1024;
 
 export function githubDiffLocation(url: Pick<URL, "protocol" | "host" | "pathname">) {
   if (url.protocol !== "https:") return null;
@@ -37,7 +39,7 @@ export function archiveLocation(sender: string, source: unknown, revision: strin
     const project = !match.commit && typeof source === "string" && /^[\w.-]+\/[\w.-]+$/.test(source) ? source : repository;
     if (project.split("/").some((segment) => segment === ".." || segment === ".")) throw new Error("Invalid source repository");
     return {
-      repository: `https://github.com/${repository}`,
+      repository: `https://github.com/${repository}`, sourceProject: project,
       archive: `https://api.github.com/repos/${project}/tarball/${revision}`,
       tokenHost: "github.com",
       tokenHeader: "Authorization",
@@ -47,14 +49,14 @@ export function archiveLocation(sender: string, source: unknown, revision: strin
   if (!match) throw new Error("Open a GitLab merge request diff to index it");
   const project = typeof source === "string" && /^\d+$/.test(source) ? source : encodeURIComponent(decodeURIComponent(match[1]));
   return {
-    repository: `${url.origin}/${match[1]}`,
+    repository: `${url.origin}/${match[1]}`, sourceProject: project,
     archive: `${url.origin}/api/v4/projects/${project}/repository/archive.tar.gz?sha=${revision}&include_lfs_blobs=false`,
     tokenHost: url.host,
     tokenHeader: "PRIVATE-TOKEN",
   };
 }
 
-export async function loadArchive(response: Response) {
+export async function loadArchive(response: Response, maximum = maxArchiveBytes) {
   if (!response.ok || !response.body) {
     const requestId = response.headers.get("X-Request-Id");
     throw new Error(`Source archive request failed (HTTP ${response.status})${requestId ? `, request ${requestId}` : ""}`);
@@ -67,9 +69,9 @@ export async function loadArchive(response: Response) {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > maxArchiveBytes) {
+      if (size > maximum) {
         await reader.cancel();
-        throw new Error("Source archive exceeds 32 MiB");
+        throw new Error(`Source archive exceeds ${maximum / (1024 * 1024)} MiB`);
       }
       parts.push(value);
     }
@@ -85,12 +87,12 @@ export async function loadArchive(response: Response) {
   return archive;
 }
 
-export async function loadGitLabArchive(archive: string, headers: Record<string, string>) {
+export async function loadGitLabArchive(archive: string, headers: Record<string, string>, maximum = maxArchiveBytes) {
   // GitLab rejects archive requests with Sec-Fetch-Mode: cors.
   return loadArchive(await fetch(archive, {
     headers: { ...headers, Accept: "application/octet-stream" },
     mode: "same-origin",
     credentials: "same-origin",
     redirect: "error",
-  }));
+  }), maximum);
 }

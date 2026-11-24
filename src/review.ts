@@ -28,7 +28,7 @@ export interface PtView {
   renderDiff: (text: string) => void;
   initialRaw: string;
   revealDefinition: (cell: HTMLElement, line: number) => Promise<HTMLTableRowElement | undefined> | undefined;
-  addSettingRow: (label: string, control: HTMLElement) => void;
+  addSettingRow: (label: string, control: HTMLElement) => HTMLElement;
   markCommented: (counts: Map<string, number>) => void;
 }
 

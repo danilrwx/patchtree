@@ -21,6 +21,7 @@ export function indexLanguage(path: string) {
 }
 
 export type IndexLanguage = NonNullable<ReturnType<typeof indexLanguage>>;
+export const largeIndexArchive = 8 * 1024 * 1024;
 export const indexLabels: Record<IndexLanguage, string> = {
   go: "Go", typescript: "JavaScript/TypeScript", clang: "C/C++",
 };

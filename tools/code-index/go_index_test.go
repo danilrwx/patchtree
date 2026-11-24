@@ -15,6 +15,7 @@
 package main
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -41,6 +42,26 @@ func TestIndexGoSnapshot(t *testing.T) {
 	index, err := indexGo(input)
 	if err != nil {
 		t.Fatal(err)
+	}
+	streamed := make(map[string]map[int]*sourceLine)
+	meta, err := buildGoIndex(input, &goIndexStream{emit: func(_, _ string, files map[string]map[int]*sourceLine, _ []string) error {
+		for path, rows := range files {
+			if streamed[path] != nil {
+				t.Fatalf("file was emitted more than once: %s", path)
+			}
+			streamed[path] = rows
+		}
+		return nil
+	}})
+	if err != nil || len(meta.Files) != 0 || !reflect.DeepEqual(meta.Diagnostics, index.Diagnostics) {
+		t.Fatalf("invalid streamed index metadata: %#v (%v)", meta, err)
+	}
+	for path, rows := range index.Files {
+		for line, row := range rows {
+			if len(row.Spans) > 0 && !reflect.DeepEqual(streamed[path][line], row) {
+				t.Errorf("streamed occurrences differ at %s:%d", path, line)
+			}
+		}
 	}
 	if index.Repository != input.Repository || index.Revision != input.Revision {
 		t.Fatalf("lost snapshot identity: %s %s", index.Repository, index.Revision)
@@ -146,5 +167,93 @@ func TestEmbeddedTypeDoesNotJumpToItselfWhenImportIsMissing(t *testing.T) {
 		if offset := strings.Index(line.Text, "Buffer"); s.Start <= offset && offset < s.End {
 			t.Fatalf("unresolved embedded type produced a jump: %#v", s)
 		}
+	}
+}
+
+func TestGoIncrementalPackageIndex(t *testing.T) {
+	input := goSnapshot{
+		Version: 1, Repository: "https://example.com/repo", GOOS: "linux", GOARCH: "amd64",
+		Sources: map[string]string{
+			"go.mod":               "module example.com/repo\n",
+			"lib/value.go":         "package lib\nfunc Value() int { return 1 }\n",
+			"app/use.go":           "package app\nimport \"example.com/repo/lib\"\nvar Exported = lib.Value()\n",
+			"app/internal_test.go": "package app\nvar TestValue = Exported\n",
+			"app/external_test.go": "package app_test\nimport \"example.com/repo/app\"\nvar _ = app.TestValue\n",
+			"top/outer.go":         "package top\nimport \"example.com/repo/app\"\nvar x = app.Exported\n",
+			"independent/other.go": "package independent\nimport \"example.com/repo/notyet\"\nvar _ = notyet.Value\nconst Good = 1\n",
+		},
+	}
+	type entry struct {
+		key         string
+		files       map[string]map[int]*sourceLine
+		diagnostics []string
+	}
+	saved := map[string]entry{}
+	for _, run := range []struct {
+		revision, path, change string
+		reused                 int
+	}{
+		{revision: "cold"},
+		{revision: "unchanged", reused: 6},
+		{revision: "body", path: "lib/value.go", change: "return 2", reused: 5},
+		{revision: "tests", path: "app/internal_test.go", change: "// test edit\n", reused: 4},
+		{revision: "dependency", path: "lib/value.go", change: "// definition moved\n", reused: 1},
+		{revision: "caller", path: "app/use.go", change: "// caller changed\n", reused: 2},
+		{revision: "import-added", path: "notyet/value.go", change: "package notyet\nconst Value = 1\n", reused: 5},
+	} {
+		t.Run(run.revision, func(t *testing.T) {
+			input.Revision = run.revision
+			if run.revision == "body" {
+				input.Sources[run.path] = strings.Replace(input.Sources[run.path], "return 1", run.change, 1)
+			} else if run.path != "" {
+				input.Sources[run.path] = run.change + input.Sources[run.path]
+			}
+			files := make(map[string]map[int]*sourceLine)
+			collect := func(shard map[string]map[int]*sourceLine) {
+				for path, rows := range shard {
+					if files[path] != nil {
+						t.Fatalf("duplicate shard file %s", path)
+					}
+					files[path] = rows
+				}
+			}
+			meta, err := buildGoIndex(input, &goIndexStream{
+				load: func(id, key string) ([]string, bool, error) {
+					result, ok := saved[id]
+					if !ok || result.key != key {
+						return nil, false, nil
+					}
+					collect(result.files)
+					return result.diagnostics, true, nil
+				},
+				emit: func(id, key string, files map[string]map[int]*sourceLine, diagnostics []string) error {
+					saved[id] = entry{key, files, diagnostics}
+					collect(files)
+					return nil
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			units := 6
+			if run.revision == "import-added" {
+				units++
+			}
+			if want := (goAnalysis{Units: units, Reused: run.reused}); meta.Analysis == nil || *meta.Analysis != want {
+				t.Fatalf("analysis = %#v, want %+v", meta.Analysis, want)
+			}
+			fresh, err := buildGoIndex(input, &goIndexStream{emit: func(_, _ string, shard map[string]map[int]*sourceLine, _ []string) error {
+				for path, rows := range shard {
+					if !reflect.DeepEqual(rows, files[path]) {
+						t.Errorf("cached occurrences differ from a cold index at %s", path)
+					}
+					delete(files, path)
+				}
+				return nil
+			}})
+			if err != nil || len(files) != 0 || !reflect.DeepEqual(meta.Diagnostics, fresh.Diagnostics) {
+				t.Fatalf("cached result differs from a cold index: %v, unread files %v, diagnostics %q / %q", err, files, meta.Diagnostics, fresh.Diagnostics)
+			}
+		})
 	}
 }

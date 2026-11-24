@@ -18,7 +18,7 @@
 // @ts-expect-error — no types for the vendored web-tree-sitter loader
 import { Parser, Language, Query } from "./assets/vendor/web-tree-sitter.js";
 import { hljsRows } from "./hljs";
-import { repositoryIndex } from "./repository-index";
+import { manageIndexCaches, repositoryIndex, repositoryIndexShard } from "./repository-index";
 import { githubDiffLocation } from "./source-archive";
 import { oauthHostForDiff, refreshOAuthToken } from "./oauth";
 
@@ -405,10 +405,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
     return true;
   }
-  if (msg?.type === "repositoryIndex") {
-    repositoryIndex(sender.url, msg.revision, msg.sourceProject, msg.language, msg.cachedOnly === true, msg.archiveBase64)
+  if (msg?.type === "repositoryIndex" && sender.id === chrome.runtime.id && sender.tab) {
+    repositoryIndex(sender.url, msg.revision, msg.sourceProject, msg.language, msg.cachedOnly === true, msg.archiveBase64, msg.uploadRevision, msg.contextBase64, msg.poll)
       .then(sendResponse)
       .catch((error) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+  if (msg?.type === "repositoryIndexShard" && sender.id === chrome.runtime.id && sender.tab) {
+    repositoryIndexShard(sender.url, msg.revision, msg.sourceProject, msg.language, msg.shard, msg.chunkCache)
+      .then(sendResponse, (error) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+  if (msg?.type === "repositoryIndexKeepAlive" && sender.id === chrome.runtime.id &&
+      (sender.tab || sender.url === chrome.runtime.getURL("index-offscreen.html"))) {
+    sendResponse(true);
+    return;
+  }
+  if (msg?.type === "codeIndexCaches" && sender.id === chrome.runtime.id && sender.tab) {
+    const clear = msg.clear;
+    if (clear !== undefined && clear !== "indexes" && clear !== "sources" && clear !== "all") return;
+    manageIndexCaches(clear).then(sendResponse, () => sendResponse({ error: "Could not access the code index caches." }));
     return true;
   }
   if (msg?.type === "themes") {

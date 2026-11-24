@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { archiveLocation, loadGitLabArchive } from "./source-archive";
+import { archiveLocation, loadGitLabArchive, maxArchiveBytes, maxGoArchiveBytes } from "./source-archive";
 import { renderLineHTML, resolveLang, type Range as HighlightRange } from "./diff";
 import { icons } from "./icons";
 import { indexLabels, indexLanguage, type IndexLanguage } from "./index-language";
+import { addIndexCacheControls } from "./index-cache-controls";
+import { fromBase64, sourceDirectory, symbolKey, toBase64, type IndexManifest, type IndexProgress } from "./index-runner";
 import { flashCenter } from "./ui";
 import { credentialFor, gitlabHeaders } from "./providers/shared";
 import type { PtView } from "./review";
@@ -83,11 +85,19 @@ function byteColumn(cell: HTMLElement, event: MouseEvent) {
 
 export async function installCodeNavigation(P: Provider, view: PtView, revision: string, sourceProject: string | undefined, isFullDiff: () => boolean) {
   let files: Record<string, unknown> | null = null;
+  type ShardedIndex = { manifest: IndexManifest; chunkCache: string; language: IndexLanguage };
+  const sharded = new Map<IndexLanguage, ShardedIndex>();
+  const chunks = new Map<string, Record<string, unknown>>();
+  const loadingChunks = new Map<string, Promise<Record<string, unknown>>>();
   const recentReferences = new Map<string, ReferenceGroups>();
   let importRequest = 0;
-  let imported = false;
+  let importedFiles: Record<string, unknown> | null = null;
+  let indexGeneration = 0;
+  let requiresSignIn = false;
+  const signIn = "Sign in to build a code index.";
   const indexed = new Map<IndexLanguage | "import", string[]>();
   const indexers = new Map<IndexLanguage, () => Promise<void>>();
+  const indexButtons: HTMLButtonElement[] = [];
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = "Import…";
@@ -104,8 +114,39 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
   status.setAttribute("role", "status");
   const limitations = document.createElement("details");
   limitations.hidden = true;
-  controls.append(button, picker, status, limitations);
-  view.addSettingRow("Code index", controls);
+  const progressBar = document.createElement("progress");
+  progressBar.className = "pt-index-progress";
+  progressBar.setAttribute("aria-label", "C/C++ indexing progress");
+  progressBar.hidden = true;
+  const reuseSummary = document.createElement("small");
+  reuseSummary.hidden = true;
+  controls.append(button, picker, status, progressBar, reuseSummary, limitations);
+  const settingsRow = view.addSettingRow("Code index", controls);
+  settingsRow.classList.add("pt-code-index-row");
+
+  let hovered: HTMLElement | null = null;
+  let panel: HTMLDialogElement | null = null;
+  let panelEvents: AbortController | null = null;
+  let navigationRequest = 0;
+  const feedback = document.createElement("span");
+  feedback.className = "pt-code-feedback";
+  feedback.setAttribute("role", "status");
+  const localChoices = document.createElement("span");
+  localChoices.className = "pt-code-choices";
+  view.bar.append(feedback, localChoices);
+  const refreshCacheStats = addIndexCacheControls(settingsRow, () => {
+    indexGeneration++;
+    progressBar.hidden = true;
+    reuseSummary.hidden = true;
+    files = importedFiles;
+    clearChunks();
+    for (const language of indexers.keys()) indexed.delete(language);
+    recentReferences.clear();
+    for (const build of indexButtons) build.disabled = false;
+    clearHover();
+    startNavigation();
+    updateIndexStatus();
+  });
 
   function apply(data: unknown, language?: IndexLanguage) {
     if (!record(data) || data.version !== 1 || !record(data.files)) throw new Error("Invalid code index");
@@ -113,14 +154,97 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
       throw new Error("Code index belongs to a different repository or revision");
     if (!language) {
       indexed.clear();
-      imported = true;
+      reuseSummary.hidden = true;
+      importedFiles = data.files;
+      clearChunks();
     }
     files = language ? Object.assign(Object.create(null), files, data.files) : data.files;
     recentReferences.clear();
     indexed.set(language ?? "import", Array.isArray(data.diagnostics)
       ? data.diagnostics.filter((message): message is string => typeof message === "string") : []);
+    updateIndexStatus();
+  }
+
+  function clearChunks() {
+    sharded.clear();
+    chunks.clear();
+    loadingChunks.clear();
+  }
+
+  async function applyBuiltIndex(reply: any, language: IndexLanguage, current: () => boolean) {
+    if (reply?.manifest && (language === "go" || language === "clang")) {
+      const { manifest, chunkCache } = reply;
+      if (manifest.repository !== P.repository || manifest.revision !== revision ||
+          !record(manifest.files) || !record(manifest.packages) || !record(manifest.references) ||
+          !Array.isArray(manifest.diagnostics) || typeof chunkCache !== "string")
+        throw new Error("Invalid index manifest");
+      if (!current()) return;
+      if (sharded.get(language)?.chunkCache !== chunkCache) sharded.set(language, { manifest, chunkCache, language });
+      indexed.set(language, manifest.diagnostics);
+      const analysis = (manifest as IndexManifest).analysis;
+      const unit = language === "go" ? "Go package variants" : "C/C++ translation units";
+      reuseSummary.hidden = !analysis?.reused;
+      reuseSummary.textContent = analysis?.reused ? ` Reused ${analysis.reused}/${analysis.units} ${unit}` : "";
+      recentReferences.clear();
+      updateIndexStatus();
+      return;
+    }
+    if (!reply?.index) throw new Error(reply?.error || "Could not index repository");
+    const data = await unpackIndex(reply);
+    if (current()) apply(data, language);
+  }
+
+  function indexFor(path: string) {
+    const language = indexLanguage(path);
+    const preferred = language && sharded.get(language);
+    if (preferred && Object.hasOwn(preferred.manifest.files, path)) return preferred;
+    for (const index of sharded.values()) if (Object.hasOwn(index.manifest.files, path)) return index;
+  }
+
+  function shardFor(path: string) {
+    const index = indexFor(path);
+    if (index) {
+      const id = index.manifest.files[path];
+      return { id, index, key: `${index.chunkCache}/${id}` };
+    }
+  }
+
+  function loadChunk(id: number, index: ShardedIndex, remember = true) {
+    const key = `${index.chunkCache}/${id}`;
+    const cached = chunks.get(key);
+    if (cached) {
+      if (remember) { chunks.delete(key); chunks.set(key, cached); }
+      return Promise.resolve(cached);
+    }
+    const pending = loadingChunks.get(key);
+    if (pending) return pending;
+    const job = (async () => {
+      const reply = await chrome.runtime.sendMessage({
+        type: "repositoryIndexShard", revision, sourceProject, language: index.language,
+        shard: id, chunkCache: index.chunkCache,
+      });
+      if (!reply?.index) throw new Error(reply?.error || "Could not read the index chunk");
+      const rows = await unpackIndex(reply);
+      if (!record(rows)) throw new Error("Invalid index chunk");
+      if (remember && index === sharded.get(index.language)) {
+        chunks.set(key, rows);
+        if (chunks.size > 4) chunks.delete(chunks.keys().next().value!);
+      }
+      return rows;
+    })().finally(() => { if (loadingChunks.get(key) === job) loadingChunks.delete(key); });
+    if (remember) loadingChunks.set(key, job);
+    return job;
+  }
+
+  async function loadFileIndex(path: string) {
+    const shard = shardFor(path);
+    if (shard) await loadChunk(shard.id, shard.index);
+  }
+
+  function updateIndexStatus() {
     const diagnostics = [...indexed.values()].flat();
-    status.textContent = ` ${diagnostics.length ? "Partially indexed" : "Indexed"} ${revision.slice(0, 8)}`;
+    status.textContent = indexed.size ? ` ${diagnostics.length ? "Partially indexed" : "Indexed"} ${revision.slice(0, 8)}` :
+      requiresSignIn ? ` ${signIn}` : "";
     status.title = diagnostics.join("\n");
     limitations.replaceChildren();
     limitations.hidden = !diagnostics.length;
@@ -164,22 +288,22 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
     const user = await P.me().catch(() => null);
     return user?.id ? {} : null;
   }
-  const signIn = "Sign in to build a code index.";
   if (languages.size && !(await indexAccess())) {
     languages.clear();
+    requiresSignIn = true;
     if (importRequest === 0) status.textContent = ` ${signIn}`;
   }
-  let gitlabArchive: Promise<string> | undefined;
-  function uploadGitlabArchive(headers: Record<string, string>) {
-    return gitlabArchive ??= (async () => {
+  let gitlabArchive: { revision: string; promise: Promise<string> } | undefined;
+  function uploadGitlabArchive(headers: Record<string, string>, uploadRevision: string) {
+    if (gitlabArchive?.revision === uploadRevision) return gitlabArchive.promise;
+    const promise = (async () => {
       // Self-hosted GitLab archives can be fetched from the MR origin.
       const { archive } = archiveLocation(location.href, sourceProject, revision);
-      const bytes = await loadGitLabArchive(archive, headers);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 8192)
-        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-      return btoa(binary);
-    })().finally(() => { gitlabArchive = undefined; });
+      const bytes = await loadGitLabArchive(archive, headers, maxGoArchiveBytes);
+      return toBase64(bytes);
+    })().finally(() => { if (gitlabArchive?.promise === promise) gitlabArchive = undefined; });
+    gitlabArchive = { revision: uploadRevision, promise };
+    return promise;
   }
   for (const language of languages) {
     const label = indexLabels[language];
@@ -188,53 +312,103 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
     build.textContent = `Index ${label}`;
     build.setAttribute("aria-label", `Index ${label} sources`);
     controls.insertBefore(build, button);
+    indexButtons.push(build);
     const message = { type: "repositoryIndex", revision, sourceProject, language };
-    const cached = chrome.runtime.sendMessage({ ...message, cachedOnly: true })
-      .then((reply) => reply?.index ? unpackIndex(reply) : undefined)
-      .catch(() => undefined);
-    void cached.then((data) => {
-      if (data && importRequest === 0) apply(data, language);
-    }).catch(() => {});
-    let pending: Promise<void> | undefined;
-    const download = async () => {
+    const initialGeneration = indexGeneration;
+    void chrome.runtime.sendMessage({ ...message, cachedOnly: true })
+      .then((reply) => applyBuiltIndex(reply, language, () => importRequest === 0 && initialGeneration === indexGeneration))
+      .catch(() => {});
+    let pending: { generation: number; promise: Promise<void> } | undefined;
+    let contextButton: HTMLButtonElement | undefined;
+    const download = async (generation: number, context?: File) => {
       const request = importRequest;
+      const current = () => request === importRequest && generation === indexGeneration;
       build.disabled = true;
+      if (contextButton) contextButton.disabled = true;
       status.textContent = ` Indexing ${label}…`;
+      if (language === "go" || language === "clang") reuseSummary.hidden = true;
+      if (language === "clang") {
+        progressBar.removeAttribute("value");
+        progressBar.hidden = false;
+      }
+      const heartbeat = setInterval(() => { void chrome.runtime.sendMessage({ type: "repositoryIndexKeepAlive" }).catch(() => {}); }, 10_000);
       try {
         const access = await indexAccess();
         if (!access) throw new Error(signIn);
-        let data = await cached;
-        if (!data) {
-          let reply = await chrome.runtime.sendMessage(message);
-          if (!reply && P.kind === "gitlab")
-            reply = await chrome.runtime.sendMessage({ ...message, archiveBase64: await uploadGitlabArchive(access) });
-          if (!reply?.index) throw new Error(reply?.error || "Could not index repository");
-          data = await unpackIndex(reply);
+        if (!current()) return;
+        const waitForResult = async (reply: any) => {
+          while (typeof reply?.job === "string" && current()) {
+            const progress = reply.progress as IndexProgress | undefined;
+            if (progress?.phase === "saving") {
+              progressBar.removeAttribute("value");
+              status.textContent = ` Indexing ${label}… Saving index`;
+            } else if (progress && progress.total > 0) {
+              progressBar.max = progress.total;
+              progressBar.value = progress.completed;
+              const unit = progress.phase === "headers" ? "headers" : "translation units";
+              const reused = progress.reused ? ` (${progress.reused} reused)` : "";
+              status.textContent = ` Indexing ${label}… ${progress.completed}/${progress.total} ${unit}${reused}`;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            if (!current()) return;
+            reply = await chrome.runtime.sendMessage({ ...message, poll: reply.job });
+          }
+          return reply;
+        };
+        if (context && context.size > maxArchiveBytes) throw new Error("Build context exceeds 32 MiB");
+        const payload = context ? { ...message, contextBase64: toBase64(new Uint8Array(await context.arrayBuffer())) } : message;
+        if (!current()) return;
+        let reply = await waitForResult(await chrome.runtime.sendMessage(payload));
+        if (P.kind === "gitlab" && typeof reply?.uploadRevision === "string" && current()) {
+          const { uploadRevision } = reply;
+          const archiveBase64 = await uploadGitlabArchive(access, uploadRevision);
+          if (!current()) return;
+          reply = await waitForResult(await chrome.runtime.sendMessage({ ...message, archiveBase64, uploadRevision }));
         }
-        if (request === importRequest) apply(data, language);
+        if (current()) await applyBuiltIndex(reply, language, current);
       } catch (error) {
-        if (request === importRequest)
+        if (current())
           status.textContent = error instanceof Error ? ` ${error.message}` : " Could not index repository";
         throw error;
       } finally {
-        build.disabled = false;
+        clearInterval(heartbeat);
+        if (generation === indexGeneration) {
+          build.disabled = false;
+          if (language === "clang") progressBar.hidden = true;
+          if (contextButton) contextButton.disabled = false;
+        }
+        refreshCacheStats();
       }
     };
-    const index = () => pending ??= download().finally(() => { pending = undefined; });
+    const index = (context?: File) => {
+      if (pending?.generation === indexGeneration) return pending.promise;
+      const promise = download(indexGeneration, context).finally(() => { if (pending?.promise === promise) pending = undefined; });
+      pending = { generation: indexGeneration, promise };
+      return promise;
+    };
     indexers.set(language, index);
     build.addEventListener("click", () => { void index().catch(() => {}); });
+    if (language === "clang") {
+      contextButton = document.createElement("button");
+      contextButton.type = "button";
+      contextButton.textContent = "Index with build context…";
+      const contextInput = document.createElement("input");
+      contextInput.type = "file";
+      contextInput.accept = ".tar.gz,.tgz,application/gzip";
+      contextInput.hidden = true;
+      const contextPicker = document.createElement("span");
+      contextPicker.attachShadow({ mode: "closed" }).append(contextInput);
+      controls.insertBefore(contextButton, button);
+      controls.insertBefore(contextPicker, button);
+      indexButtons.push(contextButton);
+      contextButton.addEventListener("click", (event) => { if (event.isTrusted) contextInput.click(); });
+      contextInput.addEventListener("change", () => {
+        const selected = contextInput.files?.[0];
+        contextInput.value = "";
+        if (selected) void index(selected).catch(() => {});
+      });
+    }
   }
-
-  let hovered: HTMLElement | null = null;
-  let panel: HTMLDialogElement | null = null;
-  let panelEvents: AbortController | null = null;
-  let navigationRequest = 0;
-  const feedback = document.createElement("span");
-  feedback.className = "pt-code-feedback";
-  feedback.setAttribute("role", "status");
-  const localChoices = document.createElement("span");
-  localChoices.className = "pt-code-choices";
-  view.bar.append(feedback, localChoices);
 
   function startNavigation() {
     closePanel();
@@ -259,12 +433,23 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
   }
 
   function indexedLine(cell: HTMLElement, path: string, line: string) {
-    if (!files) return null;
-    const file = Object.hasOwn(files, path) ? files[path] : null;
+    const file = indexedFile(path);
     const indexed = record(file) ? file[line] : null;
     if (!record(indexed) || typeof indexed.text !== "string" ||
         indexed.text !== cell.textContent || !Array.isArray(indexed.spans)) return null;
     return { cell, text: indexed.text, spans: indexed.spans as unknown[] };
+  }
+
+  function indexedFile(path: string) {
+    const shard = shardFor(path);
+    const source = shard ? chunks.get(shard.key) : files;
+    return source && Object.hasOwn(source, path) ? source[path] : null;
+  }
+
+  function definitionText(path: string, line: number) {
+    const file = indexedFile(path);
+    const definition = record(file) ? file[line] : null;
+    return record(definition) && typeof definition.text === "string" ? definition.text : undefined;
   }
 
   function symbolAt(line: NonNullable<ReturnType<typeof lineAt>>, column: number): CodeSymbol | null {
@@ -281,9 +466,7 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
             !Number.isSafeInteger(target.column) || target.column < 0) continue;
         const href = P.permalink(target.path, "new", target.line);
         if (!href) continue;
-        const file = files && Object.hasOwn(files, target.path) ? files[target.path] : null;
-        const definition = record(file) ? file[target.line] : null;
-        const text = record(definition) && typeof definition.text === "string" ? definition.text : undefined;
+        const text = definitionText(target.path, target.line);
         links.set(`${href}:${target.column}`, { path: target.path, line: target.line, column: target.column, href, text });
         if (span.end - span.start < end - start) {
           start = span.start;
@@ -334,12 +517,13 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
     openDefinitionFile(P, target, (cell, path, line, column) => {
       const indexed = indexedLine(cell, path, String(line));
       return indexed && symbolAt(indexed, column);
-    }, makeReferenceResults);
+    }, makeReferenceResults, loadFileIndex);
   }
 
   function makeReferenceResults(symbol: CodeSymbol, open: (location: Definition) => void) {
     const snapshot = files;
     const query = async (definition: Definition, isOpen: () => boolean) => {
+      const index = indexFor(definition.path);
       const key = `${definition.href}:${definition.column}`;
       const hit = recentReferences.get(key);
       if (hit) {
@@ -347,9 +531,17 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
         recentReferences.set(key, hit);
         return hit;
       }
-      if (!snapshot) return new Map<string, Reference[]>();
-      const groups = await referencesTo(snapshot, definition, isOpen);
-      if (groups && snapshot === files && [...groups.values()].reduce((n, refs) => n + refs.length, 0) <= 5000) {
+      const groups = await referencesTo(snapshot ?? {}, definition, isOpen);
+      if (!groups) return;
+      const dir = index?.language === "go" ? index.manifest.packages[sourceDirectory(definition.path)] ?? [] : [];
+      const crossPackage = index?.manifest.references[symbolKey(definition.path, definition.line, definition.column)] ?? [];
+      for (const id of new Set([...dir, ...crossPackage])) {
+        if (!isOpen() || !index || index !== sharded.get(index.language)) return;
+        const more = await referencesTo(await loadChunk(id, index, false), definition, isOpen);
+        if (!more) return;
+        for (const [path, refs] of more) groups.set(path, refs);
+      }
+      if (snapshot === files && index === indexFor(definition.path) && [...groups.values()].reduce((n, refs) => n + refs.length, 0) <= 5000) {
         if (recentReferences.size >= 12) recentReferences.delete(recentReferences.keys().next().value!);
         recentReferences.set(key, groups);
       }
@@ -420,11 +612,18 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
       link.addEventListener("click", closePanel);
       actions.append(viewFile, link);
       item.append(actions);
-      if (target.text?.trim()) {
+      const previewDefinition = (text: string | undefined) => {
+        if (!text?.trim()) return;
         const preview = document.createElement("pre");
-        preview.textContent = target.text.trim();
+        preview.textContent = text.trim();
         item.append(preview);
         void highlightSource(target.path, [preview]);
+      };
+      if (target.text) previewDefinition(target.text);
+      else if (shardFor(target.path)) {
+        void loadFileIndex(target.path).then(() => {
+          if (item.isConnected) previewDefinition(definitionText(target.path, target.line));
+        }).catch(() => {});
       }
       list.append(item);
     }
@@ -522,8 +721,11 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
     }
     const language = indexLanguage(hit.path);
     const index = language && indexers.get(language);
-    const alreadyIndexed = language && (imported || indexed.has(language));
-    if (!language || !index || (alreadyIndexed && action === "references") ||
+    const alreadyIndexed = language && (importedFiles || indexed.has(language));
+    const shard = shardFor(hit.path);
+    const load = shard && !chunks.has(shard.key) ? () => loadFileIndex(hit.path) :
+      !alreadyIndexed && index ? async () => { await index(); await loadFileIndex(hit.path); } : undefined;
+    if (!language || (!index && !load) || (alreadyIndexed && !load && action === "references") ||
         element?.closest(".pt-comment, .pt-string, .pt-keyword, .pt-number")) return false;
 
     const text = hit.cell.textContent ?? "";
@@ -539,9 +741,9 @@ export async function installCodeNavigation(P: Provider, view: PtView, revision:
     const missing = () => indexed.get(language)?.length
       ? "No indexed definition for this symbol. See Code index limitations in Settings."
       : "No indexed definition for this symbol";
-    feedback.textContent = alreadyIndexed ? missing() : `Indexing ${indexLabels[language]}…`;
-    if (alreadyIndexed) return true;
-    void index()
+    feedback.textContent = !load ? missing() : alreadyIndexed ? "Loading index…" : `Indexing ${indexLabels[language]}…`;
+    if (!load) return true;
+    void load()
       .then(() => {
         if (request !== navigationRequest || !hit.cell.isConnected) return;
         const indexed = lineAt(hit.cell);
@@ -592,6 +794,7 @@ function openDefinitionFile(
   target: Definition,
   symbolAt: (cell: HTMLElement, path: string, line: number, column: number) => CodeSymbol | null,
   makeReferenceResults: (symbol: CodeSymbol, open: (target: Definition) => void) => HTMLElement,
+  loadFileIndex: (path: string) => Promise<void>,
 ) {
   const history = [{ target, top: undefined as number | undefined, left: 0 }];
   let request = 0;
@@ -736,7 +939,7 @@ function openDefinitionFile(
     status.textContent = "Loading file…";
     dialog.append(status);
     try {
-      const lines = await P.fetchFile(target.path);
+      const [lines] = await Promise.all([P.fetchFile(target.path), loadFileIndex(target.path).catch(() => {})]);
       if (!dialog.open || id !== request) return;
       if (lines.length < target.line) throw new Error("The definition line is outside the file");
       const body = document.createElement("div");
@@ -854,7 +1057,13 @@ function referenceResults(
     results.replaceChildren(summary);
     await yieldToUI();
     if (!results.isConnected) return;
-    const groups = await query(definition, () => results.isConnected);
+    let groups: ReferenceGroups | undefined;
+    try {
+      groups = await query(definition, () => results.isConnected);
+    } catch (error) {
+      if (results.isConnected) summary.textContent = error instanceof Error ? error.message : "Could not find references";
+      return;
+    }
     if (!groups || !results.isConnected) return;
     const count = [...groups.values()].reduce((sum, refs) => sum + refs.length, 0);
     summary.textContent = count ? `${count} ${count === 1 ? "reference" : "references"}` : "No indexed references";
@@ -937,7 +1146,7 @@ function referenceResults(
 
 async function unpackIndex(reply: { index: string; gzip?: boolean }): Promise<unknown> {
   if (!reply.gzip) return JSON.parse(reply.index);
-  const bytes = Uint8Array.from(atob(reply.index), (char) => char.charCodeAt(0));
+  const bytes = fromBase64(reply.index);
   const raw = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
   return new Response(raw).json();
 }

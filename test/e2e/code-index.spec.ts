@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import type { Locator } from "@playwright/test";
+import { randomBytes } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { test, expect, seedToken } from "./fixtures";
 import { DIFF_URL, mockGithub, OWNER, REPO } from "../fixtures/github";
@@ -157,10 +158,10 @@ test("code navigation matches the revision, side and UTF-8 token range", async (
   await expect(references.getByRole("status")).toHaveText("1 reference");
 });
 
-function tarGzip(files: Record<string, string>) {
+function tarGzip(files: Record<string, string | Buffer>) {
   const blocks: Buffer[] = [];
   for (const [name, source] of Object.entries(files)) {
-    const data = Buffer.from(source);
+    const data = typeof source === "string" ? Buffer.from(source) : source;
     const header = Buffer.alloc(512);
     header.write(`snapshot/${name}`);
     header.write("0000644", 100);
@@ -174,6 +175,159 @@ function tarGzip(files: Record<string, string>) {
   }
   return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]));
 }
+
+test("builds and reuses a large Go index with cross-package navigation", async ({ context, page }) => {
+  await mockGitlab(context);
+  const sha = "1".repeat(40);
+  const call = "var result = shared.Value";
+  const sources = {
+    "use.go": `package demo\nimport "example.com/demo/shared"\n${call}\n`,
+    "shared/def.go": "package shared\nconst Value = 42\n",
+    "other/use.go": 'package other\nimport "example.com/demo/shared"\nvar other = shared.Value\n',
+  };
+  const archive = tarGzip({ ...sources, "go.mod": "module example.com/demo\n", "padding.bin": randomBytes(8 * 1024 * 1024) });
+  await context.route(GITLAB_DIFF, (route) => route.fulfill({
+    contentType: "text/plain",
+    body: `diff --git a/use.go b/use.go\n--- a/use.go\n+++ b/use.go\n@@ -1,2 +1,3 @@\n package demo\n import "example.com/demo/shared"\n+${call}\n`,
+  }));
+  let downloads = 0;
+  await context.route(`${HOST}/api/v4/projects/**/repository/archive.tar.gz?**`, (route) => {
+    downloads++;
+    return route.fulfill({ body: archive, contentType: "application/gzip" });
+  });
+  await context.route(`${HOST}/api/v4/projects/**/repository/files/**`, (route) => {
+    const url = new URL(route.request().url());
+    const path = decodeURIComponent(url.pathname.split("/files/")[1].replace(/\/raw$/, ""));
+    expect(url.searchParams.get("ref")).toBe(sha);
+    return route.fulfill({ contentType: "text/plain", body: sources[path as keyof typeof sources] });
+  });
+  await seedToken(context, page, GITLAB_DIFF, TOKEN_HOST);
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+  const storedChunks = () => worker.evaluate(async () => {
+    const name = (await caches.keys()).find((name) => name.startsWith("patchtree-index-chunks-v1-"));
+    return name ? (await (await caches.open(name)).keys()).length : 0;
+  });
+  const status = page.locator(".pt-code-index-row [role=status]");
+  const findDefinition = async () => {
+    await caretOn(page.locator('.pt-unified tr[data-new="3"] .pt-code'), "Value");
+    await page.keyboard.press("Control+Enter");
+    const card = page.getByRole("dialog", { name: "Go to definition" });
+    await expect(card.getByRole("button", { name: "shared/def.go:2" })).toBeVisible({ timeout: 30_000 });
+    return card;
+  };
+  await expect(status).toBeAttached();
+  const card = await findDefinition();
+  await expect.poll(storedChunks).toBe(3);
+  await card.getByRole("button", { name: "shared/def.go:2" }).click();
+  const viewer = page.getByRole("dialog", { name: "shared/def.go" });
+  await caretOn(viewer.locator('[aria-current="location"] code'), "Value");
+  await page.keyboard.press("Shift+F12");
+  const refs = viewer.getByRole("region", { name: "References for Value" });
+  await expect(refs.getByRole("status")).toHaveText("2 references");
+  await expect(refs.getByRole("button", { name: /^other\/use.go:3/ })).toBeVisible();
+  await page.reload();
+  await expect(status).toHaveText(/Indexed/);
+  await findDefinition();
+  expect(downloads).toBe(1);
+
+  await page.keyboard.press("Escape");
+  await page.locator("#pt-settings > summary").click();
+  await page.getByText("Cache storage", { exact: true }).click();
+  await page.getByRole("button", { name: "Clear indexes" }).click();
+  await expect(status).toBeEmpty();
+  await expect.poll(storedChunks).toBe(0);
+  await page.getByRole("button", { name: "Index Go sources" }).click();
+  await expect(status).toHaveText(/Indexed/);
+  await expect.poll(storedChunks).toBe(3);
+  expect(downloads).toBe(1);
+});
+
+test("shows and clears index caches independently and rebuilds in the open diff", async ({ context, page }) => {
+  await mockGitlab(context);
+  await context.route(GITLAB_DIFF, (route) => route.fulfill({
+    contentType: "text/plain",
+    body: "diff --git a/use.go b/use.go\n--- a/use.go\n+++ b/use.go\n@@ -1 +1,2 @@\n package demo\n+var x = value\n",
+  }));
+  const archive = tarGzip({ "go.mod": "module example.com/demo\n", "use.go": "package demo\nvar x = value\n",
+    "value.go": "package demo\nconst value = 1\n" });
+  let downloads = 0;
+  await context.route(`${HOST}/api/v4/projects/**/repository/archive.tar.gz?**`, (route) => {
+    downloads++;
+    return route.fulfill({ body: archive, contentType: "application/gzip" });
+  });
+  await seedToken(context, page, GITLAB_DIFF, TOKEN_HOST);
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+  await worker.evaluate(() => chrome.storage.sync.set({ settings: { fontSize: 15 } }));
+  const settings = page.locator("#pt-settings");
+  const cache = settings.locator(".pt-index-cache");
+  const readouts = cache.locator("dd");
+  const empty = "0 entries (0.00 MiB)";
+  const stored = "1 entry (<0.01 MiB)";
+  const index = settings.getByRole("button", { name: "Index Go sources" });
+  const status = settings.locator(".pt-code-index-row [role=status]");
+  const clearIndexes = cache.getByRole("button", { name: "Clear indexes" });
+  const clearSources = cache.getByRole("button", { name: "Clear source snapshots" });
+  const clearBoth = cache.getByRole("button", { name: "Clear both caches" });
+
+  await settings.locator(":scope > summary").click();
+  await cache.getByText("Cache storage", { exact: true }).click();
+  await expect(cache.getByText("Stored entry size in MiB")).toBeVisible();
+  await expect(readouts).toHaveText([empty, empty]);
+  await expect(clearBoth).toBeDisabled();
+  expect(downloads).toBe(0);
+
+  await worker.evaluate(async () => {
+    const cache = await caches.open("patchtree-index-v4");
+    await cache.put("https://example.com/legacy-index", new Response(new Uint8Array(1024 * 1024), {
+      headers: { "X-Patchtree-Expires": String(Date.now() + 60_000) },
+    }));
+  });
+  await cache.getByText("Cache storage", { exact: true }).click();
+  await cache.getByText("Cache storage", { exact: true }).click();
+  await expect(readouts).toHaveText(["1 entry (1.00 MiB)", empty]);
+  await clearIndexes.click();
+  await expect(readouts).toHaveText([empty, empty]);
+
+  await index.click();
+  await expect(readouts).toHaveText([stored, stored]);
+  expect(downloads).toBe(1);
+  const other = await context.newPage();
+  await other.goto(GITLAB_DIFF);
+  const otherStatus = other.locator(".pt-code-index-row [role=status]");
+  await expect(otherStatus).toHaveText(/Indexed/);
+  await page.bringToFront();
+
+  await clearIndexes.click();
+  await expect(readouts).toHaveText([empty, stored]);
+  await expect(status).toBeEmpty();
+  await expect(otherStatus).toBeEmpty();
+  await index.click();
+  await expect(readouts).toHaveText([stored, stored]);
+  await expect(status).toHaveText(/Indexed/);
+  expect(downloads).toBe(1);
+
+  await clearSources.click();
+  await expect(readouts).toHaveText([stored, empty]);
+  await expect(status).toHaveText(/Indexed/);
+  await index.click();
+  await expect(status).toHaveText(/Indexed/);
+  expect(downloads).toBe(1);
+
+  await clearIndexes.click();
+  await expect(readouts).toHaveText([empty, empty]);
+  await index.click();
+  await expect(readouts).toHaveText([stored, stored]);
+  expect(downloads).toBe(2);
+  await clearBoth.click();
+  await expect(readouts).toHaveText([empty, empty]);
+  await index.click();
+  await expect(readouts).toHaveText([stored, stored]);
+  expect(downloads).toBe(3);
+  expect(await worker.evaluate(async (host) => ({
+    token: (await chrome.storage.local.get("gitlabs")).gitlabs[host].token,
+    font: (await chrome.storage.sync.get("settings")).settings.fontSize,
+  }), TOKEN_HOST)).toEqual({ token: "e2e-token", font: 15 });
+});
 
 test("indexes a test-file symbol on first click and reuses the result after reload", async ({ context, page }) => {
   await mockGithub(context);
@@ -448,12 +602,15 @@ test("indexes the workspace at a standalone GitHub commit", async ({ context, pa
   await page.getByRole("button", { name: "Index Go sources" }).click();
   const status = page.locator(".pt-set-row").filter({ hasText: "Code index" }).getByRole("status");
   await expect(status).toHaveText(/Indexed 22222222/);
-  const encoding = await worker.evaluate(async (repository) => {
+  const chunk = await worker.evaluate(async (repository) => {
     const cache = await caches.open("patchtree-index-v4");
     const key = (await cache.keys()).find((request) => request.url.startsWith(repository) && request.url.endsWith("&language=go"));
-    return key && (await cache.match(key))?.headers.get("X-Patchtree-Index-Encoding");
+    const name = key && (await cache.match(key))?.headers.get("X-Patchtree-Chunk-Cache");
+    if (!name) return;
+    const part = await caches.match("https://patchtree.invalid/index/1", { cacheName: name });
+    return part && [...new Uint8Array(await part.arrayBuffer()).subarray(0, 2)];
   }, repository);
-  expect(encoding).toBe("gzip");
+  expect(chunk).toEqual([31, 139]); // gzip header
   await page.locator("#pt-settings > summary").click();
   await page.locator('tr.pt-add[data-new="3"] .pt-code').evaluate((cell) => {
     const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
@@ -564,11 +721,12 @@ const clangSources = {
   "src/main.cpp": '#include "overload.hpp"\nint fromInt() { return choose(1); }\nint fromDouble() { return choose(1.0); }\nint local() { return fromInt(); }\n',
 };
 
-for (const [analyzer, changed, from, token, target, row] of [
+for (const [analyzer, changed, from, token, target, row, buildContext] of [
   ["JavaScript/TypeScript", ["src/main.js", "src/client.jsx"], "src/main.js", "chosen", "src/math.ts", 1],
   ["C/C++", ["src/main.c", "src/main.cpp"], "src/main.c", "value", "inc/config.h", 2],
+  ["C/C++", ["src/main.c", "src/main.cpp"], "src/main.c", "value", "inc/config.h", 2, true],
 ] as const) {
-  test(`indexes ${analyzer} in the extension and reopens its saved index`, async ({ context, page }) => {
+  test(`indexes ${analyzer}${buildContext ? " with build context" : ""} in the extension and reopens its saved index`, async ({ context, page }) => {
     await mockGithub(context);
     const head = "1".repeat(40);
     const sources: Record<string, string> = analyzer === "C/C++" ? clangSources : tsSources;
@@ -602,6 +760,30 @@ for (const [analyzer, changed, from, token, target, row] of [
       await caretOn(cell, name);
       await page.keyboard.press("Control+Enter");
     };
+    if (buildContext) {
+      const settings = page.locator("#pt-settings");
+      await settings.locator("summary").first().click();
+      const upload = async (revision: string) => {
+        const [picker] = await Promise.all([
+          page.waitForEvent("filechooser"),
+          settings.getByRole("button", { name: "Index with build context…" }).click(),
+        ]);
+        await picker.setFiles({
+          name: "context.tar.gz",
+          mimeType: "application/gzip",
+          buffer: tarGzip({ ...sources, "patchtree-build-context.json": JSON.stringify({ revision }) }),
+        });
+      };
+      const progress = settings.getByRole("progressbar", { name: "C/C++ indexing progress" });
+      await upload("2".repeat(40));
+      await expect(status).toHaveText(/Build context belongs to a different revision/);
+      await expect(progress).toBeHidden();
+      await upload(head);
+      await expect(progress).toBeVisible();
+      await expect(status).toHaveText("Indexed 11111111");
+      await expect(progress).toBeHidden();
+      await settings.locator("summary").first().click();
+    }
     const coldStart = Date.now();
     await goto(diffCell(from, analyzer === "C/C++" ? 2 : 3), token);
     await expect(definitions.getByRole("button", { name: `${target}:${row}`, exact: true })).toBeFocused({ timeout: 30_000 });
@@ -641,12 +823,14 @@ for (const [analyzer, changed, from, token, target, row] of [
     await expect(refs.locator(".pt-reference-row")).not.toHaveCount(0);
     await page.keyboard.press("Escape");
     if (analyzer === "C/C++") {
-      const settings = page.locator("#pt-settings");
-      await settings.locator("summary").first().click();
-      await expect(status).toHaveText(/Partially indexed/);
-      await settings.getByText("Indexing limitations", { exact: true }).click();
-      await expect(settings.getByText(/generated\.h.*file not found/)).toBeVisible();
-      await settings.locator("summary").first().click();
+      if (!buildContext) {
+        const settings = page.locator("#pt-settings");
+        await settings.locator("summary").first().click();
+        await expect(status).toHaveText(/Partially indexed/);
+        await settings.getByText("Indexing limitations", { exact: true }).click();
+        await expect(settings.getByText(/generated\.h.*file not found/)).toBeVisible();
+        await settings.locator("summary").first().click();
+      }
       for (const [line, destination] of [[2, 1], [3, 2]]) {
         await goto(diffCell("src/main.cpp", line), "choose");
         await expect(definitions.getByRole("button", { name: `inc/overload.hpp:${destination}` })).toBeFocused();
@@ -675,6 +859,151 @@ for (const [analyzer, changed, from, token, target, row] of [
     await goto(diffCell(from, analyzer === "C/C++" ? 2 : 3), token);
     await expect(definitions.getByRole("button", { name: `${target}:${row}`, exact: true })).toBeFocused();
     console.log(`${analyzer} reload + cached goto: ${Date.now() - warmStart} ms`);
-    expect(await worker.evaluate(() => (globalThis as typeof globalThis & { archiveDownloads: number }).archiveDownloads)).toBe(1);
+    if (buildContext) {
+      await page.keyboard.press("Escape");
+      const settings = page.locator("#pt-settings");
+      await settings.locator("summary").first().click();
+      await settings.getByText("Cache storage", { exact: true }).click();
+      await settings.getByRole("button", { name: "Clear indexes", exact: true }).click();
+      await expect(status).toBeEmpty();
+      await settings.getByRole("button", { name: "Index C/C++ sources" }).click();
+      await expect(status).toHaveText("Indexed 11111111");
+    }
+    expect(await worker.evaluate(() => (globalThis as typeof globalThis & { archiveDownloads: number }).archiveDownloads)).toBe(buildContext ? 0 : 1);
   });
 }
+
+test("reuses C/C++ analysis across merge requests and invalidates changed includes", async ({ context, page }) => {
+  await mockGitlab(context);
+  const source = [
+    '#if __has_include("alternative.h")', '#include "alternative.h"', "#else",
+    '#include "bridge.h"', "#endif", "int use(void) { return answer(); }",
+  ];
+  const sources = {
+    "compile_commands.json": JSON.stringify(["main", "other"].map((name) => ({
+      directory: "/project", file: `src/${name}.c`, arguments: ["clang", "-Iinc", `src/${name}.c`],
+    }))),
+    "src/main.c": `${source.join("\n")}\n`,
+    "src/other.c": "int independent(void) { return 2; }\n",
+    "inc/bridge.h": '#include "leaf.h"\n',
+    "inc/leaf.h": "static inline int answer(void) { return 1; }\n",
+  };
+  const heads = ["1", "2", "3"].map((digit) => digit.repeat(40));
+  const urls = heads.map((_, i) => `${HOST}/${PROJECT}/-/merge_requests/${201 + i}.diff`);
+  for (const [i, url] of urls.entries()) {
+    await context.route(url, (route) => route.fulfill({
+      contentType: "text/plain; charset=utf-8",
+      body: ["diff --git a/src/main.c b/src/main.c", "--- /dev/null", "+++ b/src/main.c",
+        "@@ -0,0 +1,6 @@", ...source.map((line) => `+${line}`), ""].join("\n"),
+    }));
+    await context.route(`**/merge_requests/${201 + i}`, (route) => route.fulfill({ json: {
+      title: "C++ review", state: "opened", source_project_id: 42,
+      diff_refs: { head_sha: heads[i], base_sha: "0".repeat(40), start_sha: "0".repeat(40) },
+    } }));
+  }
+  await context.addCookies([{ name: "_gitlab_session", value: "e2e-session", url: HOST }]);
+  const oldChunk = "patchtree-index-chunks-v1-0-test-eviction";
+  for (const [i, url] of urls.entries()) {
+    if (i === 2) {
+      const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+      await worker.evaluate(async (chunk) => {
+        const indexes = await caches.open("patchtree-index-v4");
+        await caches.open(chunk);
+        for (let n = 0; n < 8; n++) {
+          const headers = new Headers({ "X-Patchtree-Expires": String(Date.now() + 86400_000), "X-Patchtree-Size": "1" });
+          if (n === 0) headers.set("X-Patchtree-Chunk-Cache", chunk);
+          await indexes.put(`https://gitlab.example.com/older-index/${n}`, new Response("0", { headers }));
+        }
+      }, oldChunk);
+    }
+    await page.goto(url);
+    const settings = page.locator("#pt-settings");
+    const status = settings.locator(".pt-code-index-row [role=status]");
+    await settings.locator("summary").first().click();
+    const [picker] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      settings.getByRole("button", { name: "Index with build context…" }).click(),
+    ]);
+    await picker.setFiles({
+      name: "context.tar.gz", mimeType: "application/gzip",
+      buffer: tarGzip({
+        ...sources,
+        "inc/leaf.h": i ? `\n${sources["inc/leaf.h"]}` : sources["inc/leaf.h"],
+        ...(i === 2 ? { "inc/alternative.h": "static inline int answer(void) { return 3; }\n" } : {}),
+        "patchtree-build-context.json": JSON.stringify({ revision: heads[i] }),
+      }),
+    });
+    await expect(status).toHaveText(`Indexed ${heads[i].slice(0, 8)}`);
+    if (i) await expect(settings.getByText("Reused 1/2 C/C++ translation units")).toBeVisible();
+    await settings.locator("summary").first().click();
+
+    await caretOn(page.locator('.pt-unified tr[data-new="6"] .pt-code'), "answer");
+    await page.keyboard.press("Control+Enter");
+    await expect(page.getByRole("dialog", { name: "Go to definition" }).getByRole("button", {
+      name: ["inc/leaf.h:1", "inc/leaf.h:2", "inc/alternative.h:1"][i], exact: true,
+    })).toBeFocused();
+    await page.keyboard.press("Escape");
+  }
+  const worker = context.serviceWorkers()[0] ?? await context.waitForEvent("serviceworker");
+  expect(await worker.evaluate(async ({ chunk, head }) => {
+    const storage = await caches.open("patchtree-index-v4");
+    const keys = await storage.keys();
+    const current = await storage.match(keys.find((item) => item.url.includes(head))!);
+    const size = Number(current?.headers.get("X-Patchtree-Size"));
+    const body = await current!.blob();
+    return {
+      indexes: keys.length, oldChunk: await caches.has(chunk),
+      countedOnce: size === body.size + (JSON.parse(await body.text()) as { bytes: number }).bytes,
+    };
+  }, { chunk: oldChunk, head: heads[2] })).toEqual({ indexes: 8, oldChunk: false, countedOnce: true });
+  const settings = page.locator("#pt-settings");
+  await settings.locator("summary").first().click();
+  await settings.getByText("Cache storage", { exact: true }).click();
+  const reusable = settings.getByText(/Reusable analysis/);
+  await expect(reusable).toContainText("2 entries");
+  await settings.getByRole("button", { name: "Clear indexes", exact: true }).click();
+  await expect(reusable).toBeHidden();
+});
+
+test("reuses Go importers after a function body edit and updates moved definitions", async ({ context, page }) => {
+  await mockGitlab(context);
+  const call = "var result = shared.Value()";
+  const heads = ["1", "2", "3"].map((digit) => digit.repeat(40));
+  const reviews = heads.map((_, i) => `${HOST}/${PROJECT}/-/merge_requests/${301 + i}.diff`);
+  const archives = heads.map((_, i) => tarGzip({
+    "go.mod": "module example.com/demo\n",
+    "use.go": `package demo\nimport "example.com/demo/shared"\n${call}\n`,
+    "shared/def.go": `package shared\n${i === 2 ? "\n" : ""}func Value() int { return ${i ? 2 : 1} }\n`,
+    "other/value.go": "package other\nconst Independent = 1\n",
+  }));
+  await context.route(`${HOST}/api/v4/projects/**/repository/archive.tar.gz?**`, (route) => {
+    const sha = new URL(route.request().url()).searchParams.get("sha") ?? "";
+    return route.fulfill({ body: archives[heads.indexOf(sha)], contentType: "application/gzip" });
+  });
+  for (const [i, review] of reviews.entries()) {
+    await context.route(review, (route) => route.fulfill({
+      contentType: "text/plain",
+      body: `diff --git a/use.go b/use.go\n--- a/use.go\n+++ b/use.go\n@@ -1,2 +1,3 @@\n package demo\n import "example.com/demo/shared"\n+${call}\n`,
+    }));
+    await context.route(`**/merge_requests/${301 + i}`, (route) => route.fulfill({ json: {
+      title: "Go review", state: "opened", source_project_id: 42,
+      diff_refs: { head_sha: heads[i], base_sha: "0".repeat(40), start_sha: "0".repeat(40) },
+    } }));
+  }
+  await context.addCookies([{ name: "_gitlab_session", value: "e2e-session", url: HOST }]);
+  for (const [i, review] of reviews.entries()) {
+    await page.goto(review);
+    const settings = page.locator("#pt-settings");
+    await settings.locator("summary").first().click();
+    await settings.getByRole("button", { name: "Index Go sources" }).click();
+    await expect(settings.locator(".pt-code-index-row [role=status]")).toHaveText(`Indexed ${heads[i].slice(0, 8)}`);
+    if (i) await expect(settings.getByText(`Reused ${3 - i}/3 Go package variants`)).toBeVisible();
+    await settings.locator("summary").first().click();
+    await caretOn(page.locator('.pt-unified tr[data-new="3"] .pt-code'), "Value");
+    await page.keyboard.press("Control+Enter");
+    await expect(page.getByRole("dialog", { name: "Go to definition" }).getByRole("button", {
+      name: `shared/def.go:${i === 2 ? 3 : 2}`,
+    })).toBeFocused();
+    await page.keyboard.press("Escape");
+  }
+});
